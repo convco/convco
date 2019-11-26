@@ -1,6 +1,6 @@
 use crate::Error;
 use chrono::NaiveDate;
-use handlebars::{Handlebars, no_escape};
+use handlebars::{no_escape, Handlebars};
 use serde::{Deserialize, Serialize};
 use std::io;
 

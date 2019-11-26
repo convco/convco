@@ -6,8 +6,7 @@ use crate::{
     Error,
 };
 use semver::Version;
-use std::str::FromStr;
-use std::fmt;
+use std::{fmt, str::FromStr};
 
 enum Label {
     /// Bump minor version (0.1.0 -> 1.0.0)
@@ -17,7 +16,7 @@ enum Label {
     /// Bump the patch field (0.1.0 -> 0.1.1)
     Patch,
     /// Remove the pre-release extension; if any (0.1.0-dev.1 -> 0.1.0, 0.1.0 -> 0.1.0)
-    Release
+    Release,
 }
 
 impl fmt::Display for Label {
@@ -73,11 +72,11 @@ impl VersionCommand {
             (true, _, _) => {
                 last_version.increment_major();
                 Label::Major
-            },
+            }
             (false, true, _) => {
                 last_version.increment_minor();
                 Label::Minor
-            },
+            }
             (false, false, true) => {
                 last_version.increment_patch();
                 Label::Patch

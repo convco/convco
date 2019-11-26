@@ -40,3 +40,23 @@ jobs:
         with:
           name: convco-${{ matrix.os }}
           path: target/release/${{ matrix.binary }}
+
+      - name: Upload shell completions
+        if: matrix.os == 'ubuntu'
+        uses: actions/upload-artifact@v1
+        with:
+          name: convco-shell-completions
+          path: target/completions
+
+      - name: Debian package
+        if: matrix.os == 'ubuntu'
+        run: |
+          cargo install cargo-deb
+          cargo deb
+
+      - name: Upload Debian package
+        if: matrix.os == 'ubuntu'
+        uses: actions/upload-artifact@v1
+        with:
+          name: convco-deb
+          path: target/debian
