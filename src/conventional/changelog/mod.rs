@@ -156,7 +156,6 @@ pub(crate) struct ContextBase<'a> {
 
 pub(crate) struct ContextBuilder<'a> {
     handlebars: Handlebars,
-    config: &'a Config,
     pub(crate) context: ContextBase<'a>,
 }
 
@@ -166,7 +165,6 @@ impl<'a> ContextBuilder<'a> {
         handlebars
             .register_template_string("compare_url_format", config.compare_url_format.as_str())?;
         Ok(Self {
-            config,
             handlebars,
             context: ContextBase {
                 version: Default::default(),

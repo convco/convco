@@ -8,8 +8,9 @@ use crate::{
     Error,
 };
 
+use crate::conventional::changelog::Context;
 use semver::Version;
-use std::{collections::HashMap, io, str::FromStr};
+use std::{collections::HashMap, str::FromStr};
 
 #[derive(Debug)]
 struct Rev<'a>(&'a str, Option<&'a Version>);
@@ -20,16 +21,15 @@ impl<'a> From<&'a VersionAndTag> for Rev<'a> {
     }
 }
 
-impl ChangelogCommand {
-    fn make_changelog_for(
-        &self,
-        config: &Config,
-        writer: &mut ChangelogWriter<impl io::Write>,
-        helper: &GitHelper,
-        from_rev: &Rev<'_>,
-        to_rev: &Rev<'_>,
-    ) -> Result<(), Error> {
-        // TODO: this should be a parameter
+/// Transforms a range of commits to pass them to the changelog writer.
+struct ChangeLogTransformer<'a> {
+    group_types: HashMap<&'a str, &'a str>,
+    config: &'a Config,
+    git: &'a GitHelper,
+}
+
+impl<'a> ChangeLogTransformer<'a> {
+    fn new(config: &'a Config, git: &'a GitHelper) -> Self {
         let group_types =
             config
                 .types
@@ -39,9 +39,17 @@ impl ChangelogCommand {
                     acc.insert(ty.r#type.as_str(), ty.section.as_str());
                     acc
                 });
-        let mut revwalk = helper.revwalk()?;
+        Self {
+            config,
+            group_types,
+            git,
+        }
+    }
+
+    fn transform(&self, from_rev: &Rev<'a>, to_rev: &Rev<'a>) -> Result<Context<'a>, Error> {
+        let mut revwalk = self.git.revwalk()?;
         if to_rev.0 == "" {
-            let to_commit = helper.ref_to_commit(from_rev.0)?;
+            let to_commit = self.git.ref_to_commit(from_rev.0)?;
             revwalk.push(to_commit.id())?;
         } else {
             // reverse from and to as
@@ -51,7 +59,7 @@ impl ChangelogCommand {
         let mut version_date = None;
         for commit in revwalk
             .flatten()
-            .flat_map(|oid| helper.find_commit(oid).ok())
+            .flat_map(|oid| self.git.find_commit(oid).ok())
             .filter(|commit| commit.parent_count() <= 1)
         {
             if let Some(Ok(conv_commit)) =
@@ -67,7 +75,7 @@ impl ChangelogCommand {
                     subject,
                     short_hash,
                 };
-                if let Some(section) = group_types.get(conv_commit.r#type.as_ref()) {
+                if let Some(section) = self.group_types.get(conv_commit.r#type.as_ref()) {
                     if version_date.is_none() {
                         version_date = Some(date);
                     }
@@ -83,7 +91,7 @@ impl ChangelogCommand {
         };
         let is_patch = from_rev.1.map(|i| i.patch != 0).unwrap_or(false);
 
-        let mut builder = ContextBuilder::new(&config)?
+        let mut builder = ContextBuilder::new(self.config)?
             .version(version)
             .is_patch(is_patch)
             .commit_groups(
@@ -97,9 +105,7 @@ impl ChangelogCommand {
             builder = builder.date(date);
         }
 
-        let context = builder.build()?;
-        writer.write_template(&context)?;
-        Ok(())
+        Ok(builder.build()?)
     }
 }
 
@@ -118,9 +124,10 @@ impl Command for ChangelogCommand {
         let mut writer = ChangelogWriter { writer: stdout };
         writer.write_header(config.header.as_str())?;
 
+        let transformer = ChangeLogTransformer::new(&config, &helper);
+
         match helper.find_last_version(rev)? {
             Some(v) => {
-                let mut versions = helper.versions_from(&v);
                 let semver = Version::from_str(rev.trim_start_matches(&self.prefix));
                 let from_rev = if let Ok(ref semver) = &semver {
                     if helper.same_commit(rev, v.tag.as_str()) {
@@ -133,53 +140,23 @@ impl Command for ChangelogCommand {
                 } else {
                     Rev(rev, None)
                 };
-                let to_rev = versions.pop();
-                match to_rev {
-                    None => self.make_changelog_for(
-                        &config,
-                        &mut writer,
-                        &helper,
-                        &from_rev,
-                        &Rev("", None),
-                    )?,
-                    Some(tav) => {
-                        let mut rev = tav.into();
-                        self.make_changelog_for(&config, &mut writer, &helper, &from_rev, &rev)?;
-                        loop {
-                            let from_rev = rev;
-                            match versions.pop() {
-                                None => {
-                                    self.make_changelog_for(
-                                        &config,
-                                        &mut writer,
-                                        &helper,
-                                        &from_rev,
-                                        &Rev("", None),
-                                    )?;
-                                    break;
-                                }
-                                Some(tav) => {
-                                    rev = tav.into();
-                                    self.make_changelog_for(
-                                        &config,
-                                        &mut writer,
-                                        &helper,
-                                        &from_rev,
-                                        &rev,
-                                    )?;
-                                }
-                            }
-                        }
-                    }
+
+                let iter: Vec<Rev<'_>> = Some(from_rev)
+                    .into_iter()
+                    .chain(helper.versions_from(&v).into_iter().rev().map(|v| v.into()))
+                    .chain(Some(Rev("", None)))
+                    .collect();
+                for w in iter.windows(2) {
+                    let from = &w[0];
+                    let to = &w[1];
+                    let context = transformer.transform(from, to)?;
+                    writer.write_template(&context)?;
                 }
             }
-            None => self.make_changelog_for(
-                &config,
-                &mut writer,
-                &helper,
-                &Rev("HEAD", None),
-                &Rev("", None),
-            )?,
+            None => {
+                let context = transformer.transform(&Rev("HEAD", None), &Rev("", None))?;
+                writer.write_template(&context)?;
+            }
         }
         Ok(())
     }

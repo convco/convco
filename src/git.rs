@@ -1,4 +1,4 @@
-use git2::{Commit, Error, Oid, Repository, Revwalk};
+use git2::{Commit, Error, Object, Oid, Repository, Revwalk};
 use semver::Version;
 use std::{cmp::Ordering, collections::HashMap};
 
@@ -97,13 +97,10 @@ fn make_oid_version_map(repo: &Repository, prefix: &str) -> HashMap<Oid, Version
         .expect("some array");
     let mut map = HashMap::new();
     for tag in tags.iter().flatten().filter(|tag| tag.starts_with(prefix)) {
-        if let Ok(oid) = repo.revparse_single(tag).and_then(|obj| {
-            if let Some(tag) = obj.as_tag() {
-                Ok(tag.target_id())
-            } else {
-                Ok(obj.id())
-            }
-        }) {
+        if let Ok(oid) = repo
+            .revparse_single(tag)
+            .and_then(object_to_target_commit_id)
+        {
             if let Ok(version) = Version::parse(tag.trim_start_matches(prefix)) {
                 map.insert(
                     oid,
@@ -116,4 +113,12 @@ fn make_oid_version_map(repo: &Repository, prefix: &str) -> HashMap<Oid, Version
         }
     }
     map
+}
+
+fn object_to_target_commit_id(obj: Object<'_>) -> Result<Oid, Error> {
+    if let Some(tag) = obj.as_tag() {
+        Ok(tag.target_id())
+    } else {
+        Ok(obj.id())
+    }
 }
