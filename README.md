@@ -47,7 +47,9 @@ convco changelog > CHANGELOG.md
 
 #### TODO
 
-- [ ] automatic notes for breaking changes
+- [x] automatic notes for breaking changes
 - [ ] custom template folder
-- [ ] use a `.versionrc` file
-- [ ] limit to a range of versions
+- [x] use a `.versionrc` file
+- [x] limit to a range of versions
+- [ ] sort sections in changelog
+- [ ] issue references

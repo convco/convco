@@ -100,7 +100,9 @@ fn default_issue_prefixes() -> Vec<String> {
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub(crate) struct Type {
     pub(crate) r#type: String,
+    #[serde(default)]
     pub(crate) section: String,
+    #[serde(default)]
     pub(crate) hidden: bool,
 }
 
@@ -117,9 +119,16 @@ pub(crate) struct Reference<'a> {
     raw: &'a str,
 }
 
-pub(crate) struct Note<'a> {
-    title: &'a str,
-    text: &'a str,
+#[derive(Serialize)]
+pub(crate) struct Note {
+    pub(crate) scope: Option<String>,
+    pub(crate) text: String,
+}
+
+#[derive(Serialize)]
+pub(crate) struct NoteGroup {
+    pub(crate) title: String,
+    pub(crate) notes: Vec<Note>,
 }
 
 #[derive(Serialize)]
@@ -128,6 +137,7 @@ pub(crate) struct CommitContext {
     pub(crate) hash: String,
     pub(crate) date: NaiveDate,
     pub(crate) subject: String,
+    pub(crate) scope: Option<String>,
     pub(crate) short_hash: String,
 }
 
@@ -143,6 +153,12 @@ pub(crate) struct Context<'a> {
     #[serde(flatten)]
     pub(crate) context: ContextBase<'a>,
     pub(crate) compare_url_format: String,
+    pub(crate) commit_url_format: String,
+    pub(crate) issue_url_format: String,
+    pub(crate) release_commit_message_format: String,
+    pub(crate) user_url_format: String,
+    /// `true` if `previousTag` and `currentTag` are truthy.
+    pub(crate) link_compare: bool,
 }
 
 #[derive(Serialize)]
@@ -152,6 +168,9 @@ pub(crate) struct ContextBase<'a> {
     pub(crate) date: Option<NaiveDate>,
     pub(crate) is_patch: bool,
     pub(crate) commit_groups: Vec<CommitGroup<'a>>,
+    pub(crate) note_groups: Vec<NoteGroup>,
+    pub(crate) previous_tag: &'a str,
+    pub(crate) current_tag: &'a str,
 }
 
 pub(crate) struct ContextBuilder<'a> {
@@ -164,6 +183,15 @@ impl<'a> ContextBuilder<'a> {
         let mut handlebars = Handlebars::new();
         handlebars
             .register_template_string("compare_url_format", config.compare_url_format.as_str())?;
+        handlebars
+            .register_template_string("commit_url_format", config.commit_url_format.as_str())?;
+        handlebars
+            .register_template_string("issue_url_format", config.issue_url_format.as_str())?;
+        handlebars.register_template_string(
+            "release_commit_message_format",
+            config.release_commit_message_format.as_str(),
+        )?;
+        handlebars.register_template_string("user_url_format", config.user_url_format.as_str())?;
         Ok(Self {
             handlebars,
             context: ContextBase {
@@ -171,6 +199,9 @@ impl<'a> ContextBuilder<'a> {
                 date: Default::default(),
                 is_patch: Default::default(),
                 commit_groups: Default::default(),
+                note_groups: Default::default(),
+                previous_tag: "",
+                current_tag: "",
             },
         })
     }
@@ -195,13 +226,40 @@ impl<'a> ContextBuilder<'a> {
         self
     }
 
+    pub fn note_groups(mut self, note_groups: Vec<NoteGroup>) -> Self {
+        self.context.note_groups = note_groups;
+        self
+    }
+
+    pub fn previous_tag(mut self, previous_tag: &'a str) -> Self {
+        self.context.previous_tag = previous_tag;
+        self
+    }
+
+    pub fn current_tag(mut self, current_tag: &'a str) -> Self {
+        self.context.current_tag = current_tag;
+        self
+    }
+
     pub fn build(self) -> Result<Context<'a>, Error> {
         let compare_url_format = self
             .handlebars
             .render("compare_url_format", &self.context)?;
+        let commit_url_format = self.handlebars.render("commit_url_format", &self.context)?;
+        let issue_url_format = self.handlebars.render("issue_url_format", &self.context)?;
+        let release_commit_message_format = self
+            .handlebars
+            .render("release_commit_message_format", &self.context)?;
+        let user_url_format = self.handlebars.render("user_url_format", &self.context)?;
+        let link_compare = self.context.current_tag != "" && self.context.previous_tag != "";
         Ok(Context {
             context: self.context,
             compare_url_format,
+            commit_url_format,
+            issue_url_format,
+            release_commit_message_format,
+            user_url_format,
+            link_compare,
         })
     }
 }
@@ -218,11 +276,12 @@ impl<W: io::Write> ChangelogWriter<W> {
 
     pub fn write_template(&mut self, context: &Context<'_>) -> Result<(), Error> {
         let mut handlebars = Handlebars::new();
+        handlebars.set_strict_mode(true);
+
         handlebars.register_template_string("template", TEMPLATE)?;
         handlebars.register_partial("header", HEADER)?;
         handlebars.register_partial("commit", COMMIT)?;
         handlebars.register_partial("footer", FOOTER)?;
-        handlebars.set_strict_mode(true);
 
         let writer = &mut self.writer;
         handlebars.render_to_write("template", context, writer)?;
@@ -234,7 +293,7 @@ impl<W: io::Write> ChangelogWriter<W> {
 mod tests {
     use super::*;
 
-    use serde_json;
+    use serde_yaml;
 
     #[test]
     fn test() {
@@ -254,7 +313,7 @@ mod tests {
                 {"type": "ci", "section":"CI", "hidden":false}
               ]
             }"#;
-        let value: Config = serde_json::from_str(json).unwrap();
+        let value: Config = serde_yaml::from_str(json).unwrap();
         assert_eq!(
             value,
             Config {

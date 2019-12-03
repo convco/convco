@@ -22,4 +22,4 @@
 pub(crate) mod changelog;
 mod commits;
 
-pub(crate) use commits::{Commit, Type};
+pub(crate) use commits::{Commit, Footer, Type};

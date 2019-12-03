@@ -76,8 +76,8 @@ impl fmt::Display for Type {
 
 #[derive(Debug, PartialEq)]
 pub(crate) struct Footer {
-    key: String,
-    value: String,
+    pub(crate) key: String,
+    pub(crate) value: String,
 }
 
 #[derive(Debug, PartialEq)]

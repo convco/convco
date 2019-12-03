@@ -1,14 +1,15 @@
 use crate::{
     cli::ChangelogCommand,
     cmd::Command,
-    conventional::changelog::{
-        ChangelogWriter, CommitContext, CommitGroup, Config, ContextBuilder,
+    conventional::{
+        changelog::{ChangelogWriter, CommitContext, CommitGroup, Config, ContextBuilder},
+        Footer,
     },
     git::{GitHelper, VersionAndTag},
     Error,
 };
 
-use crate::conventional::changelog::Context;
+use crate::conventional::changelog::{Context, Note, NoteGroup};
 use semver::Version;
 use std::{collections::HashMap, str::FromStr};
 
@@ -46,6 +47,22 @@ impl<'a> ChangeLogTransformer<'a> {
         }
     }
 
+    fn make_notes(&self, footers: &'a [Footer], scope: Option<String>) -> Vec<(String, Note)> {
+        footers
+            .iter()
+            .filter(|footer| footer.key.starts_with("BREAKING"))
+            .map(|footer| {
+                (
+                    footer.key.clone(),
+                    Note {
+                        scope: scope.clone(),
+                        text: footer.value.clone(),
+                    },
+                )
+            })
+            .collect()
+    }
+
     fn transform(&self, from_rev: &Rev<'a>, to_rev: &Rev<'a>) -> Result<Context<'a>, Error> {
         let mut revwalk = self.git.revwalk()?;
         if to_rev.0 == "" {
@@ -56,6 +73,7 @@ impl<'a> ChangeLogTransformer<'a> {
             revwalk.push_range(format!("{}..{}", to_rev.0, from_rev.0).as_str())?;
         }
         let mut commits: HashMap<&str, Vec<CommitContext>> = HashMap::new();
+        let mut notes: HashMap<String, Vec<Note>> = HashMap::new();
         let mut version_date = None;
         for commit in revwalk
             .flatten()
@@ -65,13 +83,21 @@ impl<'a> ChangeLogTransformer<'a> {
             if let Some(Ok(conv_commit)) =
                 commit.message().map(crate::conventional::Commit::from_str)
             {
+                self.make_notes(&conv_commit.footers, conv_commit.scope.clone())
+                    .into_iter()
+                    .for_each(|(key, note)| {
+                        notes.entry(key).or_default().push(note);
+                    });
+
                 let hash = commit.id().to_string();
                 let date = chrono::NaiveDateTime::from_timestamp(commit.time().seconds(), 0).date();
+                let scope = conv_commit.scope;
                 let subject = conv_commit.description;
                 let short_hash = hash[..7].into();
                 let commit_context = CommitContext {
                     hash,
                     date,
+                    scope,
                     subject,
                     short_hash,
                 };
@@ -94,10 +120,18 @@ impl<'a> ChangeLogTransformer<'a> {
         let mut builder = ContextBuilder::new(self.config)?
             .version(version)
             .is_patch(is_patch)
+            .previous_tag(to_rev.0)
+            .current_tag(from_rev.0)
             .commit_groups(
                 commits
                     .into_iter()
                     .map(|(title, commits)| CommitGroup { title, commits })
+                    .collect(),
+            )
+            .note_groups(
+                notes
+                    .into_iter()
+                    .map(|(title, notes)| NoteGroup { title, notes })
                     .collect(),
             );
 
@@ -110,13 +144,29 @@ impl<'a> ChangeLogTransformer<'a> {
 }
 
 fn make_cl_config() -> Config {
-    Config::default()
+    std::fs::read(".versionrc")
+        .ok()
+        .and_then(|versionrc| serde_yaml::from_reader(versionrc.as_slice()).ok())
+        .unwrap_or_default()
 }
 
 impl Command for ChangelogCommand {
     fn exec(&self) -> Result<(), Error> {
         let helper = GitHelper::new(self.prefix.as_str())?;
+
         let rev = self.rev.as_str();
+        let (rev, rev_stop) = if rev.contains("..") {
+            let mut split = rev.split("..");
+            let low = split.next().unwrap_or("");
+            let hi = split
+                .next()
+                .map(|s| if s == "" { "HEAD" } else { s })
+                .unwrap_or("HEAD");
+            // FIXME hi and low are supposed to be a version tag.
+            (hi, low)
+        } else {
+            (rev, "")
+        };
 
         let config = make_cl_config();
         let stdout = std::io::stdout();
@@ -127,25 +177,44 @@ impl Command for ChangelogCommand {
         let transformer = ChangeLogTransformer::new(&config, &helper);
 
         match helper.find_last_version(rev)? {
-            Some(v) => {
+            Some(last_version) => {
                 let semver = Version::from_str(rev.trim_start_matches(&self.prefix));
                 let from_rev = if let Ok(ref semver) = &semver {
-                    if helper.same_commit(rev, v.tag.as_str()) {
-                        Rev(v.tag.as_str(), Some(semver))
+                    if helper.same_commit(rev, last_version.tag.as_str()) {
+                        Rev(last_version.tag.as_str(), Some(semver))
                     } else {
                         Rev(rev, Some(semver))
                     }
-                } else if helper.same_commit(rev, v.tag.as_str()) {
-                    Rev(v.tag.as_str(), Some(&v.version))
+                } else if helper.same_commit(rev, last_version.tag.as_str()) {
+                    Rev(last_version.tag.as_str(), Some(&last_version.version))
                 } else {
                     Rev(rev, None)
                 };
-
-                let iter: Vec<Rev<'_>> = Some(from_rev)
-                    .into_iter()
-                    .chain(helper.versions_from(&v).into_iter().rev().map(|v| v.into()))
-                    .chain(Some(Rev("", None)))
-                    .collect();
+                // TODO refactor this logic a bit to be less complicated.
+                //  if we have HEAD!=version tag - version tag - ...
+                //  or HEAD==version tag - version tag - ...
+                //  we have to use different logic here, or in the `GitHelper::versions_from` method.
+                let is_head = from_rev.0 == "HEAD";
+                let iter = Some(from_rev).into_iter();
+                let iter = if is_head {
+                    iter.chain(
+                        Some(Rev(last_version.tag.as_str(), Some(&last_version.version)))
+                            .into_iter(),
+                    )
+                } else {
+                    iter.chain(None)
+                };
+                let iter = iter
+                    .chain(
+                        helper
+                            .versions_from(&last_version)
+                            .into_iter()
+                            .rev()
+                            .take_while(|v| v.tag != rev_stop)
+                            .map(|v| v.into()),
+                    )
+                    .chain(Some(Rev("", None)));
+                let iter: Vec<Rev<'_>> = iter.collect();
                 for w in iter.windows(2) {
                     let from = &w[0];
                     let to = &w[1];
