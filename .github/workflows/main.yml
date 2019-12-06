@@ -1,0 +1,42 @@
+name: Build binary
+# This workflow is triggered on pushes to the repository.
+on: [push]
+
+jobs:
+  build:
+    name: Build
+    runs-on: ${{ matrix.os }}-latest
+    strategy:
+      matrix:
+        os:
+          - ubuntu
+          - windows
+          - macos
+        include:
+          - os: ubuntu
+            binary: convco
+          - os: macos
+            binary: convco
+          - os: windows
+            binary: convco.exe
+    steps:
+      - uses: actions/checkout@v1
+
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - name: Build ${{ matrix.os }} binary
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release
+
+      - name: Upload ${{ matrix.os }} binary
+        uses: actions/upload-artifact@v1
+        with:
+          name: convco-${{ matrix.os }}
+          path: target/release/${{ matrix.binary }}
