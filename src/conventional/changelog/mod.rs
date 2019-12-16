@@ -35,7 +35,7 @@ pub(crate) struct Config {
     release_commit_message_format: String,
     /// An array of prefixes used to detect references to issues
     #[serde(default = "default_issue_prefixes")]
-    issue_prefixes: Vec<String>,
+    pub(crate) issue_prefixes: Vec<String>,
 }
 
 impl Default for Config {
@@ -111,12 +111,14 @@ const HEADER: &str = include_str!("header.hbs");
 const FOOTER: &str = include_str!("footer.hbs");
 const COMMIT: &str = include_str!("commit.hbs");
 
+#[derive(Debug, Serialize)]
 pub(crate) struct Reference<'a> {
-    action: &'a str,
-    owner: &'a str,
-    repository: &'a str,
-    issue: &'a str,
-    raw: &'a str,
+    pub(crate) action: Option<String>,
+    pub(crate) owner: &'a str,
+    pub(crate) repository: &'a str,
+    pub(crate) prefix: String,
+    pub(crate) issue: String,
+    pub(crate) raw: String,
 }
 
 #[derive(Serialize)]
@@ -133,18 +135,19 @@ pub(crate) struct NoteGroup {
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct CommitContext {
+pub(crate) struct CommitContext<'a> {
     pub(crate) hash: String,
     pub(crate) date: NaiveDate,
     pub(crate) subject: String,
     pub(crate) scope: Option<String>,
     pub(crate) short_hash: String,
+    pub(crate) references: Vec<Reference<'a>>,
 }
 
 #[derive(Serialize)]
 pub(crate) struct CommitGroup<'a> {
     pub(crate) title: &'a str,
-    pub(crate) commits: Vec<CommitContext>,
+    pub(crate) commits: Vec<CommitContext<'a>>,
 }
 
 #[derive(Serialize)]

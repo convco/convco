@@ -52,4 +52,4 @@ convco changelog > CHANGELOG.md
 - [x] use a `.versionrc` file
 - [x] limit to a range of versions
 - [ ] sort sections in changelog
-- [ ] issue references
+- [x] issue references

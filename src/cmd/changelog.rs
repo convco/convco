@@ -9,7 +9,8 @@ use crate::{
     Error,
 };
 
-use crate::conventional::changelog::{Context, Note, NoteGroup};
+use crate::conventional::changelog::{Context, Note, NoteGroup, Reference};
+use regex::Regex;
 use semver::Version;
 use std::{collections::HashMap, str::FromStr};
 
@@ -25,6 +26,7 @@ impl<'a> From<&'a VersionAndTag> for Rev<'a> {
 /// Transforms a range of commits to pass them to the changelog writer.
 struct ChangeLogTransformer<'a> {
     group_types: HashMap<&'a str, &'a str>,
+    re_references: Regex,
     config: &'a Config,
     git: &'a GitHelper,
 }
@@ -40,10 +42,13 @@ impl<'a> ChangeLogTransformer<'a> {
                     acc.insert(ty.r#type.as_str(), ty.section.as_str());
                     acc
                 });
+        let re_references =
+            Regex::new(format!("({})([0-9]+)", config.issue_prefixes.join("|")).as_str()).unwrap();
         Self {
             config,
             group_types,
             git,
+            re_references,
         }
     }
 
@@ -94,12 +99,39 @@ impl<'a> ChangeLogTransformer<'a> {
                 let scope = conv_commit.scope;
                 let subject = conv_commit.description;
                 let short_hash = hash[..7].into();
+                let mut references = Vec::new();
+                if let Some(body) = conv_commit.body {
+                    references.extend(self.re_references.captures_iter(body.as_str()).map(
+                        |refer| Reference {
+                            // TODO action (the word before?)
+                            action: None,
+                            owner: "",
+                            repository: "",
+                            prefix: refer[1].to_owned(),
+                            issue: refer[2].to_owned(),
+                            raw: refer[0].to_owned(),
+                        },
+                    ));
+                }
+                references.extend(conv_commit.footers.iter().flat_map(|footer| {
+                    self.re_references
+                        .captures_iter(footer.value.as_str())
+                        .map(move |refer| Reference {
+                            action: Some(footer.key.clone()),
+                            owner: "",
+                            repository: "",
+                            prefix: refer[1].to_owned(),
+                            issue: refer[2].to_owned(),
+                            raw: refer[0].to_owned(),
+                        })
+                }));
                 let commit_context = CommitContext {
                     hash,
                     date,
                     scope,
                     subject,
                     short_hash,
+                    references,
                 };
                 if let Some(section) = self.group_types.get(conv_commit.r#type.as_ref()) {
                     if version_date.is_none() {

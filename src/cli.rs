@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
-#[structopt(name = "example", about = "An example of StructOpt usage.")]
+#[structopt(name = "convco", about = "Conventional commit tools")]
 pub struct Opt {
     /// Run as if git was started in <path> instead of the current working directory.
     #[structopt(short = "C", global = true)]
