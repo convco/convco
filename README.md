@@ -51,5 +51,5 @@ convco changelog > CHANGELOG.md
 - [ ] custom template folder
 - [x] use a `.versionrc` file
 - [x] limit to a range of versions
-- [ ] sort sections in changelog
+- [x] sort sections in changelog
 - [x] issue references

@@ -51,7 +51,6 @@ use_field_init_shorthand = true
 force_explicit_abi = true
 condense_wildcard_suffixes = false
 color = "Auto"
-required_version = "1.4.9"
 unstable_features = true
 disable_all_formatting = false
 skip_children = false

@@ -1,6 +1,6 @@
 use crate::Error;
 use chrono::NaiveDate;
-use handlebars::Handlebars;
+use handlebars::{Handlebars, no_escape};
 use serde::{Deserialize, Serialize};
 use std::io;
 
@@ -61,13 +61,13 @@ fn default_header() -> String {
 fn default_types() -> Vec<Type> {
     vec![
         Type {
-            r#type: "fix".into(),
-            section: "Fixes".into(),
+            r#type: "feat".into(),
+            section: "Features".into(),
             hidden: false,
         },
         Type {
-            r#type: "feat".into(),
-            section: "Features".into(),
+            r#type: "fix".into(),
+            section: "Fixes".into(),
             hidden: false,
         },
     ]
@@ -280,6 +280,7 @@ impl<W: io::Write> ChangelogWriter<W> {
     pub fn write_template(&mut self, context: &Context<'_>) -> Result<(), Error> {
         let mut handlebars = Handlebars::new();
         handlebars.set_strict_mode(true);
+        handlebars.register_escape_fn(no_escape);
 
         handlebars.register_template_string("template", TEMPLATE)?;
         handlebars.register_partial("header", HEADER)?;

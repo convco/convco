@@ -12,7 +12,7 @@ use crate::{
 use crate::conventional::changelog::{Context, Note, NoteGroup, Reference};
 use regex::Regex;
 use semver::Version;
-use std::{collections::HashMap, str::FromStr};
+use std::{cmp::Ordering, collections::HashMap, str::FromStr};
 
 #[derive(Debug)]
 struct Rev<'a>(&'a str, Option<&'a Version>);
@@ -148,18 +148,17 @@ impl<'a> ChangeLogTransformer<'a> {
             from_rev.0
         };
         let is_patch = from_rev.1.map(|i| i.patch != 0).unwrap_or(false);
-
+        let mut commit_groups: Vec<CommitGroup> = commits
+            .into_iter()
+            .map(|(title, commits)| CommitGroup { title, commits })
+            .collect();
+        commit_groups.sort_by(|a, b| self.sort_commit_groups(a, b));
         let mut builder = ContextBuilder::new(self.config)?
             .version(version)
             .is_patch(is_patch)
             .previous_tag(to_rev.0)
             .current_tag(from_rev.0)
-            .commit_groups(
-                commits
-                    .into_iter()
-                    .map(|(title, commits)| CommitGroup { title, commits })
-                    .collect(),
-            )
+            .commit_groups(commit_groups)
             .note_groups(
                 notes
                     .into_iter()
@@ -172,6 +171,22 @@ impl<'a> ChangeLogTransformer<'a> {
         }
 
         Ok(builder.build()?)
+    }
+
+    /// Sort commit groups based on how the configuration file contains them.
+    /// The index of the first section matching the commit group title will be used as ranking.
+    fn sort_commit_groups(&self, a: &CommitGroup, b: &CommitGroup) -> Ordering {
+        fn find_pos(this: &ChangeLogTransformer, title: &str) -> Option<usize> {
+            this.config
+                .types
+                .iter()
+                .enumerate()
+                .find(|(_, x)| x.section == title)
+                .map(|(i, _)| i)
+        }
+        let pos_a = find_pos(self, a.title);
+        let pos_b = find_pos(self, b.title);
+        pos_a.cmp(&pos_b)
     }
 }
 
