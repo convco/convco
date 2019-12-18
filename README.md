@@ -1,8 +1,11 @@
 # Convco
 
-Conventional commit cli
+A Conventional commit cli.
 
-`convco` gives tools to work with [Conventional Commits](https://www.conventionalcommits.org/). 
+`convco` gives tools to work with [Conventional Commits][1].
+
+The tool is still in early development.
+It provides already the following commands:
 
 - `convco check`: Checks if a range of commits is following the convention.
 - `convco version`: Finds out the current or next version.
@@ -39,7 +42,8 @@ convco version --bump
 ### Changelog
 
 A changelog can be generated using the conventional commits.
-For now it just prints out the features and fixes for each version.
+It is inspired by [conventional changelog][2].
+Configuration follows the [conventional-changelog-config-spec][3]
 
 ```sh
 convco changelog > CHANGELOG.md
@@ -53,3 +57,7 @@ convco changelog > CHANGELOG.md
 - [x] limit to a range of versions
 - [x] sort sections in changelog
 - [x] issue references
+
+[1]: https://www.conventionalcommits.org/
+[2]: https://github.com/conventional-changelog/conventional-changelog
+[3]: https://github.com/conventional-changelog/conventional-changelog-config-spec/blob/master/versions/2.1.0/README.md
