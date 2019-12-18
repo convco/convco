@@ -23,22 +23,25 @@ pub enum Command {
 
 #[derive(Debug, StructOpt)]
 pub struct VersionCommand {
-    /// Prefix used in front of the semantic version.
+    /// Prefix used in front of the semantic version
     #[structopt(short, long, default_value = "v")]
     pub prefix: String,
-    /// Revision to show the version for.
+    /// Revision to show the version for
     #[structopt(default_value = "HEAD")]
     pub rev: String,
     /// Get the next version
     #[structopt(short, long)]
     pub bump: bool,
-    /// Bump to a major release version, regardless of the conventional commits.
+    /// Instead of printing out the bumped version, prints out one of: major, minor or patch
+    #[structopt(short, long, conflicts_with_all(&["major", "minor", "patch"]))]
+    pub label: bool,
+    /// Bump to a major release version, regardless of the conventional commits
     #[structopt(long)]
     pub major: bool,
-    /// Bump to a minor release version, regardless of the conventional commits.
+    /// Bump to a minor release version, regardless of the conventional commits
     #[structopt(long)]
     pub minor: bool,
-    /// Bump to a patch release version, regardless of the conventional commits.
+    /// Bump to a patch release version, regardless of the conventional commits
     #[structopt(long)]
     pub patch: bool,
 }

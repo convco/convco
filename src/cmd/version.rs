@@ -7,6 +7,29 @@ use crate::{
 };
 use semver::Version;
 use std::str::FromStr;
+use std::fmt;
+
+enum Label {
+    /// Bump minor version (0.1.0 -> 1.0.0)
+    Major,
+    /// Bump minor version (0.1.0 -> 0.2.0)
+    Minor,
+    /// Bump the patch field (0.1.0 -> 0.1.1)
+    Patch,
+    /// Remove the pre-release extension; if any (0.1.0-dev.1 -> 0.1.0, 0.1.0 -> 0.1.0)
+    Release
+}
+
+impl fmt::Display for Label {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match *self {
+            Self::Major => write!(f, "major"),
+            Self::Minor => write!(f, "minor"),
+            Self::Patch => write!(f, "patch"),
+            Self::Release => write!(f, "release"),
+        }
+    }
+}
 
 impl VersionCommand {
     /// returns the versions under the given rev
@@ -19,7 +42,7 @@ impl VersionCommand {
         &self,
         last_v_tag: &str,
         mut last_version: Version,
-    ) -> Result<Version, Error> {
+    ) -> Result<(Version, Label), Error> {
         let prefix = self.prefix.as_str();
         let git = GitHelper::new(prefix)?;
         let mut revwalk = git.revwalk()?;
@@ -46,14 +69,23 @@ impl VersionCommand {
                 _ => (),
             }
         }
-        match (major, minor, patch) {
-            (true, _, _) => last_version.increment_major(),
-            (false, true, _) => last_version.increment_minor(),
-            (false, false, true) => last_version.increment_patch(),
+        let label = match (major, minor, patch) {
+            (true, _, _) => {
+                last_version.increment_major();
+                Label::Major
+            },
+            (false, true, _) => {
+                last_version.increment_minor();
+                Label::Minor
+            },
+            (false, false, true) => {
+                last_version.increment_patch();
+                Label::Patch
+            }
             // TODO what should be the behaviour? always increment patch? or stay on same version?
-            _ => (),
-        }
-        Ok(last_version)
+            _ => Label::Release,
+        };
+        Ok((last_version, label))
     }
 }
 
@@ -64,23 +96,27 @@ impl Command for VersionCommand {
                 if version.is_prerelease() {
                     version.pre.clear();
                     version.build.clear();
-                    version
+                    (version, Label::Release)
                 } else {
                     self.find_bump_version(tag.as_str(), version)?
                 }
             } else if self.major {
                 version.increment_major();
-                version
+                (version, Label::Major)
             } else if self.minor {
                 version.increment_minor();
-                version
+                (version, Label::Minor)
             } else if self.patch {
                 version.increment_patch();
-                version
+                (version, Label::Patch)
             } else {
-                version
+                (version, Label::Release)
             };
-            println!("{}", v);
+            if self.label {
+                println!("{}", v.1);
+            } else {
+                println!("{}", v.0);
+            }
         } else {
             println!("0.1.0");
         }
