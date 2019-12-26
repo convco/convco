@@ -2,26 +2,30 @@
 name = "convco"
 version = "0.1.0"
 description = "Conventional commit tools"
+keywords = ["conventional", "commit", "changelog", "semantic", "versioning"]
+categories = ["development-tools::build-utils"]
 readme = "README.md"
+repository = "https://github.com/hdevalke/convco.git"
 license = "MIT"
 authors = ["Hannes De Valkeneer <hannes@de-valkeneer.be>"]
 edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+exclude = [
+    ".*",
+]
 
 [dependencies]
 chrono = { version = "0.4.10", features = ["serde"] }
-git2 = {version = "0.10.2", default-features = false, features = [] }
+git2 = { version = "0.11.0", default-features = false, features = [] }
 handlebars = "2.0.2"
 lazy_static = "1.4.0"
 regex = "1.3.1"
 semver = { version = "0.9.0", features = ["serde"] }
-serde = { version = "1.0.103", features = ["derive"] }
+serde = { version = "1.0.104", features = ["derive"] }
 serde_yaml = "0.8.11"
 structopt = "0.3.5"
 
 [build-dependencies]
-structopt = "0.3.4"
+structopt = "0.3.5"
 
 [package.metadata.deb]
 depends = ""
