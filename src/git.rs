@@ -4,7 +4,7 @@ use std::{cmp::Ordering, collections::HashMap};
 
 /// git helper for common operations
 pub(crate) struct GitHelper {
-    repo: Repository,
+    pub(crate) repo: Repository,
     version_map: HashMap<Oid, VersionAndTag>,
 }
 
