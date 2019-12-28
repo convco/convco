@@ -10,6 +10,8 @@ use crate::{
 };
 
 use crate::conventional::changelog::{Context, Note, NoteGroup, Reference};
+use chrono::NaiveDate;
+use git2::Time;
 use regex::Regex;
 use semver::Version;
 use std::{cmp::Ordering, collections::HashMap, str::FromStr};
@@ -29,6 +31,10 @@ struct ChangeLogTransformer<'a> {
     re_references: Regex,
     config: &'a Config,
     git: &'a GitHelper,
+}
+
+fn date_from_time(time: &Time) -> NaiveDate {
+    chrono::NaiveDateTime::from_timestamp(time.seconds(), 0).date()
 }
 
 impl<'a> ChangeLogTransformer<'a> {
@@ -68,6 +74,23 @@ impl<'a> ChangeLogTransformer<'a> {
             .collect()
     }
 
+    fn find_version_date(&self, spec: &str) -> Result<NaiveDate, Error> {
+        let obj = self.git.repo.revparse_single(spec)?;
+        Ok(
+            if let Some(date) = obj
+                .as_tag()
+                .and_then(|tag| tag.tagger())
+                .map(|tagger| tagger.when())
+                .map(|time| date_from_time(&time))
+            {
+                date
+            } else {
+                let commit = obj.peel_to_commit()?;
+                date_from_time(&commit.time())
+            },
+        )
+    }
+
     fn transform(&self, from_rev: &Rev<'a>, to_rev: &Rev<'a>) -> Result<Context<'a>, Error> {
         let mut revwalk = self.git.revwalk()?;
         if to_rev.0 == "" {
@@ -79,7 +102,7 @@ impl<'a> ChangeLogTransformer<'a> {
         }
         let mut commits: HashMap<&str, Vec<CommitContext>> = HashMap::new();
         let mut notes: HashMap<String, Vec<Note>> = HashMap::new();
-        let mut version_date = None;
+        let version_date = self.find_version_date(from_rev.0)?;
         for commit in revwalk
             .flatten()
             .flat_map(|oid| self.git.find_commit(oid).ok())
@@ -134,9 +157,6 @@ impl<'a> ChangeLogTransformer<'a> {
                     references,
                 };
                 if let Some(section) = self.group_types.get(conv_commit.r#type.as_ref()) {
-                    if version_date.is_none() {
-                        version_date = Some(date);
-                    }
                     commits.entry(section).or_default().push(commit_context)
                 }
             }
@@ -165,10 +185,7 @@ impl<'a> ChangeLogTransformer<'a> {
                     .map(|(title, notes)| NoteGroup { title, notes })
                     .collect(),
             );
-
-        if let Some(date) = version_date {
-            builder = builder.date(date);
-        }
+        builder = builder.date(version_date);
 
         Ok(builder.build()?)
     }
