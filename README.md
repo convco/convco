@@ -1,5 +1,8 @@
 # Convco
 
+![GitHub Workflow Status](https://img.shields.io/github/workflow/status/hdevalke/convco/Build%20binary)
+[![Crates.io](https://img.shields.io/crates/v/convco)](https://crates.io/crates/convco)
+
 A Conventional commit cli.
 
 `convco` gives tools to work with [Conventional Commits][1].
