@@ -100,7 +100,7 @@ impl<'a> ChangeLogTransformer<'a> {
             // reverse from and to as
             revwalk.push_range(format!("{}..{}", to_rev.0, from_rev.0).as_str())?;
         }
-        let mut commits: HashMap<&str, Vec<CommitContext>> = HashMap::new();
+        let mut commits: HashMap<&str, Vec<CommitContext<'_>>> = HashMap::new();
         let mut notes: HashMap<String, Vec<Note>> = HashMap::new();
         let version_date = self.find_version_date(from_rev.0)?;
         for commit in revwalk
@@ -168,7 +168,7 @@ impl<'a> ChangeLogTransformer<'a> {
             from_rev.0
         };
         let is_patch = from_rev.1.map(|i| i.patch != 0).unwrap_or(false);
-        let mut commit_groups: Vec<CommitGroup> = commits
+        let mut commit_groups: Vec<CommitGroup<'_>> = commits
             .into_iter()
             .map(|(title, commits)| CommitGroup { title, commits })
             .collect();
@@ -192,8 +192,8 @@ impl<'a> ChangeLogTransformer<'a> {
 
     /// Sort commit groups based on how the configuration file contains them.
     /// The index of the first section matching the commit group title will be used as ranking.
-    fn sort_commit_groups(&self, a: &CommitGroup, b: &CommitGroup) -> Ordering {
-        fn find_pos(this: &ChangeLogTransformer, title: &str) -> Option<usize> {
+    fn sort_commit_groups(&self, a: &CommitGroup<'_>, b: &CommitGroup<'_>) -> Ordering {
+        fn find_pos(this: &ChangeLogTransformer<'_>, title: &str) -> Option<usize> {
             this.config
                 .types
                 .iter()

@@ -106,10 +106,10 @@ pub(crate) struct Type {
     pub(crate) hidden: bool,
 }
 
-const TEMPLATE: &str = include_str!("template.hbs");
-const HEADER: &str = include_str!("header.hbs");
-const FOOTER: &str = include_str!("footer.hbs");
-const COMMIT: &str = include_str!("commit.hbs");
+const TEMPLATE: &str = include_str!("changelog/template.hbs");
+const HEADER: &str = include_str!("changelog/header.hbs");
+const FOOTER: &str = include_str!("changelog/footer.hbs");
+const COMMIT: &str = include_str!("changelog/commit.hbs");
 
 #[derive(Debug, Serialize)]
 pub(crate) struct Reference<'a> {
