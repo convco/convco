@@ -7,7 +7,7 @@ mod conventional;
 mod error;
 mod git;
 
-use crate::{cmd::Command, error::Error};
+pub(crate) use crate::{cmd::Command, error::Error};
 
 use std::process::exit;
 use structopt::StructOpt;
@@ -21,6 +21,7 @@ fn main() -> Result<(), Error> {
         cli::Command::Check(cmd) => cmd.exec(),
         cli::Command::Changelog(cmd) => cmd.exec(),
         cli::Command::Version(cmd) => cmd.exec(),
+        cli::Command::Commit(cmd) => cmd.exec(),
     };
     match res {
         Err(e) => {

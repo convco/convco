@@ -10,15 +10,26 @@ A Conventional commit cli.
 The tool is still in early development.
 It provides already the following commands:
 
-- `convco check`: Checks if a range of commits is following the convention.
-- `convco version`: Finds out the current or next version.
 - `convco changelog`: Create a changelog file.
+- `convco check`: Checks if a range of commits is following the convention.
+- `convco commit`: Helps to make conventional commits.
+- `convco version`: Finds out the current or next version.
 
 ## Installation
 
 `cargo install convco`
 
 ## Tools
+
+### Changelog
+
+A changelog can be generated using the conventional commits.
+It is inspired by [conventional changelog][2].
+Configuration follows the [conventional-changelog-config-spec][3]
+
+```sh
+convco changelog > CHANGELOG.md
+```
 
 ### Check
 
@@ -31,6 +42,16 @@ This is useful in a pre-push hook.
 convco check $remote_sha..$local_sha
 ```
 
+### Commit
+
+Helps to make conventional commits.
+A scope, description, body, breaking change and issues will be prompted.
+
+```sh
+# commit a new feature and then run git commit with the interactive patch switch
+convco commit --feat -- --patch
+```
+
 ### Version
 
 When no options are given it will return the current version.
@@ -40,16 +61,6 @@ If needed one can provide `--major`, `--minor` or `--patch` to overrule the conv
 
 ```sh
 convco version --bump
-```
-
-### Changelog
-
-A changelog can be generated using the conventional commits.
-It is inspired by [conventional changelog][2].
-Configuration follows the [conventional-changelog-config-spec][3]
-
-```sh
-convco changelog > CHANGELOG.md
 ```
 
 #### TODO
