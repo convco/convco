@@ -1,6 +1,6 @@
 [package]
 name = "convco"
-version = "0.1.1"
+version = "0.2.0"
 description = "Conventional commit tools"
 keywords = ["conventional", "commit", "changelog", "semantic", "versioning"]
 categories = ["development-tools::build-utils"]
@@ -16,16 +16,16 @@ exclude = [
 [dependencies]
 chrono = { version = "0.4.10", features = ["serde"] }
 git2 = { version = "0.11.0", default-features = false, features = [] }
-handlebars = "2.0.2"
+handlebars = "2.0.4"
 lazy_static = "1.4.0"
-regex = "1.3.1"
+regex = "1.3.2"
 semver = { version = "0.9.0", features = ["serde"] }
 serde = { version = "1.0.104", features = ["derive"] }
 serde_yaml = "0.8.11"
-structopt = "0.3.5"
+structopt = "0.3.7"
 
 [build-dependencies]
-structopt = "0.3.5"
+structopt = "0.3.7"
 
 [package.metadata.deb]
 depends = ""
