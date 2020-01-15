@@ -2,14 +2,15 @@ use crate::{
     cli::ChangelogCommand,
     cmd::Command,
     conventional::{
-        changelog::{ChangelogWriter, CommitContext, CommitGroup, Config, ContextBuilder},
+        changelog::{
+            ChangelogWriter, CommitContext, CommitGroup, Config, Context, ContextBuilder, Note,
+            NoteGroup, Reference,
+        },
         Footer,
     },
     git::{GitHelper, VersionAndTag},
     Error,
 };
-
-use crate::conventional::changelog::{Context, Note, NoteGroup, Reference};
 use chrono::NaiveDate;
 use git2::Time;
 use regex::Regex;
@@ -277,7 +278,7 @@ impl Command for ChangelogCommand {
                             .take_while(|v| v.tag != rev_stop)
                             .map(|v| v.into()),
                     )
-                    .chain(Some(Rev("", None)));
+                    .chain(Some(Rev(rev_stop, None)));
                 let iter: Vec<Rev<'_>> = iter.collect();
                 for w in iter.windows(2) {
                     let from = &w[0];
