@@ -37,6 +37,17 @@ impl VersionCommand {
         Ok(GitHelper::new(prefix)?.find_last_version(self.rev.as_str())?)
     }
 
+    /// Find the bump version based on the conventional commit types.
+    ///
+    /// - `fix` type commits are translated to PATCH releases.
+    /// - `feat` type commits are translated to MINOR releases.
+    /// - Commits with `BREAKING CHANGE` in the commits, regardless of type, are translated to MAJOR releases.
+    ///
+    /// If the project is in major version zero (0.y.z) the rules are:
+    ///
+    /// - `fix` type commits are translated to PATCH releases.
+    /// - `feat` type commits are translated to PATCH releases.
+    /// - Commits with `BREAKING CHANGE` in the commits, regardless of type, are translated to MINOR releases.
     fn find_bump_version(
         &self,
         last_v_tag: &str,
@@ -55,16 +66,21 @@ impl VersionCommand {
         let mut minor = false;
         let mut patch = false;
 
+        let major_version_zero = last_version.major == 0;
+
         for commit in i {
             if commit.breaking {
-                major = true;
+                if major_version_zero {
+                    minor = true;
+                } else {
+                    major = true;
+                }
                 break;
             }
-            match commit.r#type {
-                Type::Feat => {
-                    minor = true;
-                }
-                Type::Fix => patch = true,
+            match (commit.r#type, major_version_zero) {
+                (Type::Feat, true) => patch = true,
+                (Type::Feat, false) => minor = true,
+                (Type::Fix, _) => patch = true,
                 _ => (),
             }
         }
