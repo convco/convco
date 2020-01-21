@@ -57,20 +57,7 @@ impl From<&str> for Type {
 
 impl fmt::Display for Type {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Build => write!(f, "build"),
-            Self::Chore => write!(f, "chore"),
-            Self::Ci => write!(f, "ci"),
-            Self::Docs => write!(f, "docs"),
-            Self::Feat => write!(f, "feat"),
-            Self::Fix => write!(f, "fix"),
-            Self::Perf => write!(f, "perf"),
-            Self::Refactor => write!(f, "refactor"),
-            Self::Revert => write!(f, "revert"),
-            Self::Style => write!(f, "style"),
-            Self::Test => write!(f, "test"),
-            Self::Custom(noun) => write!(f, "{}", noun),
-        }
+        write!(f, "{}", self.as_ref())
     }
 }
 
@@ -92,9 +79,7 @@ pub(crate) struct Commit {
 
 impl fmt::Display for Commit {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.r#type)?;
-
-        Ok(())
+        write!(f, "{}", self.r#type)
     }
 }
 
