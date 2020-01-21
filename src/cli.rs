@@ -66,34 +66,64 @@ pub struct ChangelogCommand {
 #[derive(Debug, StructOpt)]
 pub struct CommitCommand {
     /// A bug fix
-    #[structopt(long, conflicts_with_all(&["feat", "build", "chore", "ci", "docs", "style", "refactor", "perf", "test"]))]
+    #[structopt(long,
+        conflicts_with_all(&["feat", "build", "chore", "ci", "docs", "style", "refactor", "perf", "test"]),
+        required_unless_one(&["feat", "build", "chore", "ci", "docs", "style", "refactor", "perf", "test"])
+    )]
     pub fix: bool,
     /// A new feature
-    #[structopt(long, conflicts_with_all(&["fix", "build", "chore", "ci", "docs", "style", "refactor", "perf", "test"]))]
+    #[structopt(long,
+        conflicts_with_all(&["fix", "build", "chore", "ci", "docs", "style", "refactor", "perf", "test"]),
+        required_unless_one(&["fix", "build", "chore", "ci", "docs", "style", "refactor", "perf", "test"])
+    )]
     pub feat: bool,
     /// Changes that affect the build system or external dependencies
-    #[structopt(long, conflicts_with_all(&["feat", "fix", "chore", "ci", "docs", "style", "refactor", "perf", "test"]))]
+    #[structopt(long,
+        conflicts_with_all(&["feat", "fix", "chore", "ci", "docs", "style", "refactor", "perf", "test"]),
+        required_unless_one(&["feat", "fix", "chore", "ci", "docs", "style", "refactor", "perf", "test"])
+    )]
     pub build: bool,
     /// Other changes that don't modify src or test files
-    #[structopt(long, conflicts_with_all(&["feat", "fix", "build", "ci", "docs", "style", "refactor", "perf", "test"]))]
+    #[structopt(long,
+        conflicts_with_all(&["feat", "fix", "build", "ci", "docs", "style", "refactor", "perf", "test"]),
+        required_unless_one(&["feat", "fix", "build", "ci", "docs", "style", "refactor", "perf", "test"])
+    )]
     pub chore: bool,
     /// Changes to CI configuration files and scripts
-    #[structopt(long, conflicts_with_all(&["feat", "fix", "build", "chore", "docs", "style", "refactor", "perf", "test"]))]
+    #[structopt(long,
+        conflicts_with_all(&["feat", "fix", "build", "chore", "docs", "style", "refactor", "perf", "test"]),
+        required_unless_one(&["feat", "fix", "build", "chore", "docs", "style", "refactor", "perf", "test"])
+    )]
     pub ci: bool,
     /// Documentation only changes
-    #[structopt(long, conflicts_with_all(&["feat", "fix", "build", "chore", "ci", "style", "refactor", "perf", "test"]))]
+    #[structopt(long,
+        conflicts_with_all(&["feat", "fix", "build", "chore", "ci", "style", "refactor", "perf", "test"]),
+        required_unless_one(&["feat", "fix", "build", "chore", "ci", "style", "refactor", "perf", "test"])
+    )]
     pub docs: bool,
     /// Changes that do not affect the meaning of the code (e.g. formatting)
-    #[structopt(long, conflicts_with_all(&["feat", "fix", "build", "chore", "ci", "docs", "refactor", "perf", "test"]))]
+    #[structopt(long,
+        conflicts_with_all(&["feat", "fix", "build", "chore", "ci", "docs", "refactor", "perf", "test"]),
+        required_unless_one(&["feat", "fix", "build", "chore", "ci", "docs", "refactor", "perf", "test"])
+    )]
     pub style: bool,
     /// A code change that neither fixes a bug nor adds a feature
-    #[structopt(long, conflicts_with_all(&["feat", "fix", "build", "chore", "ci", "docs", "style", "perf", "test"]))]
+    #[structopt(long,
+        conflicts_with_all(&["feat", "fix", "build", "chore", "ci", "docs", "style", "perf", "test"]),
+        required_unless_one(&["feat", "fix", "build", "chore", "ci", "docs", "style", "perf", "test"])
+    )]
     pub refactor: bool,
     /// A code change that improves performance
-    #[structopt(long, conflicts_with_all(&["feat", "fix", "build", "chore", "ci", "docs", "style", "refactor", "test"]))]
+    #[structopt(long,
+        conflicts_with_all(&["feat", "fix", "build", "chore", "ci", "docs", "style", "refactor", "test"]),
+        required_unless_one(&["feat", "fix", "build", "chore", "ci", "docs", "style", "refactor", "test"]),
+    )]
     pub perf: bool,
     /// Adding missing tests or correcting existing tests
-    #[structopt(long, conflicts_with_all(&["feat", "fix", "build", "chore", "ci", "docs", "style", "refactor", "perf"]))]
+    #[structopt(long,
+        conflicts_with_all(&["feat", "fix", "build", "chore", "ci", "docs", "style", "refactor", "perf"]),
+        required_unless_one(&["feat", "fix", "build", "chore", "ci", "docs", "style", "refactor", "perf"])
+    )]
     pub test: bool,
     /// Introduces a breaking change
     #[structopt(long)]
