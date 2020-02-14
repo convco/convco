@@ -87,6 +87,15 @@ impl GitHelper {
                 _ => false,
             }
     }
+
+    /// return the host of the repo
+    pub(crate) fn url(&self) -> Result<Option<String>, Error> {
+        Ok(self
+            .repo
+            .find_remote("origin")?
+            .url()
+            .map(|s| s.to_string()))
+    }
 }
 
 /// Build a hashmap that contains Commit `Oid` as key and `Version` as value.

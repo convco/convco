@@ -1,8 +1,9 @@
-use crate::Error;
+use crate::{git::GitHelper, Error};
 use chrono::NaiveDate;
 use handlebars::{no_escape, Handlebars};
 use serde::{Deserialize, Serialize};
 use std::io;
+use url::Url;
 
 /// [Conventional Changelog Configuration](https://github.com/conventional-changelog/conventional-changelog-config-spec/blob/master/versions/2.1.0/README.md)
 /// Describes the configuration options supported by conventional-config for upstream tooling.
@@ -174,15 +175,18 @@ pub(crate) struct ContextBase<'a> {
     pub(crate) note_groups: Vec<NoteGroup>,
     pub(crate) previous_tag: &'a str,
     pub(crate) current_tag: &'a str,
+    pub(crate) host: Option<String>,
+    pub(crate) owner: Option<String>,
+    pub(crate) repository: Option<String>,
 }
 
 pub(crate) struct ContextBuilder<'a> {
-    handlebars: Handlebars,
+    handlebars: Handlebars<'a>,
     pub(crate) context: ContextBase<'a>,
 }
 
 impl<'a> ContextBuilder<'a> {
-    pub fn new(config: &'a Config) -> Result<ContextBuilder<'a>, Error> {
+    pub fn new(config: &'a Config, git: &'a GitHelper) -> Result<ContextBuilder<'a>, Error> {
         let mut handlebars = Handlebars::new();
         handlebars
             .register_template_string("compare_url_format", config.compare_url_format.as_str())?;
@@ -195,6 +199,8 @@ impl<'a> ContextBuilder<'a> {
             config.release_commit_message_format.as_str(),
         )?;
         handlebars.register_template_string("user_url_format", config.user_url_format.as_str())?;
+        let (host, owner, repository) = Self::host_info(git)?;
+
         Ok(Self {
             handlebars,
             context: ContextBase {
@@ -205,8 +211,41 @@ impl<'a> ContextBuilder<'a> {
                 note_groups: Default::default(),
                 previous_tag: "",
                 current_tag: "",
+                host,
+                owner,
+                repository,
             },
         })
+    }
+
+    fn host_info(
+        git: &'a GitHelper,
+    ) -> Result<(Option<String>, Option<String>, Option<String>), Error> {
+        if let Some(mut url) = git.url()? {
+            if !url.contains("://") {
+                // check if it contains a port
+                if let Some(colon) = url.find(":") {
+                    match url.as_bytes()[colon + 1] {
+                        b'0'..=b'9' => url = format!("scheme://{}", url),
+                        _ => url = format!("scheme://{}/{}", &url[..colon], &url[colon + 1..]),
+                    }
+                }
+            }
+            let url = Url::parse(url.as_str())?;
+            let host = url.host().map(|h| format!("https://{}", h));
+            let mut owner = None;
+            let mut repository = None;
+            if let Some(mut segments) = url.path_segments() {
+                owner = segments.next().map(|s| s.to_string());
+                repository = segments
+                    .next()
+                    .map(|s: &str| s.trim_end_matches(".git").to_string());
+            }
+
+            Ok((host, owner, repository))
+        } else {
+            Ok((None, None, None))
+        }
     }
 
     pub fn version(mut self, version: &'a str) -> Self {

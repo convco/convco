@@ -174,7 +174,7 @@ impl<'a> ChangeLogTransformer<'a> {
             .map(|(title, commits)| CommitGroup { title, commits })
             .collect();
         commit_groups.sort_by(|a, b| self.sort_commit_groups(a, b));
-        let mut builder = ContextBuilder::new(self.config)?
+        let mut builder = ContextBuilder::new(self.config, self.git)?
             .version(version)
             .is_patch(is_patch)
             .previous_tag(to_rev.0)

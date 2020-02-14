@@ -1,5 +1,6 @@
 use handlebars::{RenderError, TemplateError};
 use std::{fmt, io};
+use url::ParseError;
 
 #[derive(Debug)]
 pub(crate) enum Error {
@@ -7,6 +8,7 @@ pub(crate) enum Error {
     Io(io::Error),
     Template(TemplateError),
     Render(RenderError),
+    Url(ParseError),
     Check,
 }
 
@@ -17,6 +19,7 @@ impl fmt::Display for Error {
             Self::Io(ref e) => write!(f, "{}", e),
             Self::Template(ref e) => write!(f, "{}", e),
             Self::Render(ref e) => write!(f, "{}", e),
+            Self::Url(ref e) => write!(f, "{}", e),
             Self::Check => write!(f, "check error"),
         }
     }
@@ -29,6 +32,7 @@ impl std::error::Error for Error {
             Self::Io(ref e) => Some(e),
             Self::Template(ref e) => Some(e),
             Self::Render(ref e) => Some(e),
+            Self::Url(ref e) => Some(e),
             Self::Check => None,
         }
     }
@@ -55,5 +59,11 @@ impl From<TemplateError> for Error {
 impl From<RenderError> for Error {
     fn from(e: RenderError) -> Self {
         Self::Render(e)
+    }
+}
+
+impl From<ParseError> for Error {
+    fn from(e: ParseError) -> Self {
+        Self::Url(e)
     }
 }
