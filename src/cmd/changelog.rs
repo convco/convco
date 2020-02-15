@@ -3,8 +3,8 @@ use crate::{
     cmd::Command,
     conventional::{
         changelog::{
-            ChangelogWriter, CommitContext, CommitGroup, Config, Context, ContextBuilder, Note,
-            NoteGroup, Reference,
+            ChangelogWriter, CommitContext, CommitGroup, Config, Context, ContextBase,
+            ContextBuilder, Note, NoteGroup, Reference,
         },
         Footer,
     },
@@ -16,6 +16,7 @@ use git2::Time;
 use regex::Regex;
 use semver::Version;
 use std::{cmp::Ordering, collections::HashMap, str::FromStr};
+use url::Url;
 
 #[derive(Debug)]
 struct Rev<'a>(&'a str, Option<&'a Version>);
@@ -32,6 +33,7 @@ struct ChangeLogTransformer<'a> {
     re_references: Regex,
     config: &'a Config,
     git: &'a GitHelper,
+    context_builder: ContextBuilder<'a>,
 }
 
 fn date_from_time(time: &Time) -> NaiveDate {
@@ -39,7 +41,7 @@ fn date_from_time(time: &Time) -> NaiveDate {
 }
 
 impl<'a> ChangeLogTransformer<'a> {
-    fn new(config: &'a Config, git: &'a GitHelper) -> Self {
+    fn new(config: &'a Config, git: &'a GitHelper) -> Result<Self, Error> {
         let group_types =
             config
                 .types
@@ -51,12 +53,14 @@ impl<'a> ChangeLogTransformer<'a> {
                 });
         let re_references =
             Regex::new(format!("({})([0-9]+)", config.issue_prefixes.join("|")).as_str()).unwrap();
-        Self {
+        let context_builder = ContextBuilder::new(config)?;
+        Ok(Self {
             config,
             group_types,
             git,
             re_references,
-        }
+            context_builder,
+        })
     }
 
     fn make_notes(&self, footers: &'a [Footer], scope: Option<String>) -> Vec<(String, Note)> {
@@ -174,21 +178,29 @@ impl<'a> ChangeLogTransformer<'a> {
             .map(|(title, commits)| CommitGroup { title, commits })
             .collect();
         commit_groups.sort_by(|a, b| self.sort_commit_groups(a, b));
-        let mut builder = ContextBuilder::new(self.config, self.git)?
-            .version(version)
-            .is_patch(is_patch)
-            .previous_tag(to_rev.0)
-            .current_tag(from_rev.0)
-            .commit_groups(commit_groups)
-            .note_groups(
-                notes
-                    .into_iter()
-                    .map(|(title, notes)| NoteGroup { title, notes })
-                    .collect(),
-            );
-        builder = builder.date(version_date);
-
-        Ok(builder.build()?)
+        let note_groups: Vec<NoteGroup> = notes
+            .into_iter()
+            .map(|(title, notes)| NoteGroup { title, notes })
+            .collect();
+        let Config {
+            host,
+            owner,
+            repository,
+            ..
+        } = self.config;
+        let context_base = ContextBase {
+            version,
+            date: Some(version_date),
+            is_patch,
+            commit_groups,
+            note_groups,
+            previous_tag: to_rev.0,
+            current_tag: from_rev.0,
+            host: host.to_owned(),
+            owner: owner.to_owned(),
+            repository: repository.to_owned(),
+        };
+        self.context_builder.build(context_base)
     }
 
     /// Sort commit groups based on how the configuration file contains them.
@@ -208,11 +220,56 @@ impl<'a> ChangeLogTransformer<'a> {
     }
 }
 
-fn make_cl_config() -> Config {
-    std::fs::read(".versionrc")
+fn make_cl_config(git: &GitHelper) -> Config {
+    let mut config: Config = std::fs::read(".versionrc")
         .ok()
         .and_then(|versionrc| serde_yaml::from_reader(versionrc.as_slice()).ok())
-        .unwrap_or_default()
+        .unwrap_or_default();
+    if let Config {
+        host: None,
+        owner: None,
+        repository: None,
+        ..
+    } = config
+    {
+        if let Ok((host, owner, repository)) = host_info(git) {
+            config.host = host;
+            config.owner = owner;
+            config.repository = repository;
+        }
+    }
+    config
+}
+
+type HostOwnerRepo = (Option<String>, Option<String>, Option<String>);
+
+/// Get host, owner and repository based on the git remote origin url.
+pub(crate) fn host_info(git: &GitHelper) -> Result<HostOwnerRepo, Error> {
+    if let Some(mut url) = git.url()? {
+        if !url.contains("://") {
+            // check if it contains a port
+            if let Some(colon) = url.find(':') {
+                match url.as_bytes()[colon + 1] {
+                    b'0'..=b'9' => url = format!("scheme://{}", url),
+                    _ => url = format!("scheme://{}/{}", &url[..colon], &url[colon + 1..]),
+                }
+            }
+        }
+        let url = Url::parse(url.as_str())?;
+        let host = url.host().map(|h| format!("https://{}", h));
+        let mut owner = None;
+        let mut repository = None;
+        if let Some(mut segments) = url.path_segments() {
+            owner = segments.next().map(|s| s.to_string());
+            repository = segments
+                .next()
+                .map(|s: &str| s.trim_end_matches(".git").to_string());
+        }
+
+        Ok((host, owner, repository))
+    } else {
+        Ok((None, None, None))
+    }
 }
 
 impl Command for ChangelogCommand {
@@ -233,13 +290,13 @@ impl Command for ChangelogCommand {
             (rev, "")
         };
 
-        let config = make_cl_config();
+        let config = make_cl_config(&helper);
         let stdout = std::io::stdout();
         let stdout = stdout.lock();
-        let mut writer = ChangelogWriter { writer: stdout };
+        let mut writer = ChangelogWriter::new(stdout)?;
         writer.write_header(config.header.as_str())?;
 
-        let transformer = ChangeLogTransformer::new(&config, &helper);
+        let transformer = ChangeLogTransformer::new(&config, &helper)?;
 
         match helper.find_last_version(rev)? {
             Some(last_version) => {
