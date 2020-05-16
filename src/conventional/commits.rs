@@ -92,7 +92,7 @@ impl FromStr for Commit {
                 r#"(?xms)
             ^
             (?P<type>[a-zA-Z]+)
-            (?:\((?P<scope>[a-zA-Z]+(?:-[a-zA-Z]+)*)\))?
+            (?:\((?P<scope>[[:alnum:]]+(?:-[[:alnum:]]+)*)\))?
             (?P<breaking>!)?
             :\x20(?P<desc>[^\r\n]+)
             $"#,
@@ -204,6 +204,23 @@ mod tests {
                 scope: Some("lang".into()),
                 breaking: false,
                 description: "add polish language".into(),
+                body: None,
+                footers: Vec::new()
+            }
+        );
+    }
+
+    #[test]
+    fn test_with_alnum_scope() {
+        let msg = "feat(bar2): add a foo to new bar";
+        let commit: Commit = msg.parse().expect("valid");
+        assert_eq!(
+            commit,
+            Commit {
+                r#type: Type::Feat,
+                scope: Some("bar2".into()),
+                breaking: false,
+                description: "add a foo to new bar".into(),
                 body: None,
                 footers: Vec::new()
             }
