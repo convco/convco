@@ -105,7 +105,7 @@ dependencies = [
 
 [[package]]
 name = "convco"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "chrono 0.4.11 (registry+https://github.com/rust-lang/crates.io-index)",
  "git2 0.13.5 (registry+https://github.com/rust-lang/crates.io-index)",
