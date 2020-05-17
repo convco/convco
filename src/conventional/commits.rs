@@ -92,7 +92,7 @@ impl FromStr for Commit {
                 r#"(?xms)
             ^
             (?P<type>[a-zA-Z]+)
-            (?:\((?P<scope>[[:alnum:]]+(?:-[[:alnum:]]+)*)\))?
+            (?:\((?P<scope>[[:alnum:]]+(?:[-_/][[:alnum:]]+)*)\))?
             (?P<breaking>!)?
             :\x20(?P<desc>[^\r\n]+)
             $"#,
@@ -211,14 +211,14 @@ mod tests {
     }
 
     #[test]
-    fn test_with_alnum_scope() {
-        let msg = "feat(bar2): add a foo to new bar";
+    fn test_with_complex_scope() {
+        let msg = "feat(bar2/a_b-C4): add a foo to new bar";
         let commit: Commit = msg.parse().expect("valid");
         assert_eq!(
             commit,
             Commit {
                 r#type: Type::Feat,
-                scope: Some("bar2".into()),
+                scope: Some("bar2/a_b-C4".into()),
                 breaking: false,
                 description: "add a foo to new bar".into(),
                 body: None,
