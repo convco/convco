@@ -107,15 +107,7 @@ impl VersionCommand {
 impl Command for VersionCommand {
     fn exec(&self) -> Result<(), Error> {
         if let Some(VersionAndTag { tag, mut version }) = self.find_last_version()? {
-            let v = if self.bump {
-                if version.is_prerelease() {
-                    version.pre.clear();
-                    version.build.clear();
-                    (version, Label::Release)
-                } else {
-                    self.find_bump_version(tag.as_str(), version)?
-                }
-            } else if self.major {
+            let v = if self.major {
                 version.increment_major();
                 (version, Label::Major)
             } else if self.minor {
@@ -124,6 +116,14 @@ impl Command for VersionCommand {
             } else if self.patch {
                 version.increment_patch();
                 (version, Label::Patch)
+            } else if self.bump {
+                if version.is_prerelease() {
+                    version.pre.clear();
+                    version.build.clear();
+                    (version, Label::Release)
+                } else {
+                    self.find_bump_version(tag.as_str(), version)?
+                }
             } else {
                 (version, Label::Release)
             };
