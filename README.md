@@ -66,11 +66,12 @@ convco version --bump
 #### TODO
 
 - [x] automatic notes for breaking changes
-- [ ] custom template folder
+- [x] custom template folder
 - [x] use a `.versionrc` file
 - [x] limit to a range of versions
 - [x] sort sections in changelog
 - [x] issue references
+- [ ] better documentation
 
 [1]: https://www.conventionalcommits.org/
 [2]: https://github.com/conventional-changelog/conventional-changelog

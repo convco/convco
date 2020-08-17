@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub(crate) struct Type {
@@ -10,7 +11,7 @@ pub(crate) struct Type {
 }
 
 /// see: [Conventional Changelog Configuration](https://github.com/conventional-changelog/conventional-changelog-config-spec/blob/master/versions/2.1.0/README.md)
-/// Additional config: `host`, `owner`, `repository`.
+/// Additional config: `host`, `owner`, `repository` and `template`
 /// Those values are derived from `git remote origin get-url` if not set.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -46,6 +47,8 @@ pub(crate) struct Config {
     pub(crate) host: Option<String>,
     pub(crate) owner: Option<String>,
     pub(crate) repository: Option<String>,
+    /// An optional template directory. The template should be called `template.hbs`. Partials can be used.
+    pub(crate) template: Option<PathBuf>,
 }
 
 impl Default for Config {
@@ -63,6 +66,7 @@ impl Default for Config {
             host: None,
             owner: None,
             repository: None,
+            template: None,
         }
     }
 }
@@ -213,6 +217,7 @@ mod tests {
                 host: None,
                 owner: None,
                 repository: None,
+                template: None,
             }
         )
     }

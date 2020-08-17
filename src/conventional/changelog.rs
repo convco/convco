@@ -4,7 +4,7 @@ use chrono::NaiveDate;
 pub(crate) use config::Config;
 use handlebars::{no_escape, Handlebars};
 use serde::Serialize;
-use std::io;
+use std::{io, path::Path};
 
 const TEMPLATE: &str = include_str!("changelog/template.hbs");
 const HEADER: &str = include_str!("changelog/header.hbs");
@@ -129,15 +129,19 @@ pub(crate) struct ChangelogWriter<W: io::Write> {
 }
 
 impl<W: io::Write> ChangelogWriter<W> {
-    pub(crate) fn new(writer: W) -> Result<Self, Error> {
+    pub(crate) fn new(template: Option<&Path>, writer: W) -> Result<Self, Error> {
         let mut handlebars = Handlebars::new();
         handlebars.set_strict_mode(true);
         handlebars.register_escape_fn(no_escape);
 
-        handlebars.register_template_string("template", TEMPLATE)?;
-        handlebars.register_partial("header", HEADER)?;
-        handlebars.register_partial("commit", COMMIT)?;
-        handlebars.register_partial("footer", FOOTER)?;
+        if let Some(path) = template {
+            handlebars.register_templates_directory(".hbs", dbg!(path))?;
+        } else {
+            handlebars.register_template_string("template", TEMPLATE)?;
+            handlebars.register_partial("header", HEADER)?;
+            handlebars.register_partial("commit", COMMIT)?;
+            handlebars.register_partial("footer", FOOTER)?;
+        }
 
         Ok(Self { writer, handlebars })
     }

@@ -1,4 +1,4 @@
-use handlebars::{RenderError, TemplateError};
+use handlebars::{RenderError, TemplateError, TemplateFileError};
 use std::{fmt, io};
 use url::ParseError;
 
@@ -7,6 +7,7 @@ pub(crate) enum Error {
     Git(git2::Error),
     Io(io::Error),
     Template(TemplateError),
+    TemplateFile(TemplateFileError),
     Render(RenderError),
     Url(ParseError),
     Check,
@@ -18,6 +19,7 @@ impl fmt::Display for Error {
             Self::Git(ref e) => write!(f, "{}", e),
             Self::Io(ref e) => write!(f, "{}", e),
             Self::Template(ref e) => write!(f, "{}", e),
+            Self::TemplateFile(ref e) => write!(f, "{}", e),
             Self::Render(ref e) => write!(f, "{}", e),
             Self::Url(ref e) => write!(f, "{}", e),
             Self::Check => write!(f, "check error"),
@@ -31,6 +33,7 @@ impl std::error::Error for Error {
             Self::Git(ref e) => Some(e),
             Self::Io(ref e) => Some(e),
             Self::Template(ref e) => Some(e),
+            Self::TemplateFile(ref e) => Some(e),
             Self::Render(ref e) => Some(e),
             Self::Url(ref e) => Some(e),
             Self::Check => None,
@@ -53,6 +56,12 @@ impl From<io::Error> for Error {
 impl From<TemplateError> for Error {
     fn from(e: TemplateError) -> Self {
         Self::Template(e)
+    }
+}
+
+impl From<TemplateFileError> for Error {
+    fn from(e: TemplateFileError) -> Self {
+        Self::TemplateFile(e)
     }
 }
 

@@ -293,7 +293,8 @@ impl Command for ChangelogCommand {
         let config = make_cl_config(&helper);
         let stdout = std::io::stdout();
         let stdout = stdout.lock();
-        let mut writer = ChangelogWriter::new(stdout)?;
+        let template = config.template.as_deref();
+        let mut writer = ChangelogWriter::new(template, stdout)?;
         writer.write_header(config.header.as_str())?;
 
         let transformer = ChangeLogTransformer::new(&config, &helper)?;
