@@ -1,5 +1,5 @@
 use regex::Regex;
-use std::{fmt, str::FromStr};
+use std::fmt;
 
 #[derive(Debug, PartialEq)]
 pub(crate) enum Type {
@@ -68,7 +68,7 @@ pub(crate) struct Footer {
 }
 
 #[derive(Debug, PartialEq)]
-pub(crate) struct Commit {
+pub struct Commit {
     pub(crate) r#type: Type,
     pub(crate) scope: Option<String>,
     pub(crate) breaking: bool,
@@ -83,45 +83,30 @@ impl fmt::Display for Commit {
     }
 }
 
-impl FromStr for Commit {
-    type Err = &'static str;
+pub struct CommitParser {
+    regex_first_line: Regex,
+    regex_footer: Regex,
+}
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        lazy_static! {
-            static ref RE_FIRST_LINE: Regex = Regex::new(
-                r#"(?xms)
-            ^
-            (?P<type>[a-zA-Z]+)
-            (?:\((?P<scope>[[:alnum:]]+(?:[-_/][[:alnum:]]+)*)\))?
-            (?P<breaking>!)?
-            :\x20(?P<desc>[^\r\n]+)
-            $"#,
-            )
-            .unwrap();
-        }
+impl CommitParser {
+    pub fn builder() -> CommitParserBuilder {
+        CommitParserBuilder::new()
+    }
+
+    pub fn parse(&self, s: &str) -> Result<Commit, &str> {
         let mut lines = s.lines();
         if let Some(first) = lines.next() {
-            if let Some(capts) = RE_FIRST_LINE.captures(first) {
+            if let Some(capts) = self.regex_first_line.captures(first) {
                 let r#type: Option<Type> = capts.name("type").map(|t| t.as_str().into());
                 let scope = capts.name("scope").map(|s| s.as_str().to_owned());
                 let breaking = capts.name("breaking").is_some();
                 let description = capts.name("desc").map(|d| d.as_str().to_owned());
                 match (r#type, description) {
                     (Some(r#type), Some(description)) => {
-                        lazy_static! {
-                            static ref RE_FOOTER : Regex = Regex::new(
-                                r#"(?xm)
-                                        ^
-                                        (?:(?P<key>(?:BREAKING\x20CHANGE|[a-zA-Z]+(?:-[a-zA-Z]+)*)):\x20|
-                                        (?P<ref>[a-zA-Z]+(?:-[a-zA-Z]+)*)\x20\#)
-                                        (?P<value>.+)
-                                        $"#,
-                            ).unwrap();
-                        }
                         let mut body = String::new();
                         let mut footers: Vec<Footer> = Vec::new();
                         for line in lines {
-                            if let Some(capts) = RE_FOOTER.captures(line) {
+                            if let Some(capts) = self.regex_footer.captures(line) {
                                 let key = capts.name("key").map(|key| key.as_str());
                                 let ref_key = capts.name("ref").map(|key| key.as_str());
                                 let value = capts.name("value").map(|value| value.as_str());
@@ -173,13 +158,61 @@ impl FromStr for Commit {
     }
 }
 
+pub struct CommitParserBuilder {
+    scope_regex: String,
+}
+
+impl CommitParserBuilder {
+    pub fn new() -> Self {
+        Self {
+            scope_regex: "[[:alnum:]]+(?:[-_/][[:alnum:]]+)*".into(),
+        }
+    }
+
+    pub fn scope_regex(self, scope_regex: String) -> Self {
+        Self { scope_regex }
+    }
+
+    pub fn build(&self) -> CommitParser {
+        let regex_first_line = Regex::new(&format!(
+            r#"(?xms)
+        ^
+        (?P<type>[a-zA-Z]+)
+        (?:\((?P<scope>{})\))?
+        (?P<breaking>!)?
+        :\x20(?P<desc>[^\r\n]+)
+        $"#,
+            self.scope_regex
+        ))
+        .expect("valid scope regex");
+        let regex_footer = Regex::new(
+            r#"(?xm)
+                    ^
+                    (?:(?P<key>(?:BREAKING\x20CHANGE|[a-zA-Z]+(?:-[a-zA-Z]+)*)):\x20|
+                    (?P<ref>[a-zA-Z]+(?:-[a-zA-Z]+)*)\x20\#)
+                    (?P<value>.+)
+                    $"#,
+        )
+        .unwrap();
+        CommitParser {
+            regex_first_line,
+            regex_footer,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn parser() -> CommitParser {
+        CommitParser::builder().build()
+    }
+
     #[test]
     fn test_simple() {
         let msg = "docs: correct spelling of CHANGELOG";
-        let commit: Commit = msg.parse().expect("valid");
+        let commit: Commit = parser().parse(msg).expect("valid");
         assert_eq!(
             commit,
             Commit {
@@ -196,7 +229,7 @@ mod tests {
     #[test]
     fn test_with_scope() {
         let msg = "feat(lang): add polish language";
-        let commit: Commit = msg.parse().expect("valid");
+        let commit: Commit = parser().parse(msg).expect("valid");
         assert_eq!(
             commit,
             Commit {
@@ -213,7 +246,7 @@ mod tests {
     #[test]
     fn test_with_complex_scope() {
         let msg = "feat(bar2/a_b-C4): add a foo to new bar";
-        let commit: Commit = msg.parse().expect("valid");
+        let commit: Commit = parser().parse(msg).expect("valid");
         assert_eq!(
             commit,
             Commit {
@@ -230,7 +263,7 @@ mod tests {
     #[test]
     fn test_with_breaking() {
         let msg = "refactor!: drop support for Node 6";
-        let commit: Commit = msg.parse().expect("valid");
+        let commit: Commit = parser().parse(msg).expect("valid");
         assert_eq!(
             commit,
             Commit {
@@ -249,7 +282,7 @@ mod tests {
         let msg = "feat: allow provided config object to extend other configs\n\
                          \n\
                          BREAKING CHANGE: `extends` key in config file is now used for extending other config files";
-        let commit: Commit = msg.parse().expect("valid");
+        let commit: Commit = parser().parse(msg).expect("valid");
         assert_eq!(
             commit,
             Commit {
@@ -278,7 +311,7 @@ mod tests {
                    \n\
                    Reviewed-by: Z\n\
                    Refs #133";
-        let commit: Commit = msg.parse().expect("valid");
+        let commit: Commit = parser().parse(msg).expect("valid");
         assert_eq!(
             commit,
             Commit {

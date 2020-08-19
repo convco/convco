@@ -1,6 +1,3 @@
-#[macro_use]
-extern crate lazy_static;
-
 mod cli;
 mod cmd;
 mod conventional;
@@ -9,6 +6,8 @@ mod git;
 
 pub(crate) use crate::{cmd::Command, error::Error};
 
+use conventional::config::make_cl_config;
+use git::GitHelper;
 use std::process::exit;
 use structopt::StructOpt;
 
@@ -17,11 +16,13 @@ fn main() -> Result<(), Error> {
     if let Some(path) = opt.path {
         std::env::set_current_dir(path)?;
     }
+    let git = GitHelper::new("v")?;
+    let config = make_cl_config(&git, opt.config.unwrap_or_else(|| ".versionrc".into()));
     let res = match opt.cmd {
-        cli::Command::Check(cmd) => cmd.exec(),
-        cli::Command::Changelog(cmd) => cmd.exec(),
-        cli::Command::Version(cmd) => cmd.exec(),
-        cli::Command::Commit(cmd) => cmd.exec(),
+        cli::Command::Check(cmd) => cmd.exec(config),
+        cli::Command::Changelog(cmd) => cmd.exec(config),
+        cli::Command::Version(cmd) => cmd.exec(config),
+        cli::Command::Commit(cmd) => cmd.exec(config),
     };
     match res {
         Err(e) => {

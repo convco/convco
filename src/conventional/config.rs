@@ -1,5 +1,7 @@
+use crate::{error::Error, git::GitHelper};
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use url::Url;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub(crate) struct Type {
@@ -11,7 +13,7 @@ pub(crate) struct Type {
 }
 
 /// see: [Conventional Changelog Configuration](https://github.com/conventional-changelog/conventional-changelog-config-spec/blob/master/versions/2.1.0/README.md)
-/// Additional config: `host`, `owner`, `repository` and `template`
+/// Additional config: `host`, `owner`, `repository`, `scope_regex` and `template`
 /// Those values are derived from `git remote origin get-url` if not set.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -47,8 +49,13 @@ pub(crate) struct Config {
     pub(crate) host: Option<String>,
     pub(crate) owner: Option<String>,
     pub(crate) repository: Option<String>,
-    /// An optional template directory. The template should be called `template.hbs`. Partials can be used.
+    /// `template`. An optional template directory. The template should be called `template.hbs`. Partials can be used.
     pub(crate) template: Option<PathBuf>,
+    /// `scopeRegex`. A regex to define possible scopes.
+    /// For this project this could be `"changelog|check|commit|version"`.
+    /// Defaults to `"[[:alnum:]]+(?:[-_/][[:alnum:]]+)*"`.
+    #[serde(default = "default_scope_regex")]
+    pub(crate) scope_regex: String,
 }
 
 impl Default for Config {
@@ -67,6 +74,7 @@ impl Default for Config {
             owner: None,
             repository: None,
             template: None,
+            scope_regex: "[[:alnum:]]+(?:[-_/][[:alnum:]]+)*".to_string(),
         }
     }
 }
@@ -114,6 +122,62 @@ fn default_issue_prefixes() -> Vec<String> {
     vec!["#".into()]
 }
 
+fn default_scope_regex() -> String {
+    "[[:alnum:]]+(?:[-_/][[:alnum:]]+)*".to_string()
+}
+
+type HostOwnerRepo = (Option<String>, Option<String>, Option<String>);
+
+/// Get host, owner and repository based on the git remote origin url.
+pub(crate) fn host_info(git: &GitHelper) -> Result<HostOwnerRepo, Error> {
+    if let Some(mut url) = git.url()? {
+        if !url.contains("://") {
+            // check if it contains a port
+            if let Some(colon) = url.find(':') {
+                match url.as_bytes()[colon + 1] {
+                    b'0'..=b'9' => url = format!("scheme://{}", url),
+                    _ => url = format!("scheme://{}/{}", &url[..colon], &url[colon + 1..]),
+                }
+            }
+        }
+        let url = Url::parse(url.as_str())?;
+        let host = url.host().map(|h| format!("https://{}", h));
+        let mut owner = None;
+        let mut repository = None;
+        if let Some(mut segments) = url.path_segments() {
+            owner = segments.next().map(|s| s.to_string());
+            repository = segments
+                .next()
+                .map(|s: &str| s.trim_end_matches(".git").to_string());
+        }
+
+        Ok((host, owner, repository))
+    } else {
+        Ok((None, None, None))
+    }
+}
+
+pub(crate) fn make_cl_config(git: &GitHelper, path: impl AsRef<Path>) -> Config {
+    let mut config: Config = (std::fs::read(path))
+        .ok()
+        .and_then(|versionrc| (serde_yaml::from_reader(versionrc.as_slice())).ok())
+        .unwrap_or_default();
+    if let Config {
+        host: None,
+        owner: None,
+        repository: None,
+        ..
+    } = config
+    {
+        if let Ok((host, owner, repository)) = host_info(git) {
+            config.host = host;
+            config.owner = owner;
+            config.repository = repository;
+        }
+    }
+    config
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -136,7 +200,7 @@ mod tests {
                 {"type": "test", "section":"Tests", "hidden": false},
                 {"type": "build", "section":"Build System", "hidden": false},
                 {"type": "ci", "section":"CI", "hidden":false}
-              ]
+              ],
             }"#;
         let value: Config = serde_yaml::from_str(json).unwrap();
         assert_eq!(
@@ -218,6 +282,7 @@ mod tests {
                 owner: None,
                 repository: None,
                 template: None,
+                scope_regex: "[[:alnum:]]+(?:[-_/][[:alnum:]]+)*".to_string(),
             }
         )
     }

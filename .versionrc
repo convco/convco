@@ -1,0 +1,2 @@
+template: "src/conventional/changelog"
+scopeRegex: "changelog|check|commit|version"

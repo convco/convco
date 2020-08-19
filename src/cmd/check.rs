@@ -1,11 +1,12 @@
 use crate::{cli::CheckCommand, cmd::Command, conventional, Error};
+use conventional::Config;
 use git2::{Commit, Repository};
 
-fn print_check(commit: &Commit<'_>) -> bool {
+fn print_check(commit: &Commit<'_>, parser: &conventional::CommitParser) -> bool {
     let msg = std::str::from_utf8(commit.message_bytes()).expect("valid utf-8 message");
     let short_id = commit.as_object().short_id().unwrap();
     let short_id = short_id.as_str().expect("short id");
-    let msg_parsed: Result<conventional::Commit, &str> = msg.parse();
+    let msg_parsed = parser.parse(msg);
     match msg_parsed {
         Err(e) => {
             let first_line = msg.lines().next().unwrap_or("");
@@ -22,7 +23,7 @@ fn print_check(commit: &Commit<'_>) -> bool {
 }
 
 impl Command for CheckCommand {
-    fn exec(&self) -> Result<(), Error> {
+    fn exec(&self, config: Config) -> Result<(), Error> {
         let repo = Repository::open_from_env()?;
         let mut revwalk = repo.revwalk()?;
         if self.rev.contains("..") {
@@ -34,13 +35,17 @@ impl Command for CheckCommand {
         let mut total = 0;
         let mut fail = 0;
 
+        let parser = conventional::CommitParser::builder()
+            .scope_regex(config.scope_regex)
+            .build();
+
         for commit in revwalk
             .flatten()
             .flat_map(|oid| repo.find_commit(oid).ok())
             .filter(|commit| commit.parent_count() <= 1)
         {
             total += 1;
-            fail += u32::from(!print_check(&commit));
+            fail += u32::from(!print_check(&commit, &parser));
         }
         if fail == 0 {
             match total {

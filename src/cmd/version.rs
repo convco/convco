@@ -1,12 +1,12 @@
 use crate::{
     cli::VersionCommand,
     cmd::Command,
-    conventional::{Commit, Type},
+    conventional::{CommitParser, Config, Type},
     git::{GitHelper, VersionAndTag},
     Error,
 };
 use semver::Version;
-use std::{fmt, str::FromStr};
+use std::fmt;
 
 enum Label {
     /// Bump minor version (0.1.0 -> 1.0.0)
@@ -52,6 +52,7 @@ impl VersionCommand {
         &self,
         last_v_tag: &str,
         mut last_version: Version,
+        parser: &CommitParser,
     ) -> Result<(Version, Label), Error> {
         let prefix = self.prefix.as_str();
         let git = GitHelper::new(prefix)?;
@@ -60,7 +61,7 @@ impl VersionCommand {
         let i = revwalk
             .flatten()
             .filter_map(|oid| git.find_commit(oid).ok())
-            .filter_map(|commit| commit.message().and_then(|msg| Commit::from_str(msg).ok()));
+            .filter_map(|commit| commit.message().and_then(|msg| parser.parse(msg).ok()));
 
         let mut major = false;
         let mut minor = false;
@@ -105,7 +106,7 @@ impl VersionCommand {
 }
 
 impl Command for VersionCommand {
-    fn exec(&self) -> Result<(), Error> {
+    fn exec(&self, config: Config) -> Result<(), Error> {
         if let Some(VersionAndTag { tag, mut version }) = self.find_last_version()? {
             let v = if self.major {
                 version.increment_major();
@@ -122,7 +123,10 @@ impl Command for VersionCommand {
                     version.build.clear();
                     (version, Label::Release)
                 } else {
-                    self.find_bump_version(tag.as_str(), version)?
+                    let parser = CommitParser::builder()
+                        .scope_regex(config.scope_regex)
+                        .build();
+                    self.find_bump_version(tag.as_str(), version, &parser)?
                 }
             } else {
                 (version, Label::Release)

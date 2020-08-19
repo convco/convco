@@ -1,4 +1,4 @@
-use crate::{cli::CommitCommand, Command, Error};
+use crate::{cli::CommitCommand, conventional::Config, Command, Error};
 use std::{
     io,
     io::{Read, Write},
@@ -97,7 +97,7 @@ impl CommitCommand {
 }
 
 impl Command for CommitCommand {
-    fn exec(&self) -> Result<(), Error> {
+    fn exec(&self, _: Config) -> Result<(), Error> {
         let scope = read_single_line("optional scope: ")?;
         let description = read_single_line("description: ")?;
         let body = read_multi_line("optional body:")?;

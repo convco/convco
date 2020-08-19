@@ -7,6 +7,8 @@ pub struct Opt {
     /// Run as if convco was started in <path> instead of the current working directory.
     #[structopt(short = "C", global = true)]
     pub path: Option<PathBuf>,
+    #[structopt(short = "c", long = "config", global = true)]
+    pub config: Option<PathBuf>,
     #[structopt(subcommand)]
     pub cmd: Command,
 }

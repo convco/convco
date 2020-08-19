@@ -1,7 +1,6 @@
-mod config;
+use super::config::Config;
 use crate::Error;
 use chrono::NaiveDate;
-pub(crate) use config::Config;
 use handlebars::{no_escape, Handlebars};
 use serde::Serialize;
 use std::{io, path::Path};

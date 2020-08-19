@@ -21,5 +21,7 @@
 
 pub(crate) mod changelog;
 mod commits;
+pub(crate) mod config;
 
-pub(crate) use commits::{Commit, Footer, Type};
+pub(crate) use commits::{CommitParser, Footer, Type};
+pub(crate) use config::Config;

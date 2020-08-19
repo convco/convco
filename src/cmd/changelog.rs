@@ -3,10 +3,11 @@ use crate::{
     cmd::Command,
     conventional::{
         changelog::{
-            ChangelogWriter, CommitContext, CommitGroup, Config, Context, ContextBase,
-            ContextBuilder, Note, NoteGroup, Reference,
+            ChangelogWriter, CommitContext, CommitGroup, Context, ContextBase, ContextBuilder,
+            Note, NoteGroup, Reference,
         },
-        Footer,
+        config::Config,
+        CommitParser, Footer,
     },
     git::{GitHelper, VersionAndTag},
     Error,
@@ -16,7 +17,6 @@ use git2::Time;
 use regex::Regex;
 use semver::Version;
 use std::{cmp::Ordering, collections::HashMap, str::FromStr};
-use url::Url;
 
 #[derive(Debug)]
 struct Rev<'a>(&'a str, Option<&'a Version>);
@@ -34,6 +34,7 @@ struct ChangeLogTransformer<'a> {
     config: &'a Config,
     git: &'a GitHelper,
     context_builder: ContextBuilder<'a>,
+    commit_parser: CommitParser,
 }
 
 fn date_from_time(time: &Time) -> NaiveDate {
@@ -53,6 +54,10 @@ impl<'a> ChangeLogTransformer<'a> {
                 });
         let re_references =
             Regex::new(format!("({})([0-9]+)", config.issue_prefixes.join("|")).as_str()).unwrap();
+        let commit_parser = CommitParser::builder()
+            .scope_regex(config.scope_regex.clone())
+            .build();
+
         let context_builder = ContextBuilder::new(config)?;
         Ok(Self {
             config,
@@ -60,6 +65,7 @@ impl<'a> ChangeLogTransformer<'a> {
             git,
             re_references,
             context_builder,
+            commit_parser,
         })
     }
 
@@ -113,8 +119,7 @@ impl<'a> ChangeLogTransformer<'a> {
             .flat_map(|oid| self.git.find_commit(oid).ok())
             .filter(|commit| commit.parent_count() <= 1)
         {
-            if let Some(Ok(conv_commit)) =
-                commit.message().map(crate::conventional::Commit::from_str)
+            if let Some(Ok(conv_commit)) = commit.message().map(|msg| self.commit_parser.parse(msg))
             {
                 self.make_notes(&conv_commit.footers, conv_commit.scope.clone())
                     .into_iter()
@@ -220,62 +225,9 @@ impl<'a> ChangeLogTransformer<'a> {
     }
 }
 
-fn make_cl_config(git: &GitHelper) -> Config {
-    let mut config: Config = std::fs::read(".versionrc")
-        .ok()
-        .and_then(|versionrc| serde_yaml::from_reader(versionrc.as_slice()).ok())
-        .unwrap_or_default();
-    if let Config {
-        host: None,
-        owner: None,
-        repository: None,
-        ..
-    } = config
-    {
-        if let Ok((host, owner, repository)) = host_info(git) {
-            config.host = host;
-            config.owner = owner;
-            config.repository = repository;
-        }
-    }
-    config
-}
-
-type HostOwnerRepo = (Option<String>, Option<String>, Option<String>);
-
-/// Get host, owner and repository based on the git remote origin url.
-pub(crate) fn host_info(git: &GitHelper) -> Result<HostOwnerRepo, Error> {
-    if let Some(mut url) = git.url()? {
-        if !url.contains("://") {
-            // check if it contains a port
-            if let Some(colon) = url.find(':') {
-                match url.as_bytes()[colon + 1] {
-                    b'0'..=b'9' => url = format!("scheme://{}", url),
-                    _ => url = format!("scheme://{}/{}", &url[..colon], &url[colon + 1..]),
-                }
-            }
-        }
-        let url = Url::parse(url.as_str())?;
-        let host = url.host().map(|h| format!("https://{}", h));
-        let mut owner = None;
-        let mut repository = None;
-        if let Some(mut segments) = url.path_segments() {
-            owner = segments.next().map(|s| s.to_string());
-            repository = segments
-                .next()
-                .map(|s: &str| s.trim_end_matches(".git").to_string());
-        }
-
-        Ok((host, owner, repository))
-    } else {
-        Ok((None, None, None))
-    }
-}
-
 impl Command for ChangelogCommand {
-    fn exec(&self) -> Result<(), Error> {
+    fn exec(&self, config: Config) -> Result<(), Error> {
         let helper = GitHelper::new(self.prefix.as_str())?;
-
         let rev = self.rev.as_str();
         let (rev, rev_stop) = if rev.contains("..") {
             let mut split = rev.split("..");
@@ -290,7 +242,6 @@ impl Command for ChangelogCommand {
             (rev, "")
         };
 
-        let config = make_cl_config(&helper);
         let stdout = std::io::stdout();
         let stdout = stdout.lock();
         let template = config.template.as_deref();
@@ -298,7 +249,6 @@ impl Command for ChangelogCommand {
         writer.write_header(config.header.as_str())?;
 
         let transformer = ChangeLogTransformer::new(&config, &helper)?;
-
         match helper.find_last_version(rev)? {
             Some(last_version) => {
                 let semver = Version::from_str(rev.trim_start_matches(&self.prefix));
