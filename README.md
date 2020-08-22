@@ -72,6 +72,7 @@ convco version --bump
 - [x] sort sections in changelog
 - [x] issue references
 - [ ] better documentation
+- [ ] better error handling
 
 [1]: https://www.conventionalcommits.org/
 [2]: https://github.com/conventional-changelog/conventional-changelog

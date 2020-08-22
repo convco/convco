@@ -1,4 +1,8 @@
-use crate::{cli::CommitCommand, conventional::Config, Command, Error};
+use crate::{
+    cli::CommitCommand,
+    conventional::{CommitParser, Config},
+    Command, Error,
+};
 use std::{
     io,
     io::{Read, Write},
@@ -61,33 +65,38 @@ impl CommitCommand {
         body: String,
         breaking_change: String,
         issues: String,
+        parser: CommitParser,
     ) -> Result<ExitStatus, Error> {
-        let mut first_line = self.type_as_string().to_owned();
+        let mut msg = self.type_as_string().to_owned();
         if !scope.is_empty() {
-            first_line.push('(');
-            first_line.push_str(scope.as_str());
-            first_line.push(')');
+            msg.push('(');
+            msg.push_str(scope.as_str());
+            msg.push(')');
         }
         if self.breaking || !breaking_change.is_empty() {
-            first_line.push('!');
+            msg.push('!');
         }
-        first_line.push_str(": ");
-        first_line.push_str(description.as_str());
-        // build the command
-        let mut cmd = std::process::Command::new("git");
-        cmd.args(&["commit", "-m", first_line.as_str()]);
+        msg.push_str(": ");
+        msg.push_str(description.as_str());
         if !body.is_empty() {
-            cmd.args(&["-m", body.as_str()]);
+            msg.push_str("\n\n");
+            msg.push_str(body.as_str())
         }
         if !breaking_change.is_empty() {
-            cmd.args(&[
-                "-m",
-                format!("BREAKING CHANGE: {}", breaking_change).as_str(),
-            ]);
+            msg.push_str("\n\n");
+            msg.push_str(format!("BREAKING CHANGE: {}", breaking_change).as_str());
         }
         if !issues.is_empty() {
-            cmd.args(&["-m", format!("Refs: {}", issues).as_str()]);
+            msg.push_str("\n\n");
+            msg.push_str(format!("Refs: {}", issues).as_str());
         }
+        // validate by parsing
+        parser
+            .parse(msg.as_str())
+            .expect("Matches conventional commit");
+        // build the command
+        let mut cmd = std::process::Command::new("git");
+        cmd.args(&["commit", "-m", msg.as_str()]);
 
         if !self.extra_args.is_empty() {
             cmd.args(&self.extra_args);
@@ -97,13 +106,16 @@ impl CommitCommand {
 }
 
 impl Command for CommitCommand {
-    fn exec(&self, _: Config) -> Result<(), Error> {
+    fn exec(&self, config: Config) -> Result<(), Error> {
         let scope = read_single_line("optional scope: ")?;
         let description = read_single_line("description: ")?;
         let body = read_multi_line("optional body:")?;
         let breaking_change = read_single_line("optional BREAKING CHANGE: ")?;
         let issues = read_single_line("optional issues (e.g. #2, #8): ")?;
-        self.commit(scope, description, body, breaking_change, issues)?;
+        let parser = CommitParser::builder()
+            .scope_regex(config.scope_regex)
+            .build();
+        self.commit(scope, description, body, breaking_change, issues, parser)?;
         Ok(())
     }
 }
