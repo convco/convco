@@ -29,6 +29,11 @@ jobs:
           toolchain: stable
           override: true
 
+      - name: Test on ${{ matrix.os }}
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+
       - name: Build ${{ matrix.os }} binary
         uses: actions-rs/cargo@v1
         with:
