@@ -63,6 +63,12 @@ If needed one can provide `--major`, `--minor` or `--patch` to overrule the conv
 convco version --bump
 ```
 
+It is useful to use it with release tools, such as [`cargo-release`](https://crates.io/crates/cargo-release):
+
+```sh
+cargo release $(convco version --bump)
+```
+
 #### TODO
 
 - [x] automatic notes for breaking changes
