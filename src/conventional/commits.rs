@@ -83,6 +83,30 @@ impl fmt::Display for Commit {
     }
 }
 
+#[derive(Debug)]
+pub enum ParseError {
+    NoType,
+    NoDescription,
+    EmptyCommitMessage,
+    InvalidFirstLine,
+}
+
+impl fmt::Display for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ParseError::NoType => write!(f, "missing type"),
+            ParseError::NoDescription => write!(f, "missing description"),
+            ParseError::EmptyCommitMessage => write!(f, "empty commit message"),
+            ParseError::InvalidFirstLine => write!(
+                f,
+                "first line doesn't match `<type>[optional scope]: <description>`"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for ParseError {}
+
 pub struct CommitParser {
     regex_first_line: Regex,
     regex_footer: Regex,
@@ -93,7 +117,7 @@ impl CommitParser {
         CommitParserBuilder::new()
     }
 
-    pub fn parse(&self, s: &str) -> Result<Commit, &str> {
+    pub fn parse(&self, s: &str) -> Result<Commit, ParseError> {
         let mut lines = s.lines();
         if let Some(first) = lines.next() {
             if let Some(capts) = self.regex_first_line.captures(first) {
@@ -147,13 +171,14 @@ impl CommitParser {
                             footers,
                         })
                     }
-                    _ => Err("First line does contain a <type> or <description>"),
+                    (None, _) => Err(ParseError::NoType),
+                    (_, None) => Err(ParseError::NoDescription),
                 }
             } else {
-                Err("First line does not match `<type>[optional scope]: <description>`")
+                Err(ParseError::InvalidFirstLine)
             }
         } else {
-            Err("Commit is empty")
+            Err(ParseError::EmptyCommitMessage)
         }
     }
 }

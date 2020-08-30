@@ -1,15 +1,24 @@
 use crate::{error::Error, git::GitHelper};
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
+use std::{
+    fmt,
+    path::{Path, PathBuf},
+};
 use url::Url;
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub(crate) struct Type {
     pub(crate) r#type: String,
     #[serde(default)]
     pub(crate) section: String,
     #[serde(default)]
     pub(crate) hidden: bool,
+}
+
+impl fmt::Display for Type {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.r#type)
+    }
 }
 
 /// see: [Conventional Changelog Configuration](https://github.com/conventional-changelog/conventional-changelog-config-spec/blob/master/versions/2.1.0/README.md)
@@ -94,6 +103,46 @@ fn default_types() -> Vec<Type> {
             r#type: "fix".into(),
             section: "Fixes".into(),
             hidden: false,
+        },
+        Type {
+            r#type: "build".into(),
+            section: "Other".into(),
+            hidden: true,
+        },
+        Type {
+            r#type: "chore".into(),
+            section: "Other".into(),
+            hidden: true,
+        },
+        Type {
+            r#type: "ci".into(),
+            section: "Other".into(),
+            hidden: true,
+        },
+        Type {
+            r#type: "docs".into(),
+            section: "Documentation".into(),
+            hidden: true,
+        },
+        Type {
+            r#type: "style".into(),
+            section: "Other".into(),
+            hidden: true,
+        },
+        Type {
+            r#type: "refactor".into(),
+            section: "Other".into(),
+            hidden: true,
+        },
+        Type {
+            r#type: "perf".into(),
+            section: "Other".into(),
+            hidden: true,
+        },
+        Type {
+            r#type: "test".into(),
+            section: "Other".into(),
+            hidden: true,
         },
     ]
 }

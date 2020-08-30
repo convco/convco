@@ -1,6 +1,6 @@
+use crate::conventional;
 use handlebars::{RenderError, TemplateError, TemplateFileError};
 use std::{fmt, io};
-use url::ParseError;
 
 #[derive(Debug)]
 pub(crate) enum Error {
@@ -8,8 +8,9 @@ pub(crate) enum Error {
     Io(io::Error),
     Template(TemplateError),
     TemplateFile(TemplateFileError),
+    Parser(conventional::ParseError),
     Render(RenderError),
-    Url(ParseError),
+    Url(url::ParseError),
     Check,
 }
 
@@ -20,6 +21,7 @@ impl fmt::Display for Error {
             Self::Io(ref e) => write!(f, "{}", e),
             Self::Template(ref e) => write!(f, "{}", e),
             Self::TemplateFile(ref e) => write!(f, "{}", e),
+            Self::Parser(ref e) => write!(f, "{}", e),
             Self::Render(ref e) => write!(f, "{}", e),
             Self::Url(ref e) => write!(f, "{}", e),
             Self::Check => write!(f, "check error"),
@@ -34,6 +36,7 @@ impl std::error::Error for Error {
             Self::Io(ref e) => Some(e),
             Self::Template(ref e) => Some(e),
             Self::TemplateFile(ref e) => Some(e),
+            Self::Parser(ref e) => Some(e),
             Self::Render(ref e) => Some(e),
             Self::Url(ref e) => Some(e),
             Self::Check => None,
@@ -71,8 +74,14 @@ impl From<RenderError> for Error {
     }
 }
 
-impl From<ParseError> for Error {
-    fn from(e: ParseError) -> Self {
+impl From<url::ParseError> for Error {
+    fn from(e: url::ParseError) -> Self {
         Self::Url(e)
+    }
+}
+
+impl From<conventional::ParseError> for Error {
+    fn from(e: conventional::ParseError) -> Self {
+        Self::Parser(e)
     }
 }
