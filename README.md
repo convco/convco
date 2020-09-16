@@ -19,6 +19,29 @@ It provides already the following commands:
 
 `cargo install convco`
 
+## Docker usage
+
+```shell script
+# build the convco image
+docker build -t convco .
+# run it on any codebase
+docker run -v "$PWD:/tmp" --workdir /tmp --rm convco
+```
+
+### Use it in .gitlab-ci.yml
+
+If you've created an image and pushed it into your private registry
+
+```yaml
+convco:check:
+  stage: test
+  image:
+    name: $PATH_OF_PRIVATE_REGISTRY/convco-alpine:latest
+    entrypoint: [""]
+  script:
+    - convco check
+```
+
 ## Tools
 
 ### Changelog
