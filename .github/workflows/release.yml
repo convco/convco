@@ -1,6 +1,6 @@
 name: Build binary
 # This workflow is triggered on pushes to the repository.
-on: [push]
+on: workflow_dispatch
 
 jobs:
   build:
@@ -20,7 +20,7 @@ jobs:
           - os: windows
             binary: convco.exe
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2
 
       - name: Install stable toolchain
         uses: actions-rs/toolchain@v1
