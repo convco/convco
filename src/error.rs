@@ -12,6 +12,7 @@ pub(crate) enum Error {
     Render(RenderError),
     Url(url::ParseError),
     Check,
+    CancelledByUser,
 }
 
 impl fmt::Display for Error {
@@ -25,6 +26,7 @@ impl fmt::Display for Error {
             Self::Render(ref e) => write!(f, "{}", e),
             Self::Url(ref e) => write!(f, "{}", e),
             Self::Check => write!(f, "check error"),
+            Self::CancelledByUser => write!(f, "canceled by user"),
         }
     }
 }
@@ -40,6 +42,7 @@ impl std::error::Error for Error {
             Self::Render(ref e) => Some(e),
             Self::Url(ref e) => Some(e),
             Self::Check => None,
+            Self::CancelledByUser => None,
         }
     }
 }

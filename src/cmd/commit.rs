@@ -28,8 +28,7 @@ fn make_commit_message(
         issues,
     }: &Dialog,
     breaking: bool,
-    parser: &CommitParser,
-) -> Result<String, Error> {
+) -> String {
     let mut msg = r#type.to_string();
     if !scope.is_empty() {
         msg.push('(');
@@ -53,8 +52,7 @@ fn make_commit_message(
         msg.push_str("\n\n");
         msg.push_str(format!("Refs: {}", issues).as_str());
     }
-    // validate by parsing
-    Ok(parser.parse(msg.as_str()).map(|_| msg)?)
+    msg
 }
 
 impl CommitCommand {
@@ -112,15 +110,10 @@ fn read_description(
     Ok(result)
 }
 
-fn read_body(default: &str) -> Result<String, Error> {
-    let prompt = if default.is_empty() {
-        "# Enter a commit message body"
-    } else {
-        default
-    };
+fn edit_message(msg: &str) -> Result<String, Error> {
     Ok(dialoguer::Editor::new()
         .require_save(true)
-        .edit(prompt)?
+        .edit(msg)?
         .unwrap_or_default()
         .lines()
         .filter(|line| !line.starts_with('#'))
@@ -130,7 +123,6 @@ fn read_body(default: &str) -> Result<String, Error> {
         .to_owned())
 }
 
-#[derive(Default)]
 struct Dialog {
     r#type: String,
     scope: String,
@@ -138,6 +130,22 @@ struct Dialog {
     body: String,
     breaking_change: String,
     issues: String,
+}
+
+impl Default for Dialog {
+    fn default() -> Self {
+        Self {
+            r#type: String::default(),
+            scope: String::default(),
+            description: String::default(),
+            body: "# A longer commit body MAY be provided after the short description, \n\
+                   # providing additional contextual information about the code changes. \n\
+                   # The body MUST begin one blank line after the description. \n\
+                   # A commit body is free-form and MAY consist of any number of newline separated paragraphs.\n".to_string(),
+            breaking_change: String::default(),
+            issues: String::default(),
+        }
+    }
 }
 
 impl Dialog {
@@ -165,42 +173,42 @@ impl Dialog {
         let theme = &dialoguer::theme::ColorfulTheme::default();
         let types = config.types.as_slice();
         let scope_regex = Regex::new(config.scope_regex.as_str()).expect("valid scope regex");
-        loop {
-            // type
-            let current_type = dialog.r#type.as_str();
-            match (r#type.as_ref(), current_type) {
-                (Some(t), "") if t != "" => dialog.r#type = t.to_owned(),
-                (_, t) => {
-                    dialog.r#type = Self::select_type(theme, t, types)?;
-                }
+
+        // type
+        let current_type = dialog.r#type.as_str();
+        match (r#type.as_ref(), current_type) {
+            (Some(t), "") if t != "" => dialog.r#type = t.to_owned(),
+            (_, t) => {
+                dialog.r#type = Self::select_type(theme, t, types)?;
             }
-            // scope
-            dialog.scope = read_scope(theme, dialog.scope.as_ref(), scope_regex.clone())?;
-            // description
-            dialog.description = read_description(theme, dialog.description)?;
-            // body
-            dialog.body = read_body(dialog.body.as_str())?;
-            // breaking change
-            dialog.breaking_change = read_single_line(
-                theme,
-                "optional BREAKING change",
-                dialog.breaking_change.as_str(),
-            )?;
-            // issues
-            dialog.issues =
-                read_single_line(theme, "issues (e.g. #2, #8)", dialog.issues.as_str())?;
+        }
+        // scope
+        dialog.scope = read_scope(theme, dialog.scope.as_ref(), scope_regex)?;
+        // description
+        dialog.description = read_description(theme, dialog.description)?;
+        // breaking change
+        dialog.breaking_change = read_single_line(
+            theme,
+            "optional BREAKING change",
+            dialog.breaking_change.as_str(),
+        )?;
+        // issues
+        dialog.issues = read_single_line(theme, "issues (e.g. #2, #8)", dialog.issues.as_str())?;
+
+        loop {
             // finally make message
-            match make_commit_message(&dialog, breaking, &parser) {
-                Ok(msg) => {
-                    if dialoguer::Confirm::with_theme(theme)
-                        .with_prompt(format!("\nConfirm commit message:\n\n{}\n", msg))
+            let msg = make_commit_message(&dialog, breaking);
+            let msg = edit_message(msg.as_str())?;
+            match parser.parse(msg.as_str()).map(|_| msg) {
+                Ok(msg) => break Ok(msg),
+                Err(e) => {
+                    eprintln!("ParseError: {}", e);
+                    if !dialoguer::Confirm::new()
+                        .with_prompt("Continue?")
                         .interact()?
                     {
-                        break Ok(msg);
+                        break Err(Error::CancelledByUser);
                     }
-                }
-                Err(error) => {
-                    println!("{}", error);
                 }
             }
         }
