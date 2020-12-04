@@ -177,7 +177,7 @@ impl Dialog {
         // type
         let current_type = dialog.r#type.as_str();
         match (r#type.as_ref(), current_type) {
-            (Some(t), "") if t != "" => dialog.r#type = t.to_owned(),
+            (Some(t), "") if !t.is_empty() => dialog.r#type = t.to_owned(),
             (_, t) => {
                 dialog.r#type = Self::select_type(theme, t, types)?;
             }

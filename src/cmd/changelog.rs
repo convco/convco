@@ -104,7 +104,7 @@ impl<'a> ChangeLogTransformer<'a> {
 
     fn transform(&self, from_rev: &Rev<'a>, to_rev: &Rev<'a>) -> Result<Context<'a>, Error> {
         let mut revwalk = self.git.revwalk()?;
-        if to_rev.0 == "" {
+        if to_rev.0.is_empty() {
             let to_commit = self.git.ref_to_commit(from_rev.0)?;
             revwalk.push(to_commit.id())?;
         } else {
@@ -234,7 +234,7 @@ impl Command for ChangelogCommand {
             let low = split.next().unwrap_or("");
             let hi = split
                 .next()
-                .map(|s| if s == "" { "HEAD" } else { s })
+                .map(|s| if s.is_empty() { "HEAD" } else { s })
                 .unwrap_or("HEAD");
             // FIXME hi and low are supposed to be a version tag.
             (hi, low)

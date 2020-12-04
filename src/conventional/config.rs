@@ -231,8 +231,6 @@ pub(crate) fn make_cl_config(git: &GitHelper, path: impl AsRef<Path>) -> Config 
 mod tests {
     use super::*;
 
-    use serde_yaml;
-
     #[test]
     fn test() {
         let json = r#"{

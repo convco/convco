@@ -109,7 +109,8 @@ impl<'a> ContextBuilder<'a> {
             .handlebars
             .render("release_commit_message_format", &context_base)?;
         let user_url_format = self.handlebars.render("user_url_format", &context_base)?;
-        let link_compare = context_base.current_tag != "" && context_base.previous_tag != "";
+        let link_compare =
+            !context_base.current_tag.is_empty() && !context_base.previous_tag.is_empty();
         Ok(Context {
             context: context_base,
             compare_url_format,
