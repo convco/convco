@@ -36,10 +36,9 @@ If you've created an image and pushed it into your private registry
 convco:check:
   stage: test
   image:
-    name: $PATH_OF_PRIVATE_REGISTRY/convco-alpine:latest
-    entrypoint: [""]
+    name: convco/convco:latest
   script:
-    - convco check
+    - check
 ```
 
 ## Tools
