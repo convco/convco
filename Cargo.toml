@@ -25,6 +25,7 @@ serde_yaml = "0.8.13"
 structopt = "0.3.16"
 url = "2.1.1"
 dialoguer = "0.6.2"
+thiserror = "1.0.22"
 
 [build-dependencies]
 structopt = "0.3.16"
