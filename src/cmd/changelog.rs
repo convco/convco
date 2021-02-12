@@ -131,11 +131,12 @@ impl<'a> ChangeLogTransformer<'a> {
                 let date = chrono::NaiveDateTime::from_timestamp(commit.time().seconds(), 0).date();
                 let scope = conv_commit.scope;
                 let subject = conv_commit.description;
+                let body = conv_commit.body;
                 let short_hash = hash[..7].into();
                 let mut references = Vec::new();
-                if let Some(body) = conv_commit.body {
-                    references.extend(self.re_references.captures_iter(body.as_str()).map(
-                        |refer| Reference {
+                if let Some(body) = &body {
+                    references.extend(self.re_references.captures_iter(body).map(|refer| {
+                        Reference {
                             // TODO action (the word before?)
                             action: None,
                             owner: "",
@@ -143,8 +144,8 @@ impl<'a> ChangeLogTransformer<'a> {
                             prefix: refer[1].to_owned(),
                             issue: refer[2].to_owned(),
                             raw: refer[0].to_owned(),
-                        },
-                    ));
+                        }
+                    }));
                 }
                 references.extend(conv_commit.footers.iter().flat_map(|footer| {
                     self.re_references
@@ -163,6 +164,7 @@ impl<'a> ChangeLogTransformer<'a> {
                     date,
                     scope,
                     subject,
+                    body,
                     short_hash,
                     references,
                 };

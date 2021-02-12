@@ -38,6 +38,7 @@ pub(crate) struct CommitContext<'a> {
     pub(crate) hash: String,
     pub(crate) date: NaiveDate,
     pub(crate) subject: String,
+    pub(crate) body: Option<String>,
     pub(crate) scope: Option<String>,
     pub(crate) short_hash: String,
     pub(crate) references: Vec<Reference<'a>>,
