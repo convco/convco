@@ -135,7 +135,7 @@ impl<W: io::Write> ChangelogWriter<W> {
         handlebars.register_escape_fn(no_escape);
 
         if let Some(path) = template {
-            handlebars.register_templates_directory(".hbs", dbg!(path))?;
+            handlebars.register_templates_directory(".hbs", path)?;
         } else {
             handlebars.register_template_string("template", TEMPLATE)?;
             handlebars.register_partial("header", HEADER)?;
