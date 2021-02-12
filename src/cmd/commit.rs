@@ -75,7 +75,7 @@ fn read_scope(
 ) -> Result<String, Error> {
     let result: String = dialoguer::Input::with_theme(theme)
         .with_prompt("scope")
-        .validate_with(move |input: &str| match scope_regex.is_match(input) {
+        .validate_with(move |input: &String| match scope_regex.is_match(input) {
             true => Ok(()),
             false => {
                 if input.is_empty() {
@@ -97,7 +97,7 @@ fn read_description(
 ) -> Result<String, Error> {
     let result: String = dialoguer::Input::with_theme(theme)
         .with_prompt("description")
-        .validate_with(|input: &str| {
+        .validate_with(|input: &String| {
             if input.len() < 10 {
                 Err("Description needs a length of at least 10 characters")
             } else {

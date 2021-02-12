@@ -15,20 +15,20 @@ exclude = [
 ]
 
 [dependencies]
-chrono = { version = "0.4.15", features = ["serde"] }
-git2 = { version = "0.13.8", default-features = false, features = [] }
-handlebars = { version = "3.4.0", features = [ "dir_source" ] }
-regex = "1.3.9"
-semver = { version = "0.10.0", features = ["serde"] }
-serde = { version = "1.0.115", features = ["derive"] }
-serde_yaml = "0.8.13"
-structopt = "0.3.16"
-url = "2.1.1"
-dialoguer = "0.6.2"
-thiserror = "1.0.22"
+chrono = { version = "0.4.19", features = ["serde"] }
+git2 = { version = "0.13.17", default-features = false, features = [] }
+handlebars = { version = "3.5.2", features = [ "dir_source" ] }
+regex = "1.4.3"
+semver = { version = "0.11.0", features = ["serde"] }
+serde = { version = "1.0.123", features = ["derive"] }
+serde_yaml = "0.8.17"
+structopt = "0.3.21"
+url = "2.2.0"
+dialoguer = "0.7.1"
+thiserror = "1.0.23"
 
 [build-dependencies]
-structopt = "0.3.16"
+structopt = "0.3.21"
 
 [package.metadata.deb]
 depends = ""
