@@ -16,7 +16,7 @@ exclude = [
 
 [dependencies]
 chrono = { version = "0.4.19", features = ["serde"] }
-git2 = { version = "0.13.17", default-features = false, features = [] }
+git2 = { version = "0.13.17", default-features = false, features = [ "zlib-ng-compat" ] }
 handlebars = { version = "3.5.2", features = [ "dir_source" ] }
 regex = "1.4.3"
 semver = { version = "0.11.0", features = ["serde"] }
