@@ -1,6 +1,7 @@
-use crate::{cli::CheckCommand, cmd::Command, conventional, Error};
 use conventional::Config;
 use git2::{Commit, Repository};
+
+use crate::{cli::CheckCommand, cmd::Command, conventional, Error};
 
 fn print_check(commit: &Commit<'_>, parser: &conventional::CommitParser) -> bool {
     let msg = std::str::from_utf8(commit.message_bytes()).expect("valid utf-8 message");

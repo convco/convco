@@ -1,10 +1,12 @@
+use std::process::{self, ExitStatus};
+
+use regex::Regex;
+
 use crate::{
     cli::CommitCommand,
     conventional::{config::Type, CommitParser, Config},
     Command, Error,
 };
-use regex::Regex;
-use std::process::{self, ExitStatus};
 
 fn read_single_line(
     theme: &impl dialoguer::theme::Theme,

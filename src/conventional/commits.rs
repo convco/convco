@@ -1,5 +1,6 @@
-use regex::Regex;
 use std::fmt;
+
+use regex::Regex;
 
 #[derive(Debug, PartialEq)]
 pub(crate) enum Type {

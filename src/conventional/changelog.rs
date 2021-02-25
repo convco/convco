@@ -1,9 +1,11 @@
-use super::config::Config;
-use crate::Error;
+use std::{io, path::Path};
+
 use chrono::NaiveDate;
 use handlebars::{no_escape, Handlebars};
 use serde::Serialize;
-use std::{io, path::Path};
+
+use super::config::Config;
+use crate::Error;
 
 const TEMPLATE: &str = include_str!("changelog/template.hbs");
 const HEADER: &str = include_str!("changelog/header.hbs");
@@ -63,7 +65,6 @@ pub(crate) struct Context<'a> {
     /// `true` if `previousTag` and `currentTag` are truthy.
     pub(crate) link_compare: bool,
 }
-
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ContextBase<'a> {

@@ -4,12 +4,13 @@ mod conventional;
 mod error;
 mod git;
 
-pub(crate) use crate::{cmd::Command, error::Error};
+use std::process::exit;
 
 use conventional::config::make_cl_config;
 use git::GitHelper;
-use std::process::exit;
 use structopt::StructOpt;
+
+pub(crate) use crate::{cmd::Command, error::Error};
 
 fn main() -> Result<(), Error> {
     let opt: cli::Opt = cli::Opt::from_args();

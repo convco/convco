@@ -1,10 +1,12 @@
-use crate::{error::Error, git::GitHelper};
-use serde::{Deserialize, Serialize};
 use std::{
     fmt,
     path::{Path, PathBuf},
 };
+
+use serde::{Deserialize, Serialize};
 use url::Url;
+
+use crate::{error::Error, git::GitHelper};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub(crate) struct Type {

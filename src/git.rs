@@ -1,6 +1,7 @@
+use std::{cmp::Ordering, collections::HashMap};
+
 use git2::{Commit, Error, Object, Oid, Repository, Revwalk};
 use semver::Version;
-use std::{cmp::Ordering, collections::HashMap};
 
 /// git helper for common operations
 pub(crate) struct GitHelper {

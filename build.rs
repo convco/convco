@@ -1,4 +1,5 @@
 use std::{fs, iter::FromIterator};
+
 use structopt::clap::Shell;
 include!("src/cli.rs");
 

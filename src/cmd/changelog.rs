@@ -1,3 +1,10 @@
+use std::{cmp::Ordering, collections::HashMap, str::FromStr};
+
+use chrono::NaiveDate;
+use git2::Time;
+use regex::Regex;
+use semver::Version;
+
 use crate::{
     cli::ChangelogCommand,
     cmd::Command,
@@ -12,11 +19,6 @@ use crate::{
     git::{GitHelper, VersionAndTag},
     Error,
 };
-use chrono::NaiveDate;
-use git2::Time;
-use regex::Regex;
-use semver::Version;
-use std::{cmp::Ordering, collections::HashMap, str::FromStr};
 
 #[derive(Debug)]
 struct Rev<'a>(&'a str, Option<&'a Version>);

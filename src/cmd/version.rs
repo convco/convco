@@ -1,3 +1,7 @@
+use std::fmt;
+
+use semver::Version;
+
 use crate::{
     cli::VersionCommand,
     cmd::Command,
@@ -5,8 +9,6 @@ use crate::{
     git::{GitHelper, VersionAndTag},
     Error,
 };
-use semver::Version;
-use std::fmt;
 
 enum Label {
     /// Bump minor version (0.1.0 -> 1.0.0)

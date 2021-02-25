@@ -1,7 +1,9 @@
-use crate::conventional;
-use handlebars::{RenderError, TemplateError, TemplateFileError};
 use std::io;
+
+use handlebars::{RenderError, TemplateError, TemplateFileError};
 use thiserror::Error;
+
+use crate::conventional;
 
 #[derive(Debug, Error)]
 pub(crate) enum Error {
