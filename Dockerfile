@@ -1,5 +1,5 @@
 FROM rust:alpine as builder
-RUN apk add clang musl-dev
+RUN apk add clang musl-dev openssl-dev cmake make
 
 COPY . /tmp
 WORKDIR /tmp
