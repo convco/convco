@@ -10,8 +10,11 @@ repository = "https://github.com/convco/convco.git"
 license = "MIT"
 authors = ["Hannes De Valkeneer <hannes@de-valkeneer.be>"]
 edition = "2018"
-exclude = [
-    ".*",
+include = [
+    "build.rs",
+    "src/*",
+    "README.md",
+    "LICENSE"
 ]
 
 [dependencies]
