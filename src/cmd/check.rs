@@ -13,9 +13,9 @@ fn print_check(commit: &Commit<'_>, parser: &conventional::CommitParser) -> bool
             let first_line = msg.lines().next().unwrap_or("");
             let short_msg: String = first_line.chars().take(40).collect();
             if first_line.len() > 40 {
-                println!("FAIL   {}   {}   {}...", short_id, e, short_msg)
+                println!("FAIL  {}  {}  {}...", short_id, e, short_msg)
             } else {
-                println!("FAIL   {}   {}   {}", short_id, e, short_msg)
+                println!("FAIL  {}  {}  {}", short_id, e, short_msg)
             }
             false
         }

@@ -1,6 +1,7 @@
 use std::fmt;
 
 use regex::Regex;
+use thiserror::Error;
 
 #[derive(Debug, PartialEq)]
 pub(crate) enum Type {
@@ -84,32 +85,23 @@ impl fmt::Display for Commit {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum ParseError {
+    #[error("missing type")]
     NoType,
+    #[error("missing description")]
     NoDescription,
+    #[error("empty commit message")]
     EmptyCommitMessage,
+    #[error("first line doesn't match `<type>[optional scope]: <description>`")]
     InvalidFirstLine,
+    #[error("scope does not match regex: {0}")]
+    InvalidScope(String),
 }
-
-impl fmt::Display for ParseError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            ParseError::NoType => write!(f, "missing type"),
-            ParseError::NoDescription => write!(f, "missing description"),
-            ParseError::EmptyCommitMessage => write!(f, "empty commit message"),
-            ParseError::InvalidFirstLine => write!(
-                f,
-                "first line doesn't match `<type>[optional scope]: <description>`"
-            ),
-        }
-    }
-}
-
-impl std::error::Error for ParseError {}
 
 pub struct CommitParser {
     regex_first_line: Regex,
+    regex_scope: Regex,
     regex_footer: Regex,
 }
 
@@ -124,6 +116,13 @@ impl CommitParser {
             if let Some(capts) = self.regex_first_line.captures(first) {
                 let r#type: Option<Type> = capts.name("type").map(|t| t.as_str().into());
                 let scope = capts.name("scope").map(|s| s.as_str().to_owned());
+                if let Some(ref scope) = scope {
+                    if !self.regex_scope.is_match(scope.as_str()) {
+                        return Err(ParseError::InvalidScope(
+                            self.regex_scope.as_str().to_owned(),
+                        ));
+                    }
+                }
                 let breaking = capts.name("breaking").is_some();
                 let description = capts.name("desc").map(|d| d.as_str().to_owned());
                 match (r#type, description) {
@@ -200,16 +199,15 @@ impl CommitParserBuilder {
     }
 
     pub fn build(&self) -> CommitParser {
-        let regex_first_line = Regex::new(&format!(
+        let regex_first_line = Regex::new(
             r#"(?xms)
         ^
         (?P<type>[a-zA-Z]+)
-        (?:\((?P<scope>{})\))?
+        (?:\((?P<scope>[^()\r\n]+)\))?
         (?P<breaking>!)?
         :\x20(?P<desc>[^\r\n]+)
         $"#,
-            self.scope_regex
-        ))
+        )
         .expect("valid scope regex");
         let regex_footer = Regex::new(
             r#"(?xm)
@@ -220,7 +218,10 @@ impl CommitParserBuilder {
                     $"#,
         )
         .unwrap();
+        let regex_scope =
+            Regex::new(self.scope_regex.as_str()).expect("scope regex should be valid");
         CommitParser {
+            regex_scope,
             regex_first_line,
             regex_footer,
         }
