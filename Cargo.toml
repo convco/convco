@@ -19,15 +19,15 @@ include = [
 
 [dependencies]
 chrono = { version = "0.4.19", features = ["serde"] }
-git2 = { version = "0.13.17", default-features = false, features = [ "zlib-ng-compat" ] }
-handlebars = { version = "3.5.3", features = [ "dir_source" ] }
-regex = "1.4.4"
+git2 = { version = "0.13.18", default-features = false, features = [ "zlib-ng-compat" ] }
+handlebars = { version = "3.5.4", features = [ "dir_source" ] }
+regex = "1.4.6"
 semver = "0.11.0"
-serde = { version = "1.0.124", features = ["derive"] }
+serde = { version = "1.0.125", features = ["derive"] }
 serde_yaml = "0.8.17"
 structopt = "0.3.21"
 url = "2.2.1"
-dialoguer = "0.7.1"
+dialoguer = "0.8.0"
 thiserror = "1.0.24"
 
 [build-dependencies]
