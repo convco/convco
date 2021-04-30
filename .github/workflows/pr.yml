@@ -11,13 +11,13 @@ jobs:
         with:
           # A PR should not contain too many commits
           fetch-depth: 10
-      - run: git show-ref
-      - uses: actions-rs/install@v0.1
-        with:
-          crate: convco
-          version: latest
       - name: Validate commit messages
-        run: convco check ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}
+        run: |
+          git show-ref
+          curl -sSfL https://github.com/convco/convco/releases/latest/download/convco-ubuntu.zip | zcat > convco
+          chmod +x convco
+          ./convco check ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}
+          rm convco
       - name: Install stable toolchain
         uses: actions-rs/toolchain@v1
         with:
