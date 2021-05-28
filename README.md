@@ -19,6 +19,8 @@ It provides already the following commands:
 
 `cargo install convco`
 
+This build depends on `git2` with the `zlib-ng-compat` feature. It requires `cmake`.
+
 ## Docker usage
 
 ```shell script
