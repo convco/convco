@@ -53,8 +53,12 @@ pub struct VersionCommand {
 
 #[derive(Debug, StructOpt)]
 pub struct CheckCommand {
+    /// Start of the revwalk, can also be a commit range. Can be in the form `<commit>..<commit>`.
     #[structopt(default_value = "HEAD")]
     pub rev: String,
+    /// Limit the number of commits to check.
+    #[structopt(short, long = "max-count")]
+    pub number: Option<usize>,
 }
 
 #[derive(Debug, StructOpt)]
