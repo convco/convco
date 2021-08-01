@@ -1,6 +1,6 @@
 use std::io;
 
-use handlebars::{RenderError, TemplateError, TemplateFileError};
+use handlebars::{RenderError, TemplateError};
 use thiserror::Error;
 
 use crate::conventional;
@@ -13,8 +13,6 @@ pub(crate) enum Error {
     Io(#[from] io::Error),
     #[error(transparent)]
     Template(#[from] TemplateError),
-    #[error(transparent)]
-    TemplateFile(#[from] TemplateFileError),
     #[error(transparent)]
     Parser(#[from] conventional::ParseError),
     #[error(transparent)]
