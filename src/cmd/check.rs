@@ -44,6 +44,7 @@ impl Command for CheckCommand {
             .flatten()
             .flat_map(|oid| repo.find_commit(oid).ok())
             .filter(|commit| commit.parent_count() <= 1)
+            .take(self.number.unwrap_or(std::usize::MAX))
         {
             total += 1;
             fail += u32::from(!print_check(&commit, &parser));
