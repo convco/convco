@@ -7,6 +7,7 @@ use crate::{
     cmd::Command,
     conventional::{CommitParser, Config, Type},
     git::{GitHelper, VersionAndTag},
+    semver::SemVer,
     Error,
 };
 
@@ -53,7 +54,7 @@ impl VersionCommand {
     fn find_bump_version(
         &self,
         last_v_tag: &str,
-        mut last_version: Version,
+        mut last_version: SemVer,
         parser: &CommitParser,
     ) -> Result<(Version, Label), Error> {
         let prefix = self.prefix.as_str();
@@ -69,7 +70,7 @@ impl VersionCommand {
         let mut minor = false;
         let mut patch = false;
 
-        let major_version_zero = last_version.major == 0;
+        let major_version_zero = last_version.major() == 0;
 
         for commit in i {
             if commit.breaking {
@@ -103,7 +104,7 @@ impl VersionCommand {
             // TODO what should be the behaviour? always increment patch? or stay on same version?
             _ => Label::Release,
         };
-        Ok((last_version, label))
+        Ok((last_version.0, label))
     }
 }
 
@@ -112,18 +113,18 @@ impl Command for VersionCommand {
         if let Some(VersionAndTag { tag, mut version }) = self.find_last_version()? {
             let v = if self.major {
                 version.increment_major();
-                (version, Label::Major)
+                (version.0, Label::Major)
             } else if self.minor {
                 version.increment_minor();
-                (version, Label::Minor)
+                (version.0, Label::Minor)
             } else if self.patch {
                 version.increment_patch();
-                (version, Label::Patch)
+                (version.0, Label::Patch)
             } else if self.bump {
                 if version.is_prerelease() {
-                    version.pre.clear();
-                    version.build.clear();
-                    (version, Label::Release)
+                    version.pre_clear();
+                    version.build_clear();
+                    (version.0, Label::Release)
                 } else {
                     let parser = CommitParser::builder()
                         .scope_regex(config.scope_regex)
@@ -131,7 +132,7 @@ impl Command for VersionCommand {
                     self.find_bump_version(tag.as_str(), version, &parser)?
                 }
             } else {
-                (version, Label::Release)
+                (version.0, Label::Release)
             };
             if self.label {
                 println!("{}", v.1);

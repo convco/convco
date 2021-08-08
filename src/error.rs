@@ -19,6 +19,8 @@ pub(crate) enum Error {
     Render(#[from] RenderError),
     #[error(transparent)]
     Url(#[from] url::ParseError),
+    #[error(transparent)]
+    SemVer(#[from] semver::Error),
     #[error("check error")]
     Check,
     #[error("canceled by user")]

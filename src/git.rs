@@ -3,6 +3,8 @@ use std::{cmp::Ordering, collections::HashMap};
 use git2::{Commit, Error, Object, Oid, Repository, Revwalk};
 use semver::Version;
 
+use crate::semver::SemVer;
+
 /// git helper for common operations
 pub(crate) struct GitHelper {
     pub(crate) repo: Repository,
@@ -12,7 +14,7 @@ pub(crate) struct GitHelper {
 #[derive(Clone, Debug)]
 pub(crate) struct VersionAndTag {
     pub(crate) tag: String,
-    pub(crate) version: Version,
+    pub(crate) version: SemVer,
 }
 
 impl Eq for VersionAndTag {}
@@ -113,7 +115,7 @@ fn make_oid_version_map(repo: &Repository, prefix: &str) -> HashMap<Oid, Version
                     oid,
                     VersionAndTag {
                         tag: tag.to_owned(),
-                        version,
+                        version: SemVer(version),
                     },
                 );
             }
