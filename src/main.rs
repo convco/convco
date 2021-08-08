@@ -3,6 +3,7 @@ mod cmd;
 mod conventional;
 mod error;
 mod git;
+mod semver;
 
 use std::process::exit;
 

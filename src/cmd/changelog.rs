@@ -3,7 +3,6 @@ use std::{cmp::Ordering, collections::HashMap, str::FromStr};
 use chrono::NaiveDate;
 use git2::Time;
 use regex::Regex;
-use semver::Version;
 
 use crate::{
     cli::ChangelogCommand,
@@ -17,11 +16,12 @@ use crate::{
         CommitParser, Footer,
     },
     git::{GitHelper, VersionAndTag},
+    semver::SemVer,
     Error,
 };
 
 #[derive(Debug)]
-struct Rev<'a>(&'a str, Option<&'a Version>);
+struct Rev<'a>(&'a str, Option<&'a SemVer>);
 
 impl<'a> From<&'a VersionAndTag> for Rev<'a> {
     fn from(tav: &'a VersionAndTag) -> Self {
@@ -181,7 +181,7 @@ impl<'a> ChangeLogTransformer<'a> {
         } else {
             from_rev.0
         };
-        let is_patch = from_rev.1.map(|i| i.patch != 0).unwrap_or(false);
+        let is_patch = from_rev.1.map(|i| i.patch() != 0).unwrap_or(false);
         let mut commit_groups: Vec<CommitGroup<'_>> = commits
             .into_iter()
             .map(|(title, commits)| CommitGroup { title, commits })
@@ -255,7 +255,7 @@ impl Command for ChangelogCommand {
         let transformer = ChangeLogTransformer::new(&config, &helper)?;
         match helper.find_last_version(rev)? {
             Some(last_version) => {
-                let semver = Version::from_str(rev.trim_start_matches(&self.prefix));
+                let semver = SemVer::from_str(rev.trim_start_matches(&self.prefix));
                 let from_rev = if let Ok(ref semver) = &semver {
                     if helper.same_commit(rev, last_version.tag.as_str()) {
                         Rev(last_version.tag.as_str(), Some(semver))
