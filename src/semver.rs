@@ -38,7 +38,7 @@ impl SemVer {
     }
 
     pub fn is_prerelease(&self) -> bool {
-        self.0.pre.is_empty()
+        !self.0.pre.is_empty()
     }
 
     pub fn pre_clear(&mut self) {
