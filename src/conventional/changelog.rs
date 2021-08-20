@@ -22,19 +22,19 @@ pub(crate) struct Reference<'a> {
     pub(crate) raw: String,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub(crate) struct Note {
     pub(crate) scope: Option<String>,
     pub(crate) text: String,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub(crate) struct NoteGroup {
     pub(crate) title: String,
     pub(crate) notes: Vec<Note>,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct CommitContext<'a> {
     pub(crate) hash: String,
@@ -46,13 +46,13 @@ pub(crate) struct CommitContext<'a> {
     pub(crate) references: Vec<Reference<'a>>,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub(crate) struct CommitGroup<'a> {
     pub(crate) title: &'a str,
     pub(crate) commits: Vec<CommitContext<'a>>,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Context<'a> {
     #[serde(flatten)]
@@ -65,7 +65,7 @@ pub(crate) struct Context<'a> {
     /// `true` if `previousTag` and `currentTag` are truthy.
     pub(crate) link_compare: bool,
 }
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ContextBase<'a> {
     pub(crate) version: &'a str,
