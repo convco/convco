@@ -91,7 +91,7 @@ impl Default for Config {
 }
 
 fn default_header() -> String {
-    "# Changelog\n\n".into()
+    "# Changelog\n".into()
 }
 
 fn default_types() -> Vec<Type> {
@@ -255,7 +255,7 @@ mod tests {
         assert_eq!(
             value,
             Config {
-                header: "# Changelog\n\n".to_string(),
+                header: "# Changelog\n".to_string(),
                 types: vec![
                     Type {
                         r#type: "chore".into(),
