@@ -25,7 +25,7 @@ pub(crate) struct Reference<'a> {
 #[derive(Debug, Serialize)]
 pub(crate) struct Note {
     pub(crate) scope: Option<String>,
-    pub(crate) text: String,
+    pub(crate) text: Vec<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -39,7 +39,7 @@ pub(crate) struct NoteGroup {
 pub(crate) struct CommitContext<'a> {
     pub(crate) hash: String,
     pub(crate) date: NaiveDate,
-    pub(crate) subject: String,
+    pub(crate) subject: Vec<String>,
     pub(crate) body: Option<String>,
     pub(crate) scope: Option<String>,
     pub(crate) short_hash: String,
