@@ -67,6 +67,10 @@ pub(crate) struct Config {
     /// Defaults to `"[[:alnum:]]+(?:[-_/][[:alnum:]]+)*"`.
     #[serde(default = "default_scope_regex")]
     pub(crate) scope_regex: String,
+    /// default number of characters in a single line of the CHANGELOG.
+    #[serde(default = "default_changelog_line_length")]
+    pub(crate) changelog_line_length: usize,
+    
 }
 
 impl Default for Config {
@@ -81,6 +85,7 @@ impl Default for Config {
             user_url_format: default_user_url_format(),
             release_commit_message_format: default_release_commit_message_format(),
             issue_prefixes: default_issue_prefixes(),
+            changelog_line_length: default_changelog_line_length(),
             host: None,
             owner: None,
             repository: None,
@@ -168,6 +173,11 @@ fn default_user_url_format() -> String {
 fn default_release_commit_message_format() -> String {
     "chore(release): {{currentTag}}".into()
 }
+fn default_changelog_line_length() -> usize {
+    80
+}
+
+
 
 fn default_issue_prefixes() -> Vec<String> {
     vec!["#".into()]
@@ -255,6 +265,7 @@ mod tests {
         assert_eq!(
             value,
             Config {
+                changelog_line_length: 80,
                 header: "# Changelog\n".to_string(),
                 types: vec![
                     Type {

@@ -70,8 +70,8 @@ impl<'a> ChangeLogTransformer<'a> {
             commit_parser,
         })
     }
-
     fn make_notes(&self, footers: &'a [Footer], scope: Option<String>) -> Vec<(String, Note)> {
+        let changelog_line_length = self.config.changelog_line_length ;
         footers
             .iter()
             .filter(|footer| footer.key.starts_with("BREAKING"))
@@ -80,7 +80,23 @@ impl<'a> ChangeLogTransformer<'a> {
                     footer.key.clone(),
                     Note {
                         scope: scope.clone(),
-                        text: footer.value.clone(),
+                        text: footer.value.to_owned()
+                        .split_whitespace()
+                        .map(|s| String::from(s))
+                        .fold(Vec::<String>::new(), |mut acc, word|{
+                            let length=acc.len();
+                            if length != 0 {
+                                let last_line = acc.clone().pop().unwrap();
+                                if last_line.len() + word.len() < changelog_line_length {
+                                    acc[length -1] = format!("{} {}", last_line,word);
+                                }else{
+                                    acc.push(word);
+                                }
+                            }else{
+                                acc.push(word);
+                            }
+                            acc
+                        }),
                     },
                 )
             })
@@ -132,7 +148,23 @@ impl<'a> ChangeLogTransformer<'a> {
                 let hash = commit.id().to_string();
                 let date = chrono::NaiveDateTime::from_timestamp(commit.time().seconds(), 0).date();
                 let scope = conv_commit.scope;
-                let subject = conv_commit.description;
+                let subject = conv_commit.description.to_owned()
+                .split_whitespace()
+                .map(|s| String::from(s))
+                .fold(Vec::<String>::new(), |mut acc, word|{
+                    let length=acc.len();
+                    if length != 0 {
+                        let last_line = acc.clone().pop().unwrap();
+                        if last_line.len() + word.len() < self.config.changelog_line_length {
+                            acc[length -1] = format!("{} {}", last_line,word);
+                        }else{
+                            acc.push(word);
+                        }
+                    }else{
+                        acc.push(word);
+                    }
+                    acc
+                });
                 let body = conv_commit.body;
                 let short_hash = hash[..7].into();
                 let mut references = Vec::new();
