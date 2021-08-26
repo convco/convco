@@ -70,7 +70,6 @@ pub(crate) struct Config {
     /// default number of characters in a single line of the CHANGELOG.
     #[serde(default = "default_changelog_line_length")]
     pub(crate) changelog_line_length: usize,
-    
 }
 
 impl Default for Config {
@@ -176,8 +175,6 @@ fn default_release_commit_message_format() -> String {
 fn default_changelog_line_length() -> usize {
     80
 }
-
-
 
 fn default_issue_prefixes() -> Vec<String> {
     vec!["#".into()]
