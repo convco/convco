@@ -86,7 +86,7 @@ impl<'a> ChangeLogTransformer<'a> {
     }
 
     fn make_notes(&self, footers: &'a [Footer], scope: Option<String>) -> Vec<(String, Note)> {
-        let changelog_line_length = self.config.changelog_line_length;
+        let line_length = self.config.line_length;
         footers
             .iter()
             .filter(|footer| footer.key.starts_with("BREAKING"))
@@ -101,7 +101,7 @@ impl<'a> ChangeLogTransformer<'a> {
                             .split_whitespace()
                             .map(|s| String::from(s))
                             .fold(Vec::<String>::new(), |acc, word| {
-                                word_wrap_acc(acc, word, changelog_line_length)
+                                word_wrap_acc(acc, word, line_length)
                             }),
                     },
                 )
@@ -160,7 +160,7 @@ impl<'a> ChangeLogTransformer<'a> {
                     .split_whitespace()
                     .map(|s| String::from(s))
                     .fold(Vec::<String>::new(), |acc, word| {
-                        word_wrap_acc(acc, word, self.config.changelog_line_length)
+                        word_wrap_acc(acc, word, self.config.line_length)
                     });
                 let body = conv_commit.body;
                 let short_hash = hash[..7].into();
