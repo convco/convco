@@ -42,6 +42,20 @@ struct ChangeLogTransformer<'a> {
 fn date_from_time(time: &Time) -> NaiveDate {
     chrono::NaiveDateTime::from_timestamp(time.seconds(), 0).date()
 }
+fn word_wrap_acc(mut acc: Vec<String>, word: String, line_length: usize) -> Vec<String> {
+    let length = acc.len();
+    if length != 0 {
+        let last_line = acc.clone().pop().unwrap();
+        if last_line.len() + word.len() < line_length {
+            acc[length - 1] = format!("{} {}", last_line, word);
+        } else {
+            acc.push(word);
+        }
+    } else {
+        acc.push(word);
+    }
+    acc
+}
 
 impl<'a> ChangeLogTransformer<'a> {
     fn new(config: &'a Config, git: &'a GitHelper) -> Result<Self, Error> {
@@ -86,19 +100,8 @@ impl<'a> ChangeLogTransformer<'a> {
                             .to_owned()
                             .split_whitespace()
                             .map(|s| String::from(s))
-                            .fold(Vec::<String>::new(), |mut acc, word| {
-                                let length = acc.len();
-                                if length != 0 {
-                                    let last_line = acc.clone().pop().unwrap();
-                                    if last_line.len() + word.len() < changelog_line_length {
-                                        acc[length - 1] = format!("{} {}", last_line, word);
-                                    } else {
-                                        acc.push(word);
-                                    }
-                                } else {
-                                    acc.push(word);
-                                }
-                                acc
+                            .fold(Vec::<String>::new(), |acc, word| {
+                                word_wrap_acc(acc, word, changelog_line_length)
                             }),
                     },
                 )
@@ -156,19 +159,8 @@ impl<'a> ChangeLogTransformer<'a> {
                     .to_owned()
                     .split_whitespace()
                     .map(|s| String::from(s))
-                    .fold(Vec::<String>::new(), |mut acc, word| {
-                        let length = acc.len();
-                        if length != 0 {
-                            let last_line = acc.clone().pop().unwrap();
-                            if last_line.len() + word.len() < self.config.changelog_line_length {
-                                acc[length - 1] = format!("{} {}", last_line, word);
-                            } else {
-                                acc.push(word);
-                            }
-                        } else {
-                            acc.push(word);
-                        }
-                        acc
+                    .fold(Vec::<String>::new(), |acc, word| {
+                        word_wrap_acc(acc, word, self.config.changelog_line_length)
                     });
                 let body = conv_commit.body;
                 let short_hash = hash[..7].into();
