@@ -32,27 +32,27 @@ fn make_commit_message(
     breaking: bool,
 ) -> String {
     let mut msg = r#type.to_string();
-    if !scope.is_empty() {
+    if !scope.trim().is_empty() {
         msg.push('(');
-        msg.push_str(scope.as_str());
+        msg.push_str(scope.trim());
         msg.push(')');
     }
-    if breaking || !breaking_change.is_empty() {
+    if breaking || !breaking_change.trim().is_empty() {
         msg.push('!');
     }
     msg.push_str(": ");
-    msg.push_str(description.as_str());
+    msg.push_str(description.trim());
     if !body.is_empty() {
         msg.push_str("\n\n");
-        msg.push_str(body.as_str())
+        msg.push_str(body.trim())
     }
-    if !breaking_change.is_empty() {
+    if !breaking_change.trim().is_empty() {
         msg.push_str("\n\n");
-        msg.push_str(format!("BREAKING CHANGE: {}", breaking_change).as_str());
+        msg.push_str(format!("BREAKING CHANGE: {}", breaking_change.trim()).as_str());
     }
-    if !issues.is_empty() {
+    if !issues.trim().is_empty() {
         msg.push_str("\n\n");
-        msg.push_str(format!("Refs: {}", issues).as_str());
+        msg.push_str(format!("Refs: {}", issues.trim()).as_str());
     }
     msg
 }
