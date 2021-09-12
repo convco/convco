@@ -1,0 +1,32 @@
+name: "docker"
+on:
+  schedule:
+    - cron: "0 0 * * *"
+  push:
+  workflow_dispatch:
+jobs:
+  bake:
+    name: "build and pushing convco docker image"
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v2
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v1
+        with:
+          install: true
+      - name: "Login to Docker Container Repository"
+        run: echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USERNAME} --password-stdin
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+      - name: "build docker image"
+        shell: bash
+        run: |
+          set -ex ;
+          docker buildx use "convco" \
+          || docker buildx create --use --name "convco" --driver docker-container ;
+          docker buildx bake --builder convco ;
