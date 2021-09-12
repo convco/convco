@@ -1,9 +1,8 @@
 name: "docker"
 on:
-  schedule:
-    - cron: "0 0 * * *"
   push:
-  workflow_dispatch:
+    tags:
+      - 'v*.*.*'
 jobs:
   bake:
     name: "build and pushing convco docker image"
@@ -27,6 +26,7 @@ jobs:
         shell: bash
         run: |
           set -ex ;
+          export TAG=$(git describe --tags --abbrev=0 | sed 's/v//g') 
           docker buildx use "convco" \
           || docker buildx create --use --name "convco" --driver docker-container ;
           docker buildx bake --builder convco ;
