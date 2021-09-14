@@ -28,7 +28,7 @@ jobs:
         shell: bash
         run: |
           set -ex ;
-          export TAG=$(git describe --tags --abbrev=0 | sed 's/v//g') ;
+          export TAG=$(echo ${{ github.ref }} | rev | cut -d/ -f1 | rev | tr -d 'v' | sed 's/master/latest/') ;
           docker buildx use "convco" \
           || docker buildx create --use --name "convco" --driver docker-container ;
           docker buildx bake --builder convco ;
