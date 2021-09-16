@@ -114,7 +114,8 @@ RUN                                                                             
   && strip /workspace/convco                                                                                                 \
   && upx /workspace/convco                                                                                                   \
   && /workspace/convco --version
-FROM scratch
+FROM alpine:3.14
+SHELL ["/bin/ash", "-o", "pipefail", "-c"]
 COPY --chmod=0755 --from=compression-layer /workspace/convco /entrypoint
 WORKDIR /workspace
 VOLUME /workspace
