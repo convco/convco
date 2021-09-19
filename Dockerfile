@@ -5,9 +5,9 @@ FROM alpine:3.14 AS upx-downloader
 SHELL ["/bin/ash", "-o", "pipefail", "-c"]
 RUN \
   apk add --no-cache \
-    curl=7.78.0-r0 \
-    jq=1.6-r1 \
-    xz=5.2.5-r0 ;
+    curl \
+    jq \
+    xz ;
 ARG REPO="upx/upx"
 ARG LATEST_RELEASE_ENDPOINT="https://api.github.com/repos/${REPO}/releases/latest"
 RUN \
@@ -41,13 +41,13 @@ SHELL ["/bin/ash", "-o", "pipefail", "-c"]
 # ────────────────────────────────────────────────────────────────────────────────
 RUN \
   apk add --no-cache \
-  build-base=0.5-r2 \
-  cmake=3.20.3-r0 \
-  curl=7.78.0-r0 \
-  libgit2-static=1.1.0-r2 \
-  musl-dev=1.2.2-r3 \
-  openssl-dev=1.1.1l-r0 \
-  openssl-libs-static=1.1.1l-r0
+  build-base \
+  cmake \
+  curl \
+  libgit2-static \
+  musl-dev \
+  openssl-dev \
+  openssl-libs-static
 # ────────────────────────────────────────────────────────────────────────────────
 FROM base AS builder-layer
 ARG RUST_VERSION="1.54.0"
