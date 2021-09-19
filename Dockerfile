@@ -106,7 +106,7 @@ RUN \
 FROM base AS compression-layer
 COPY --chmod=0755 --from=upx-downloader /upx /usr/local/bin/upx
 RUN \
-  upx --version \
+  upx --version
 WORKDIR /workspace
 COPY --chmod=0755 --from=builder-layer /convco /workspace/convco
 RUN \
