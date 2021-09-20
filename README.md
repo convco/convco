@@ -1,5 +1,6 @@
 # Convco
 
+[![Open in Gitpod](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/#https://github.com/convco/convco)
 ![GitHub Workflow Status](https://img.shields.io/github/workflow/status/convco/convco/Build%20binary)
 [![Crates.io](https://img.shields.io/crates/v/convco)](https://crates.io/crates/convco)
 
