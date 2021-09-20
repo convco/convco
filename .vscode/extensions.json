@@ -1,0 +1,17 @@
+{
+  "recommendations": [
+    "matklad.rust-analyzer",
+    "bungcip.better-toml",
+    "mutantdino.resourcemonitor",
+    "redhat.vscode-yaml",
+    "wayou.vscode-todo-highlight",
+    "wmaurer.change-case",
+    "yzane.markdown-pdf",
+    "yzhang.markdown-all-in-one",
+    "aaron-bond.better-comments",
+    "editorconfig.editorconfig",
+    "kevinkyang.auto-comment-blocks",
+    "ms-azuretools.vscode-docker",
+    "skellock.just"
+  ]
+}
