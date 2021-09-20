@@ -1,0 +1,27 @@
+image: convco/convco-gitpod
+tasks:
+  - name: "setup"
+    command: |
+      echo >&2 "*** adding client's ssh public key to authorized list" ;
+      just ssh-pub-key
+      echo >&2 "*** setting up chisel" ;
+      just chisel
+      echo >&2 "*** setting up dropbear" ;
+      just dropbear
+      echo >&2 "*** ensuring gitpod user belongs to docker group" ;
+      sudo usermod -aG docker gitpod
+      echo >&2 "*** ensuring correct ownership of docker socket" ;
+      just docker-socket-chown ;
+      echo >&2 "*** signing into docker hub " ;
+      just docker-login
+      echo >&2 "*** setting up environment " ;
+      just bootstrap
+ports:
+  # [ NOTE ] => for chisel
+  - port: 8080
+    onOpen: ignore
+    visibility: public
+  # [ NOTE ] => for dropbear
+  - port: 2222
+    onOpen: ignore
+    visibility: public
