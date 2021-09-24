@@ -325,12 +325,16 @@ impl Command for ChangelogCommand {
                     let from = &w[0];
                     let to = &w[1];
                     let context = transformer.transform(from, to)?;
-                    writer.write_template(&context)?;
+                    if !self.skip_empty || !context.context.commit_groups.is_empty() {
+                        writer.write_template(&context)?;
+                    }
                 }
             }
             None => {
                 let context = transformer.transform(&Rev("HEAD", None), &Rev("", None))?;
-                writer.write_template(&context)?;
+                if !self.skip_empty || !context.context.commit_groups.is_empty() {
+                    writer.write_template(&context)?;
+                }
             }
         }
         Ok(())
