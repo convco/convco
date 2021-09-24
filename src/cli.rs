@@ -68,6 +68,8 @@ pub struct ChangelogCommand {
     pub prefix: String,
     #[structopt(default_value = "HEAD")]
     pub rev: String,
+    #[structopt(short, long)]
+    pub skip_empty: bool,
 }
 
 #[derive(Debug, StructOpt)]
