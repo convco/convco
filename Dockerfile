@@ -1,40 +1,6 @@
 # syntax = docker/dockerfile-upstream:master-labs
 #-*-mode:dockerfile;indent-tabs-mode:nil;tab-width:2;coding:utf-8-*-
 # vi: ft=dockerfile tabstop=2 shiftwidth=2 softtabstop=2 expandtab:
-FROM alpine:3.14 AS upx-downloader
-SHELL ["/bin/ash", "-o", "pipefail", "-c"]
-RUN \
-  apk add --no-cache \
-    curl \
-    jq \
-    xz ;
-ARG REPO="upx/upx"
-ARG LATEST_RELEASE_ENDPOINT="https://api.github.com/repos/${REPO}/releases/latest"
-RUN \
-  tag_name="$(curl -sL ${LATEST_RELEASE_ENDPOINT} | jq -r '.tag_name')"; \
-  architecture="$(apk --print-arch)"; \
-  case "$architecture" in \
-    x86_64|amd64) \
-      architecture="amd64" \
-    ;; \
-    aarch64) \
-      architecture="arm64" \
-    ;; \
-    *) \
-      echo >&2 "[ WARN ] compression utilities are not available: $architecture"; \
-      exit 0 \
-    ;; \
-  esac ; \
-  version="$(echo ${tag_name} | sed 's/v//g')"; \
-  download_url="https://github.com/upx/upx/releases/download/${tag_name}/upx-${version}-${architecture}_linux.tar.xz"; \
-  rm -rf \
-    /tmp/{upx.tar,upx.tar.xz} \
-    /usr/local/bin/upx \
-  && echo "$download_url" > /tmp/dl \
-  && curl -fsSLo /tmp/upx.tar.xz "${download_url}" \
-  && xz -d -c /tmp/upx.tar.xz \
-  | tar \
-    -xOf - upx-${version}-${architecture}_linux/upx > /upx
 FROM alpine:3.14 AS base
 # ────────────────────────────────────────────────────────────────────────────────
 SHELL ["/bin/ash", "-o", "pipefail", "-c"]
@@ -103,20 +69,16 @@ RUN \
     fi \
   fi \
   && mv "/workspace/target/$(apk --print-arch)-unknown-linux-musl/release/convco" /convco
-FROM base AS compression-layer
-COPY --chmod=0755 --from=upx-downloader /upx /usr/local/bin/upx
-RUN \
-  upx --version
+FROM base AS strip-layer
 WORKDIR /workspace
 COPY --chmod=0755 --from=builder-layer /convco /workspace/convco
 RUN \
   /workspace/convco --version \
   && strip /workspace/convco \
-  && upx /workspace/convco \
   && /workspace/convco --version
 FROM alpine:3.14
 SHELL ["/bin/ash", "-o", "pipefail", "-c"]
-COPY --chmod=0755 --from=compression-layer /workspace/convco /entrypoint
+COPY --chmod=0755 --from=strip-layer /workspace/convco /entrypoint
 WORKDIR /workspace
 VOLUME /workspace
 ENTRYPOINT [ "/entrypoint" ]
