@@ -114,7 +114,7 @@ fn read_description(
 
 fn edit_message(msg: &str) -> Result<String, Error> {
     Ok(dialoguer::Editor::new()
-        .require_save(true)
+        .require_save(false)
         .edit(msg)?
         .unwrap_or_default()
         .lines()
