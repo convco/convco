@@ -4,7 +4,7 @@ use regex::Regex;
 
 use crate::{
     cli::CommitCommand,
-    conventional::{config::Type, CommitParser, Config},
+    conventional::{config::Type, CommitParser, Config, ParseError},
     Command, Error,
 };
 
@@ -140,10 +140,12 @@ impl Default for Dialog {
             r#type: String::default(),
             scope: String::default(),
             description: String::default(),
-            body: "# A longer commit body MAY be provided after the short description, \n\
-                   # providing additional contextual information about the code changes. \n\
-                   # The body MUST begin one blank line after the description. \n\
-                   # A commit body is free-form and MAY consist of any number of newline separated paragraphs.\n".to_string(),
+            body: "# A longer commit body MAY be provided after the short description,\n\
+                   # providing additional contextual information about the code changes.\n\
+                   # The body MUST begin one blank line after the description.\n\
+                   # A commit body is free-form and MAY consist of any number of newline separated paragraphs.\n\
+                   # Lines starting with `#` will be ignored.\n\
+                   # An empty message aborts the commit\n".to_string(),
             breaking_change: String::default(),
             issues: String::default(),
         }
@@ -203,6 +205,7 @@ impl Dialog {
             let msg = edit_message(msg.as_str())?;
             match parser.parse(msg.as_str()).map(|_| msg) {
                 Ok(msg) => break Ok(msg),
+                Err(ParseError::EmptyCommitMessage) => break Err(Error::CancelledByUser),
                 Err(e) => {
                     eprintln!("ParseError: {}", e);
                     if !dialoguer::Confirm::new()
