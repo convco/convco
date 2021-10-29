@@ -178,6 +178,13 @@ impl Dialog {
         let types = config.types.as_slice();
         let scope_regex = Regex::new(config.scope_regex.as_str()).expect("valid scope regex");
 
+        // make sure that the cursor re-appears when interrupting
+        ctrlc::set_handler(move || {
+            let term = console::Term::stdout();
+            let _ = term.show_cursor();
+        })
+        .unwrap();
+
         // type
         let current_type = dialog.r#type.as_str();
         match (r#type.as_ref(), current_type) {
