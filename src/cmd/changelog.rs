@@ -1,6 +1,6 @@
 use std::{cmp::Ordering, collections::HashMap, str::FromStr};
 
-use chrono::NaiveDate;
+use time::Date;
 use git2::Time;
 use regex::Regex;
 
@@ -39,9 +39,10 @@ struct ChangeLogTransformer<'a> {
     commit_parser: CommitParser,
 }
 
-fn date_from_time(time: &Time) -> NaiveDate {
-    chrono::NaiveDateTime::from_timestamp(time.seconds(), 0).date()
+fn date_from_time(time: &Time) -> Date {
+    time::OffsetDateTime::from_unix_timestamp(time.seconds()).unwrap().date()
 }
+
 fn word_wrap_acc(mut acc: Vec<String>, word: String, line_length: usize) -> Vec<String> {
     let length = acc.len();
     if length != 0 {
@@ -109,7 +110,7 @@ impl<'a> ChangeLogTransformer<'a> {
             .collect()
     }
 
-    fn find_version_date(&self, spec: &str) -> Result<NaiveDate, Error> {
+    fn find_version_date(&self, spec: &str) -> Result<Date, Error> {
         let obj = self.git.repo.revparse_single(spec)?;
         Ok(
             if let Some(date) = obj
@@ -152,7 +153,7 @@ impl<'a> ChangeLogTransformer<'a> {
                     });
 
                 let hash = commit.id().to_string();
-                let date = chrono::NaiveDateTime::from_timestamp(commit.time().seconds(), 0).date();
+                let date = time::OffsetDateTime::from_unix_timestamp(commit.time().seconds()).unwrap().date();
                 let scope = conv_commit.scope;
                 let subject = conv_commit
                     .description
