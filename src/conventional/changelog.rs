@@ -1,6 +1,6 @@
 use std::{io, path::Path};
 
-use chrono::NaiveDate;
+use time::Date;
 use handlebars::{no_escape, Handlebars};
 use serde::Serialize;
 
@@ -38,7 +38,7 @@ pub(crate) struct NoteGroup {
 #[serde(rename_all = "camelCase")]
 pub(crate) struct CommitContext<'a> {
     pub(crate) hash: String,
-    pub(crate) date: NaiveDate,
+    pub(crate) date: Date,
     pub(crate) subject: Vec<String>,
     pub(crate) body: Option<String>,
     pub(crate) scope: Option<String>,
@@ -69,7 +69,7 @@ pub(crate) struct Context<'a> {
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ContextBase<'a> {
     pub(crate) version: &'a str,
-    pub(crate) date: Option<NaiveDate>,
+    pub(crate) date: Option<Date>,
     pub(crate) is_patch: bool,
     pub(crate) commit_groups: Vec<CommitGroup<'a>>,
     pub(crate) note_groups: Vec<NoteGroup>,
