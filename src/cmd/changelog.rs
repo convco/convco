@@ -1,8 +1,8 @@
 use std::{cmp::Ordering, collections::HashMap, str::FromStr};
 
-use time::Date;
 use git2::Time;
 use regex::Regex;
+use time::Date;
 
 use crate::{
     cli::ChangelogCommand,
@@ -40,7 +40,9 @@ struct ChangeLogTransformer<'a> {
 }
 
 fn date_from_time(time: &Time) -> Date {
-    time::OffsetDateTime::from_unix_timestamp(time.seconds()).unwrap().date()
+    time::OffsetDateTime::from_unix_timestamp(time.seconds())
+        .unwrap()
+        .date()
 }
 
 fn word_wrap_acc(mut acc: Vec<String>, word: String, line_length: usize) -> Vec<String> {
@@ -153,7 +155,9 @@ impl<'a> ChangeLogTransformer<'a> {
                     });
 
                 let hash = commit.id().to_string();
-                let date = time::OffsetDateTime::from_unix_timestamp(commit.time().seconds()).unwrap().date();
+                let date = time::OffsetDateTime::from_unix_timestamp(commit.time().seconds())
+                    .unwrap()
+                    .date();
                 let scope = conv_commit.scope;
                 let subject = conv_commit
                     .description
