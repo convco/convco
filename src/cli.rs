@@ -70,6 +70,9 @@ pub struct ChangelogCommand {
     pub rev: String,
     #[structopt(short, long)]
     pub skip_empty: bool,
+    /// Limits the number of version tags to add in the changelog
+    #[structopt(short, long)]
+    pub max_versions: Option<usize>,
 }
 
 #[derive(Debug, StructOpt)]
