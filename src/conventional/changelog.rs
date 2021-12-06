@@ -1,8 +1,8 @@
 use std::{io, path::Path};
 
-use time::Date;
 use handlebars::{no_escape, Handlebars};
 use serde::Serialize;
+use time::Date;
 
 use super::config::Config;
 use crate::Error;
