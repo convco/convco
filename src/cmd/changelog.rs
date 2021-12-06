@@ -324,7 +324,8 @@ impl Command for ChangelogCommand {
                             .take_while(|v| v.tag != rev_stop)
                             .map(|v| v.into()),
                     )
-                    .chain(Some(Rev(rev_stop, None)));
+                    .chain(Some(Rev(rev_stop, None)))
+                    .take(self.max_versions.map(|x| x + 1).unwrap_or(std::usize::MAX));
                 let iter: Vec<Rev<'_>> = iter.collect();
                 for w in iter.windows(2) {
                     let from = &w[0];
