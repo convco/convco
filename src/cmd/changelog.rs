@@ -102,7 +102,7 @@ impl<'a> ChangeLogTransformer<'a> {
                             .value
                             .to_owned()
                             .split_whitespace()
-                            .map(|s| String::from(s))
+                            .map(String::from)
                             .fold(Vec::<String>::new(), |acc, word| {
                                 word_wrap_acc(acc, word, line_length)
                             }),
@@ -163,7 +163,7 @@ impl<'a> ChangeLogTransformer<'a> {
                     .description
                     .to_owned()
                     .split_whitespace()
-                    .map(|s| String::from(s))
+                    .map(String::from)
                     .fold(Vec::<String>::new(), |acc, word| {
                         word_wrap_acc(acc, word, self.config.line_length)
                     });
