@@ -28,6 +28,7 @@ fn make_commit_message(
         body,
         breaking_change,
         issues,
+        footers,
     }: &Dialog,
     breaking: bool,
 ) -> String {
@@ -53,6 +54,12 @@ fn make_commit_message(
     if !issues.trim().is_empty() {
         msg.push_str("\n\n");
         msg.push_str(format!("Refs: {}", issues.trim()).as_str());
+    }
+    if !footers.is_empty() {
+        footers.iter().for_each(|footer| {
+            msg.push_str("\n\n");
+            msg.push_str(footer);
+        });
     }
     msg
 }
@@ -132,25 +139,15 @@ struct Dialog {
     body: String,
     breaking_change: String,
     issues: String,
+    footers: Vec<String>,
 }
 
-impl Default for Dialog {
-    fn default() -> Self {
-        Self {
-            r#type: String::default(),
-            scope: String::default(),
-            description: String::default(),
-            body: "# A longer commit body MAY be provided after the short description,\n\
-                   # providing additional contextual information about the code changes.\n\
-                   # The body MUST begin one blank line after the description.\n\
-                   # A commit body is free-form and MAY consist of any number of newline separated paragraphs.\n\
-                   # Lines starting with `#` will be ignored.\n\
-                   # An empty message aborts the commit\n".to_string(),
-            breaking_change: String::default(),
-            issues: String::default(),
-        }
-    }
-}
+const BODY_MSG: &str = "# A longer commit body MAY be provided after the short description,\n\
+# providing additional contextual information about the code changes.\n\
+# The body MUST begin one blank line after the description.\n\
+# A commit body is free-form and MAY consist of any number of newline separated paragraphs.\n\
+# Lines starting with `#` will be ignored.\n\
+# An empty message aborts the commit\n";
 
 impl Dialog {
     fn select_type(
@@ -166,60 +163,55 @@ impl Dialog {
         Ok(r#types[index].r#type.clone())
     }
 
-    // Prompt all
     fn wizard(
+        &mut self,
         config: &Config,
         parser: CommitParser,
-        r#type: Option<String>,
         breaking: bool,
+        interactive: bool,
     ) -> Result<String, Error> {
-        let mut dialog = Self::default();
-        let theme = &dialoguer::theme::ColorfulTheme::default();
-        let types = config.types.as_slice();
-        let scope_regex = Regex::new(config.scope_regex.as_str()).expect("valid scope regex");
+        if !(interactive || self.r#type.is_empty() || self.description.is_empty()) {
+            let msg = make_commit_message(self, breaking || !self.breaking_change.is_empty());
+            parser
+                .parse(msg.as_str())
+                .map(|_| msg)
+                .map_err(Error::Parser)
+        } else {
+            let theme = &dialoguer::theme::ColorfulTheme::default();
+            let types = config.types.as_slice();
+            let scope_regex = Regex::new(config.scope_regex.as_str()).expect("valid scope regex");
+            // make sure that the cursor re-appears when interrupting
+            ctrlc::set_handler(move || {
+                let term = dialoguer::console::Term::stdout();
+                let _ = term.show_cursor();
+            })
+            .unwrap();
+            self.r#type = Self::select_type(theme, self.r#type.as_str(), types)?;
+            self.scope = read_scope(theme, self.scope.as_str(), scope_regex)?;
+            self.description = read_description(theme, self.description.clone())?;
+            self.body = format!("{}\n{}", self.body, BODY_MSG);
+            self.breaking_change = read_single_line(
+                theme,
+                "optional BREAKING change",
+                self.breaking_change.as_str(),
+            )?;
+            self.issues = read_single_line(theme, "issues (e.g. #2, #8)", self.issues.as_str())?;
 
-        // make sure that the cursor re-appears when interrupting
-        ctrlc::set_handler(move || {
-            let term = dialoguer::console::Term::stdout();
-            let _ = term.show_cursor();
-        })
-        .unwrap();
-
-        // type
-        let current_type = dialog.r#type.as_str();
-        match (r#type.as_ref(), current_type) {
-            (Some(t), "") if !t.is_empty() => dialog.r#type = t.to_owned(),
-            (_, t) => {
-                dialog.r#type = Self::select_type(theme, t, types)?;
-            }
-        }
-        // scope
-        dialog.scope = read_scope(theme, dialog.scope.as_ref(), scope_regex)?;
-        // description
-        dialog.description = read_description(theme, dialog.description)?;
-        // breaking change
-        dialog.breaking_change = read_single_line(
-            theme,
-            "optional BREAKING change",
-            dialog.breaking_change.as_str(),
-        )?;
-        // issues
-        dialog.issues = read_single_line(theme, "issues (e.g. #2, #8)", dialog.issues.as_str())?;
-
-        loop {
-            // finally make message
-            let msg = make_commit_message(&dialog, breaking);
-            let msg = edit_message(msg.as_str())?;
-            match parser.parse(msg.as_str()).map(|_| msg) {
-                Ok(msg) => break Ok(msg),
-                Err(ParseError::EmptyCommitMessage) => break Err(Error::CancelledByUser),
-                Err(e) => {
-                    eprintln!("ParseError: {}", e);
-                    if !dialoguer::Confirm::new()
-                        .with_prompt("Continue?")
-                        .interact()?
-                    {
-                        break Err(Error::CancelledByUser);
+            loop {
+                // finally make message
+                let msg = make_commit_message(self, breaking);
+                let msg = edit_message(msg.as_str())?;
+                match parser.parse(msg.as_str()).map(|_| msg) {
+                    Ok(msg) => break Ok(msg),
+                    Err(ParseError::EmptyCommitMessage) => break Err(Error::CancelledByUser),
+                    Err(e) => {
+                        eprintln!("ParseError: {}", e);
+                        if !dialoguer::Confirm::new()
+                            .with_prompt("Continue?")
+                            .interact()?
+                        {
+                            break Err(Error::CancelledByUser);
+                        }
                     }
                 }
             }
@@ -240,43 +232,68 @@ impl Command for CommitCommand {
             self.refactor,
             self.perf,
             self.test,
+            self.r#type.as_ref(),
         ) {
-            (true, false, false, false, false, false, false, false, false, false) => {
-                Some("feat".to_string())
+            (true, false, false, false, false, false, false, false, false, false, None) => {
+                "feat".to_string()
             }
-            (false, true, false, false, false, false, false, false, false, false) => {
-                Some("fix".to_string())
+            (false, true, false, false, false, false, false, false, false, false, None) => {
+                "fix".to_string()
             }
-            (false, false, true, false, false, false, false, false, false, false) => {
-                Some("build".to_string())
+            (false, false, true, false, false, false, false, false, false, false, None) => {
+                "build".to_string()
             }
-            (false, false, false, true, false, false, false, false, false, false) => {
-                Some("chore".to_string())
+            (false, false, false, true, false, false, false, false, false, false, None) => {
+                "chore".to_string()
             }
-            (false, false, false, false, true, false, false, false, false, false) => {
-                Some("ci".to_string())
+            (false, false, false, false, true, false, false, false, false, false, None) => {
+                "ci".to_string()
             }
-            (false, false, false, false, false, true, false, false, false, false) => {
-                Some("docs".to_string())
+            (false, false, false, false, false, true, false, false, false, false, None) => {
+                "docs".to_string()
             }
-            (false, false, false, false, false, false, true, false, false, false) => {
-                Some("style".to_string())
+            (false, false, false, false, false, false, true, false, false, false, None) => {
+                "style".to_string()
             }
-            (false, false, false, false, false, false, false, true, false, false) => {
-                Some("refactor".to_string())
+            (false, false, false, false, false, false, false, true, false, false, None) => {
+                "refactor".to_string()
             }
-            (false, false, false, false, false, false, false, false, true, false) => {
-                Some("perf".to_string())
+            (false, false, false, false, false, false, false, false, true, false, None) => {
+                "perf".to_string()
             }
-            (false, false, false, false, false, false, false, false, false, true) => {
-                Some("test".to_string())
+            (false, false, false, false, false, false, false, false, false, true, None) => {
+                "test".to_string()
             }
-            _ => None,
+            (false, false, false, false, false, false, false, false, false, false, feat) => {
+                feat.cloned().unwrap_or_default()
+            }
+            _ => Default::default(),
         };
         let parser = CommitParser::builder()
             .scope_regex(config.scope_regex.clone())
             .build();
-        let msg = Dialog::wizard(&config, parser, r#type, self.breaking)?;
+        let description = self.message.first().cloned().unwrap_or_default();
+        let body = self
+            .message
+            .iter()
+            .skip(1)
+            .cloned()
+            .collect::<Vec<String>>()
+            .join("\n\n");
+        let msg = Dialog {
+            r#type,
+            scope: self.scope.as_ref().cloned().unwrap_or_default(),
+            description,
+            body,
+            breaking_change: String::new(),
+            issues: String::new(),
+            footers: self
+                .footers
+                .iter()
+                .map(|f| format!("{}: {}", f.0, f.1))
+                .collect(),
+        }
+        .wizard(&config, parser, self.breaking, self.interactive)?;
 
         self.commit(msg)?;
         Ok(())
