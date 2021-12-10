@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, str::FromStr};
 
 use structopt::StructOpt;
 
@@ -79,58 +79,130 @@ pub struct ChangelogCommand {
 pub struct CommitCommand {
     /// A bug fix
     #[structopt(long,
-        conflicts_with_all(&["feat", "build", "chore", "ci", "docs", "style", "refactor", "perf", "test"]),
+        conflicts_with_all(&["feat", "build", "chore", "ci", "docs", "style", "refactor", "perf", "test", "type"]),
     )]
     pub fix: bool,
     /// A new feature
     #[structopt(long,
-        conflicts_with_all(&["fix", "build", "chore", "ci", "docs", "style", "refactor", "perf", "test"]),
+        conflicts_with_all(&["fix", "build", "chore", "ci", "docs", "style", "refactor", "perf", "test", "type"]),
     )]
     pub feat: bool,
     /// Changes that affect the build system or external dependencies
     #[structopt(long,
-        conflicts_with_all(&["feat", "fix", "chore", "ci", "docs", "style", "refactor", "perf", "test"]),
+        conflicts_with_all(&["feat", "fix", "chore", "ci", "docs", "style", "refactor", "perf", "test", "type"]),
     )]
     pub build: bool,
     /// Other changes that don't modify src or test files
     #[structopt(long,
-        conflicts_with_all(&["feat", "fix", "build", "ci", "docs", "style", "refactor", "perf", "test"]),
+        conflicts_with_all(&["feat", "fix", "build", "ci", "docs", "style", "refactor", "perf", "test", "type"]),
     )]
     pub chore: bool,
     /// Changes to CI configuration files and scripts
     #[structopt(long,
-        conflicts_with_all(&["feat", "fix", "build", "chore", "docs", "style", "refactor", "perf", "test"]),
+        conflicts_with_all(&["feat", "fix", "build", "chore", "docs", "style", "refactor", "perf", "test", "type"]),
     )]
     pub ci: bool,
     /// Documentation only changes
     #[structopt(long,
-        conflicts_with_all(&["feat", "fix", "build", "chore", "ci", "style", "refactor", "perf", "test"]),
+        conflicts_with_all(&["feat", "fix", "build", "chore", "ci", "style", "refactor", "perf", "test", "type"]),
     )]
     pub docs: bool,
     /// Changes that do not affect the meaning of the code (e.g. formatting)
     #[structopt(long,
-        conflicts_with_all(&["feat", "fix", "build", "chore", "ci", "docs", "refactor", "perf", "test"]),
+        conflicts_with_all(&["feat", "fix", "build", "chore", "ci", "docs", "refactor", "perf", "test", "type"]),
     )]
     pub style: bool,
     /// A code change that neither fixes a bug nor adds a feature
     #[structopt(long,
-        conflicts_with_all(&["feat", "fix", "build", "chore", "ci", "docs", "style", "perf", "test"]),
+        conflicts_with_all(&["feat", "fix", "build", "chore", "ci", "docs", "style", "perf", "test", "type"]),
     )]
     pub refactor: bool,
     /// A code change that improves performance
     #[structopt(long,
-        conflicts_with_all(&["feat", "fix", "build", "chore", "ci", "docs", "style", "refactor", "test"]),
+        conflicts_with_all(&["feat", "fix", "build", "chore", "ci", "docs", "style", "refactor", "test", "type"]),
     )]
     pub perf: bool,
     /// Adding missing tests or correcting existing tests
     #[structopt(long,
-        conflicts_with_all(&["feat", "fix", "build", "chore", "ci", "docs", "style", "refactor", "perf"]),
+        conflicts_with_all(&["feat", "fix", "build", "chore", "ci", "docs", "style", "refactor", "perf", "type"]),
     )]
     pub test: bool,
+    /// Specify your own commit type
+    #[structopt(short, long,
+        conflicts_with_all(&["feat", "fix", "build", "chore", "ci", "docs", "style", "refactor", "perf", "test"]),
+    )]
+    pub r#type: Option<String>,
+    /// Specifies the scope of the message
+    #[structopt(short, long)]
+    pub scope: Option<String>,
+    /// The first message will be the description. Other -m options will be used as the body.
+    #[structopt(short, long)]
+    pub message: Vec<String>,
+    /// Specify extra footers to the message
+    #[structopt(
+        short,
+        long,
+        visible_alias = "trailer",
+        value_name = "token>(=|:)<value"
+    )]
+    pub footers: Vec<Footer>,
     /// Introduces a breaking change
     #[structopt(long)]
     pub breaking: bool,
-    /// Extra arguments passed to the git command
+    /// Interactive mode
+    #[structopt(long, short)]
+    pub interactive: bool,
+    /// Extra arguments passed to the git commit command
     #[structopt(last = true)]
     pub extra_args: Vec<String>,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct Footer(pub(crate) String, pub(crate) String);
+
+impl From<(&str, &str)> for Footer {
+    fn from(s: (&str, &str)) -> Self {
+        Self(s.0.trim().to_owned(), s.1.trim().to_owned())
+    }
+}
+
+impl FromStr for Footer {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut split = s.split(':');
+        match (split.next(), split.next()) {
+            (Some(k), Some(v)) => Ok((k, v).into()),
+            _ => {
+                let mut split = s.split('=');
+                match (split.next(), split.next()) {
+                    (Some(k), Some(v)) => Ok((k, v).into()),
+                    _ => Err(format!("invalid footer: {}", s)),
+                }
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_footer() {
+        let footer: Footer = "Reviewed-by: Z".parse().unwrap();
+        assert_eq!(Footer("Reviewed-by".into(), "Z".into()), footer);
+    }
+
+    #[test]
+    fn test_footer2() {
+        let footer: Footer = "Reviewed-by=Z".parse().unwrap();
+        assert_eq!(Footer("Reviewed-by".into(), "Z".into()), footer);
+    }
+
+    #[test]
+    fn test_footer_err_empty() {
+        let err: String = "".parse::<Footer>().unwrap_err();
+        assert_eq!(err, format!("invalid footer: {}", ""));
+    }
 }
