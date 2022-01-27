@@ -7,14 +7,14 @@ mod semver;
 
 use std::process::exit;
 
+use clap::Parser;
 use conventional::config::make_cl_config;
 use git::GitHelper;
-use structopt::StructOpt;
 
 pub(crate) use crate::{cmd::Command, error::Error};
 
 fn main() -> Result<(), Error> {
-    let opt: cli::Opt = cli::Opt::from_args();
+    let opt: cli::Opt = cli::Opt::parse();
     if let Some(path) = opt.path {
         std::env::set_current_dir(path)?;
     }
