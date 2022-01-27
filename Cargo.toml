@@ -18,21 +18,22 @@ include = [
 ]
 
 [dependencies]
+clap = { version = "3.0.10", features = ["derive"] }
+ctrlc = "3.2.1"
+dialoguer = "0.9.0"
 git2 = { version = "0.13.25", default-features = false, features = [ "zlib-ng-compat" ] }
 handlebars = { version = "4.1.6", features = [ "dir_source" ] }
 regex = "1.5.4"
 semver = "1.0.4"
 serde = { version = "1.0.132", features = ["derive"] }
 serde_yaml = "0.8.23"
-structopt = "0.3.25"
-url = "2.2.2"
-dialoguer = "0.9.0"
 thiserror = "1.0.30"
-ctrlc = "3.2.1"
 time = { version = "0.3.5", features = [ "serde-human-readable" ] }
+url = "2.2.2"
 
 [build-dependencies]
-structopt = "0.3.25"
+clap = { version = "3.0.10", features = ["derive"] }
+clap_complete = "3.0.5"
 
 [package.metadata.deb]
 depends = ""
