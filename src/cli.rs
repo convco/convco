@@ -3,7 +3,7 @@ use std::{path::PathBuf, str::FromStr};
 use clap::Parser;
 
 #[derive(Debug, Parser)]
-#[clap(name = "convco", about = "Conventional commit tools")]
+#[clap(name = "convco", about = "Conventional commit tools", version)]
 pub struct Opt {
     /// Run as if convco was started in <path> instead of the current working directory.
     #[clap(short = 'C', global = true)]
