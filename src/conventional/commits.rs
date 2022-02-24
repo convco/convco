@@ -79,6 +79,16 @@ pub struct Commit {
     pub(crate) footers: Vec<Footer>,
 }
 
+impl Commit {
+    pub fn is_breaking(&self) -> bool {
+        self.breaking
+            || self
+                .footers
+                .iter()
+                .any(|f| f.key == "BREAKING CHANGE" || f.key == "BREAKING-CHANGE")
+    }
+}
+
 impl fmt::Display for Commit {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.r#type)
@@ -251,6 +261,7 @@ mod tests {
                 footers: Vec::new()
             }
         );
+        assert!(!commit.is_breaking());
     }
 
     #[test]
@@ -268,6 +279,7 @@ mod tests {
                 footers: Vec::new()
             }
         );
+        assert!(!commit.is_breaking());
     }
 
     #[test]
@@ -285,6 +297,7 @@ mod tests {
                 footers: Vec::new()
             }
         );
+        assert!(!commit.is_breaking());
     }
 
     #[test]
@@ -302,6 +315,7 @@ mod tests {
                 footers: Vec::new()
             }
         );
+        assert!(commit.is_breaking());
     }
 
     #[test]
@@ -326,6 +340,16 @@ mod tests {
                 }]
             }
         );
+        assert!(commit.is_breaking());
+    }
+
+    #[test]
+    fn test_with_breaking_footer_alias() {
+        let msg = "feat: allow provided config object to extend other configs\n\
+                         \n\
+                         BREAKING-CHANGE: `extends` key in config file is now used for extending other config files";
+        let commit: Commit = parser().parse(msg).expect("valid");
+        assert!(commit.is_breaking());
     }
 
     #[test]
@@ -359,5 +383,6 @@ mod tests {
                 ]
             }
         );
+        assert!(!commit.is_breaking());
     }
 }

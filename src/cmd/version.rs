@@ -73,7 +73,7 @@ impl VersionCommand {
         let major_version_zero = last_version.major() == 0;
 
         for commit in i {
-            if commit.breaking {
+            if commit.is_breaking() {
                 if major_version_zero {
                     minor = true;
                 } else {
