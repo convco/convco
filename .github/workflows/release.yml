@@ -8,19 +8,21 @@ on:
 jobs:
   build:
     name: Build
-    runs-on: ${{ matrix.os }}-latest
+    runs-on: ${{ matrix.os.name }}-${{ matrix.os.version }}
     strategy:
       matrix:
-        os:
-          - ubuntu
-          - windows
-          - macos
         include:
-          - os: ubuntu
+          - os:
+              name: ubuntu
+              version: latest
             binary: convco
-          - os: macos
+          - os:
+              name: macos
+              version: latest
             binary: convco
-          - os: windows
+          - os:
+              name: windows
+              version: 2019
             binary: convco.exe
     steps:
       - uses: actions/checkout@v2
@@ -32,38 +34,38 @@ jobs:
           toolchain: stable
           override: true
 
-      - name: Test on ${{ matrix.os }}
+      - name: Test on ${{ matrix.os.name }}
         uses: actions-rs/cargo@v1
         with:
           command: test
 
-      - name: Build ${{ matrix.os }} binary
+      - name: Build ${{ matrix.os.name }} binary
         uses: actions-rs/cargo@v1
         with:
           command: build
           args: --release
 
-      - name: Upload ${{ matrix.os }} binary
+      - name: Upload ${{ matrix.os.name }} binary
         uses: actions/upload-artifact@v2
         with:
-          name: convco-${{ matrix.os }}
+          name: convco-${{ matrix.os.name }}
           path: target/release/${{ matrix.binary }}
 
       - name: Upload shell completions
-        if: matrix.os == 'ubuntu'
+        if: matrix.os.name == 'ubuntu'
         uses: actions/upload-artifact@v2
         with:
           name: convco-shell-completions
           path: target/completions
 
       - name: Debian package
-        if: matrix.os == 'ubuntu'
+        if: matrix.os.name == 'ubuntu'
         run: |
           cargo install cargo-deb
           cargo deb
 
       - name: Upload Debian package
-        if: matrix.os == 'ubuntu'
+        if: matrix.os.name == 'ubuntu'
         uses: actions/upload-artifact@v2
         with:
           name: convco-deb
