@@ -199,20 +199,23 @@ pub(crate) fn host_info(git: &GitHelper) -> Result<HostOwnerRepo, Error> {
             }
         }
         let url = Url::parse(url.as_str())?;
-        let host = url.host().map(|h| format!("https://{}", h));
-        let mut owner = None;
-        let mut repository = None;
-        if let Some(mut segments) = url.path_segments() {
-            owner = segments.next().map(|s| s.to_string());
-            repository = segments
-                .next()
-                .map(|s: &str| s.trim_end_matches(".git").to_string());
-        }
-
-        Ok((host, owner, repository))
+        host_info_from_url(url)
     } else {
         Ok((None, None, None))
     }
+}
+
+fn host_info_from_url(url: Url) -> Result<HostOwnerRepo, Error> {
+    let host = url.host().map(|h| format!("https://{}", h));
+    let (owner, repository) = match url.path().rsplit_once('/') {
+        Some((owner, repository)) => {
+            let owner = Some(owner.trim_start_matches('/').to_owned());
+            let repository = Some(repository.trim_end_matches(".git").to_owned());
+            (owner, repository)
+        }
+        None => (None, None),
+    };
+    Ok((host, owner, repository))
 }
 
 pub(crate) fn make_cl_config(git: &GitHelper, path: impl AsRef<Path>) -> Config {
@@ -239,6 +242,31 @@ pub(crate) fn make_cl_config(git: &GitHelper, path: impl AsRef<Path>) -> Config 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_host_info_from_url() {
+        fn assert_all(url: &str, host: &str, owner: &str, repo: &str) {
+            let expected: HostOwnerRepo = (
+                Some(host.to_string()),
+                Some(owner.to_string()),
+                Some(repo.to_string()),
+            );
+            let result = host_info_from_url(url.parse().unwrap()).unwrap();
+            assert_eq!(result, expected);
+        }
+        assert_all(
+            "https://github.com/convco/convco.git",
+            "https://github.com",
+            "convco",
+            "convco",
+        );
+        assert_all(
+            "https://gitlab.com/group/subgroup/repo.git",
+            "https://gitlab.com",
+            "group/subgroup",
+            "repo",
+        );
+    }
 
     #[test]
     fn test() {
