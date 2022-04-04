@@ -207,18 +207,14 @@ pub(crate) fn host_info(git: &GitHelper) -> Result<HostOwnerRepo, Error> {
 
 fn host_info_from_url(url: Url) -> Result<HostOwnerRepo, Error> {
     let host = url.host().map(|h| format!("https://{}", h));
-    let mut owner = None;
-    let mut repository = None;
-    if let Some(segments) = url.path_segments() {
-        let last_segment = segments.last().map(|s| s.to_string());
-        let raw_repository = format!("/{}", last_segment.as_ref().unwrap());
-        owner = Some(url.path()
-            .trim_start_matches('/')
-            .trim_end_matches(&raw_repository)
-            .to_string());
-        repository = last_segment.map(|s| s.trim_end_matches(".git").to_string());
-    }
-
+    let (owner, repository) = match url.path().rsplit_once('/') {
+        Some((owner, repository)) => {
+            let owner = Some(owner.trim_start_matches('/').to_owned());
+            let repository = Some(repository.trim_end_matches(".git").to_owned());
+            (owner, repository)
+        }
+        None => (None, None),
+    };
     Ok((host, owner, repository))
 }
 
