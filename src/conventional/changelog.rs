@@ -19,7 +19,6 @@ pub(crate) struct Reference<'a> {
     pub(crate) repository: &'a str,
     pub(crate) prefix: String,
     pub(crate) issue: String,
-    pub(crate) raw: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -39,7 +38,7 @@ pub(crate) struct NoteGroup {
 pub(crate) struct CommitContext<'a> {
     pub(crate) hash: String,
     pub(crate) date: Date,
-    pub(crate) subject: Vec<String>,
+    pub(crate) subject: String,
     pub(crate) body: Option<String>,
     pub(crate) scope: Option<String>,
     pub(crate) short_hash: String,
