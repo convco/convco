@@ -139,8 +139,14 @@ impl Command for VersionCommand {
             } else {
                 println!("{}", v.0);
             }
-        } else {
+        } else if self.bump || self.minor {
             println!("0.1.0");
+        } else if self.major {
+            println!("1.0.0");
+        } else if self.patch {
+            println!("0.0.1");
+        } else {
+            println!("0.0.0");
         }
         Ok(())
     }
