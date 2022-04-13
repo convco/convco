@@ -1,7 +1,6 @@
 use std::{cmp::Ordering, collections::HashMap, str::FromStr};
 
 use git2::Time;
-use regex::Regex;
 use time::Date;
 
 use crate::{
@@ -32,7 +31,6 @@ impl<'a> From<&'a VersionAndTag> for Rev<'a> {
 /// Transforms a range of commits to pass them to the changelog writer.
 struct ChangeLogTransformer<'a> {
     group_types: HashMap<&'a str, &'a str>,
-    re_references: Regex,
     config: &'a Config,
     git: &'a GitHelper,
     context_builder: ContextBuilder<'a>,
@@ -71,10 +69,9 @@ impl<'a> ChangeLogTransformer<'a> {
                     acc.insert(ty.r#type.as_str(), ty.section.as_str());
                     acc
                 });
-        let re_references =
-            Regex::new(format!("({})([0-9]+)", config.issue_prefixes.join("|")).as_str()).unwrap();
         let commit_parser = CommitParser::builder()
             .scope_regex(config.scope_regex.clone())
+            .references_regex(format!("({})([0-9]+)", config.issue_prefixes.join("|")))
             .build();
 
         let context_builder = ContextBuilder::new(config)?;
@@ -82,7 +79,6 @@ impl<'a> ChangeLogTransformer<'a> {
             config,
             group_types,
             git,
-            re_references,
             context_builder,
             commit_parser,
         })
@@ -138,9 +134,15 @@ impl<'a> ChangeLogTransformer<'a> {
             // reverse from and to as
             revwalk.push_range(format!("{}..{}", to_rev.0, from_rev.0).as_str())?;
         }
-        let mut commits: HashMap<&str, Vec<CommitContext<'_>>> = HashMap::new();
+        let mut commits: HashMap<&str, Vec<CommitContext>> = HashMap::new();
         let mut notes: HashMap<String, Vec<Note>> = HashMap::new();
         let version_date = self.find_version_date(from_rev.0)?;
+        let Config {
+            host,
+            owner,
+            repository,
+            ..
+        } = self.config;
         for commit in revwalk
             .flatten()
             .flat_map(|oid| self.git.find_commit(oid).ok())
@@ -166,35 +168,21 @@ impl<'a> ChangeLogTransformer<'a> {
                     .map(String::from)
                     .fold(Vec::<String>::new(), |acc, word| {
                         word_wrap_acc(acc, word, self.config.line_length)
-                    });
+                    })
+                    .join("  \n");
                 let body = conv_commit.body;
                 let short_hash = hash[..7].into();
-                let mut references = Vec::new();
-                if let Some(body) = &body {
-                    references.extend(self.re_references.captures_iter(body).map(|refer| {
-                        Reference {
-                            // TODO action (the word before?)
-                            action: None,
-                            owner: "",
-                            repository: "",
-                            prefix: refer[1].to_owned(),
-                            issue: refer[2].to_owned(),
-                            raw: refer[0].to_owned(),
-                        }
-                    }));
-                }
-                references.extend(conv_commit.footers.iter().flat_map(|footer| {
-                    self.re_references
-                        .captures_iter(footer.value.as_str())
-                        .map(move |refer| Reference {
-                            action: Some(footer.key.clone()),
-                            owner: "",
-                            repository: "",
-                            prefix: refer[1].to_owned(),
-                            issue: refer[2].to_owned(),
-                            raw: refer[0].to_owned(),
-                        })
-                }));
+                let references = conv_commit
+                    .references
+                    .into_iter()
+                    .map(|r| Reference {
+                        action: r.action,
+                        owner: owner.as_deref().unwrap_or_default(),
+                        repository: repository.as_deref().unwrap_or_default(),
+                        prefix: r.prefix,
+                        issue: r.issue,
+                    })
+                    .collect();
                 let commit_context = CommitContext {
                     hash,
                     date,
@@ -225,12 +213,7 @@ impl<'a> ChangeLogTransformer<'a> {
             .into_iter()
             .map(|(title, notes)| NoteGroup { title, notes })
             .collect();
-        let Config {
-            host,
-            owner,
-            repository,
-            ..
-        } = self.config;
+
         let context_base = ContextBase {
             version,
             date: Some(version_date),

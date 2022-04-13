@@ -1,6 +1,7 @@
 use std::fmt;
 
 use regex::Regex;
+use serde::Serialize;
 use thiserror::Error;
 
 #[derive(Debug, PartialEq)]
@@ -69,6 +70,13 @@ pub(crate) struct Footer {
     pub(crate) value: String,
 }
 
+#[derive(Debug, PartialEq, Serialize)]
+pub(crate) struct Reference {
+    pub(crate) action: Option<String>,
+    pub(crate) prefix: String,
+    pub(crate) issue: String,
+}
+
 #[derive(Debug, PartialEq)]
 pub struct Commit {
     pub(crate) r#type: Type,
@@ -77,6 +85,7 @@ pub struct Commit {
     pub(crate) description: String,
     pub(crate) body: Option<String>,
     pub(crate) footers: Vec<Footer>,
+    pub(crate) references: Vec<Reference>,
 }
 
 impl Commit {
@@ -113,6 +122,7 @@ pub struct CommitParser {
     regex_first_line: Regex,
     regex_scope: Regex,
     regex_footer: Regex,
+    regex_references: Regex,
 }
 
 impl CommitParser {
@@ -139,6 +149,7 @@ impl CommitParser {
                     (Some(r#type), Some(description)) => {
                         let mut body = String::new();
                         let mut footers: Vec<Footer> = Vec::new();
+                        let mut references = Vec::new();
                         for line in lines {
                             if let Some(capts) = self.regex_footer.captures(line) {
                                 let key = capts.name("key").map(|key| key.as_str());
@@ -162,9 +173,20 @@ impl CommitParser {
                             } else if footers.is_empty() {
                                 body.push_str(line);
                                 body.push('\n');
-                            } else if let Some(v) = footers.last_mut() {
-                                v.value.push_str(line);
-                                v.value.push('\n');
+                            } else if let Some(footer) = footers.last_mut() {
+                                footer.value.push_str(line);
+                                footer.value.push('\n');
+                            }
+                            for captures in self.regex_references.captures_iter(line) {
+                                let prefix = &captures[1];
+                                let issue = &captures[2];
+                                let action = footers.last().map(|footer| footer.key.to_owned());
+                                let reference = Reference {
+                                    action,
+                                    prefix: prefix.into(),
+                                    issue: issue.into(),
+                                };
+                                references.push(reference);
                             }
                         }
                         let body = if body.trim().is_empty() {
@@ -179,6 +201,7 @@ impl CommitParser {
                             description,
                             body,
                             footers,
+                            references,
                         })
                     }
                     (None, _) => Err(ParseError::NoType),
@@ -195,17 +218,29 @@ impl CommitParser {
 
 pub struct CommitParserBuilder {
     scope_regex: String,
+    references_regex: String,
 }
 
 impl CommitParserBuilder {
     pub fn new() -> Self {
         Self {
             scope_regex: "[[:alnum:]]+(?:[-_/][[:alnum:]]+)*".into(),
+            references_regex: "(#)([0-9]+)".into(),
         }
     }
 
     pub fn scope_regex(self, scope_regex: String) -> Self {
-        Self { scope_regex }
+        Self {
+            scope_regex,
+            references_regex: self.references_regex,
+        }
+    }
+
+    pub fn references_regex(self, references_regex: String) -> Self {
+        Self {
+            references_regex,
+            scope_regex: self.scope_regex,
+        }
     }
 
     pub fn build(&self) -> CommitParser {
@@ -230,10 +265,13 @@ impl CommitParserBuilder {
         .unwrap();
         let regex_scope =
             Regex::new(self.scope_regex.as_str()).expect("scope regex should be valid");
+        let regex_references =
+            Regex::new(self.references_regex.as_str()).expect("references regex should be valid");
         CommitParser {
             regex_scope,
             regex_first_line,
             regex_footer,
+            regex_references,
         }
     }
 }
@@ -258,7 +296,8 @@ mod tests {
                 breaking: false,
                 description: "correct spelling of CHANGELOG".into(),
                 body: None,
-                footers: Vec::new()
+                footers: Vec::new(),
+                references: Vec::new(),
             }
         );
         assert!(!commit.is_breaking());
@@ -276,7 +315,8 @@ mod tests {
                 breaking: false,
                 description: "add polish language".into(),
                 body: None,
-                footers: Vec::new()
+                footers: Vec::new(),
+                references: Vec::new(),
             }
         );
         assert!(!commit.is_breaking());
@@ -294,7 +334,8 @@ mod tests {
                 breaking: false,
                 description: "add a foo to new bar".into(),
                 body: None,
-                footers: Vec::new()
+                footers: Vec::new(),
+                references: Vec::new(),
             }
         );
         assert!(!commit.is_breaking());
@@ -312,7 +353,8 @@ mod tests {
                 breaking: true,
                 description: "drop support for Node 6".into(),
                 body: None,
-                footers: Vec::new()
+                footers: Vec::new(),
+                references: Vec::new(),
             }
         );
         assert!(commit.is_breaking());
@@ -337,7 +379,8 @@ mod tests {
                     value:
                         "`extends` key in config file is now used for extending other config files"
                             .to_string()
-                }]
+                }],
+                references: Vec::new(),
             }
         );
         assert!(commit.is_breaking());
@@ -380,7 +423,47 @@ mod tests {
                         key: "Refs".to_string(),
                         value: "133".to_string()
                     }
-                ]
+                ],
+                references: vec![Reference {
+                    action: Some("Refs".into()),
+                    prefix: "#".into(),
+                    issue: "133".into()
+                }],
+            }
+        );
+        assert!(!commit.is_breaking());
+    }
+
+    #[test]
+    fn multiple_refs() {
+        let msg = "revert: let us never again speak of the noodle incident\n\
+        \n\
+        Closes: #1, #42";
+        let commit: Commit = parser().parse(msg).expect("valid");
+        assert_eq!(
+            commit,
+            Commit {
+                r#type: Type::Revert,
+                scope: None,
+                breaking: false,
+                description: "let us never again speak of the noodle incident".into(),
+                body: None,
+                footers: vec![Footer {
+                    key: "Closes".into(),
+                    value: "#1, #42".into()
+                }],
+                references: vec![
+                    Reference {
+                        action: Some("Closes".into()),
+                        prefix: "#".into(),
+                        issue: "1".into()
+                    },
+                    Reference {
+                        action: Some("Closes".into()),
+                        prefix: "#".into(),
+                        issue: "42".into()
+                    },
+                ],
             }
         );
         assert!(!commit.is_breaking());
