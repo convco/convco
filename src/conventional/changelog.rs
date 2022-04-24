@@ -1,8 +1,13 @@
-use std::{io, path::Path};
+use std::{
+    fs::File,
+    io::{self, BufReader, Read},
+    path::Path,
+};
 
 use handlebars::{no_escape, Handlebars};
 use serde::Serialize;
 use time::Date;
+use walkdir::WalkDir;
 
 use super::config::Config;
 use crate::Error;
@@ -57,8 +62,6 @@ pub(crate) struct Context<'a> {
     #[serde(flatten)]
     pub(crate) context: ContextBase<'a>,
     pub(crate) compare_url_format: String,
-    pub(crate) commit_url_format: String,
-    pub(crate) issue_url_format: String,
     pub(crate) release_commit_message_format: String,
     pub(crate) user_url_format: String,
     /// `true` if `previousTag` and `currentTag` are truthy.
@@ -77,6 +80,8 @@ pub(crate) struct ContextBase<'a> {
     pub(crate) host: Option<String>,
     pub(crate) owner: Option<String>,
     pub(crate) repository: Option<String>,
+    pub(crate) link_compare: bool,
+    pub(crate) link_references: bool,
 }
 
 pub(crate) struct ContextBuilder<'a> {
@@ -88,10 +93,6 @@ impl<'a> ContextBuilder<'a> {
         let mut handlebars = Handlebars::new();
         handlebars
             .register_template_string("compare_url_format", config.compare_url_format.as_str())?;
-        handlebars
-            .register_template_string("commit_url_format", config.commit_url_format.as_str())?;
-        handlebars
-            .register_template_string("issue_url_format", config.issue_url_format.as_str())?;
         handlebars.register_template_string(
             "release_commit_message_format",
             config.release_commit_message_format.as_str(),
@@ -104,19 +105,16 @@ impl<'a> ContextBuilder<'a> {
         let compare_url_format = self
             .handlebars
             .render("compare_url_format", &context_base)?;
-        let commit_url_format = self.handlebars.render("commit_url_format", &context_base)?;
-        let issue_url_format = self.handlebars.render("issue_url_format", &context_base)?;
         let release_commit_message_format = self
             .handlebars
             .render("release_commit_message_format", &context_base)?;
         let user_url_format = self.handlebars.render("user_url_format", &context_base)?;
-        let link_compare =
-            !context_base.current_tag.is_empty() && !context_base.previous_tag.is_empty();
+        let link_compare = context_base.link_compare
+            && !context_base.current_tag.is_empty()
+            && !context_base.previous_tag.is_empty();
         Ok(Context {
             context: context_base,
             compare_url_format,
-            commit_url_format,
-            issue_url_format,
             release_commit_message_format,
             user_url_format,
             link_compare,
@@ -130,18 +128,43 @@ pub(crate) struct ChangelogWriter<W: io::Write> {
 }
 
 impl<W: io::Write> ChangelogWriter<W> {
-    pub(crate) fn new(template: Option<&Path>, writer: W) -> Result<Self, Error> {
+    pub(crate) fn new(template: Option<&Path>, config: &Config, writer: W) -> Result<Self, Error> {
         let mut handlebars = Handlebars::new();
         handlebars.set_strict_mode(true);
         handlebars.register_escape_fn(no_escape);
 
+        fn replace_url_formats(tpl_str: &str, config: &Config) -> String {
+            tpl_str
+                .replace("{{commitUrlFormat}}", config.commit_url_format.as_str())
+                .replace("{{issueUrlFormat}}", config.issue_url_format.as_str())
+        }
+
         if let Some(path) = template {
-            handlebars.register_templates_directory(".hbs", path)?;
+            for entry in WalkDir::new(path)
+                .min_depth(1)
+                .max_depth(1)
+                .into_iter()
+                .filter_entry(|e| e.file_name().to_string_lossy().ends_with(".hbs"))
+                .filter_map(|e| e.ok())
+            {
+                if (&entry).metadata().unwrap().is_file() {
+                    let mut reader = BufReader::new(File::open(entry.path())?);
+                    let mut tpl_str = String::new();
+                    reader.read_to_string(&mut tpl_str)?;
+                    let tpl_str = replace_url_formats(tpl_str.as_str(), config);
+
+                    let name = entry.file_name().to_string_lossy();
+                    let name = name.trim_end_matches(".hbs");
+
+                    handlebars.register_template_string(name, tpl_str)?;
+                }
+            }
         } else {
-            handlebars.register_template_string("template", TEMPLATE)?;
-            handlebars.register_partial("header", HEADER)?;
-            handlebars.register_partial("commit", COMMIT)?;
-            handlebars.register_partial("footer", FOOTER)?;
+            handlebars
+                .register_template_string("template", replace_url_formats(TEMPLATE, config))?;
+            handlebars.register_partial("header", replace_url_formats(HEADER, config))?;
+            handlebars.register_partial("commit", replace_url_formats(COMMIT, config))?;
+            handlebars.register_partial("footer", replace_url_formats(FOOTER, config))?;
         }
 
         Ok(Self { writer, handlebars })

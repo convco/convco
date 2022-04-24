@@ -73,6 +73,9 @@ pub struct ChangelogCommand {
     /// Limits the number of version tags to add in the changelog
     #[clap(short, long)]
     pub max_versions: Option<usize>,
+    /// Do not generate links. Overrides linkReferences and linkCompare in the config.
+    #[clap(short, long)]
+    pub no_links: bool,
 }
 
 #[derive(Debug, Parser)]

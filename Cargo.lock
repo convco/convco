@@ -162,6 +162,7 @@ dependencies = [
  "thiserror",
  "time",
  "url",
+ "walkdir",
 ]
 
 [[package]]
@@ -259,7 +260,6 @@ dependencies = [
  "quick-error",
  "serde",
  "serde_json",
- "walkdir",
 ]
 
 [[package]]
