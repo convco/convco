@@ -225,6 +225,8 @@ impl<'a> ChangeLogTransformer<'a> {
             host: host.to_owned(),
             owner: owner.to_owned(),
             repository: repository.to_owned(),
+            link_compare: self.config.link_compare,
+            link_references: self.config.link_references,
         };
         self.context_builder.build(context_base)
     }
@@ -247,7 +249,11 @@ impl<'a> ChangeLogTransformer<'a> {
 }
 
 impl Command for ChangelogCommand {
-    fn exec(&self, config: Config) -> Result<(), Error> {
+    fn exec(&self, mut config: Config) -> Result<(), Error> {
+        if self.no_links {
+            config.link_references = false;
+            config.link_compare = false;
+        }
         let helper = GitHelper::new(self.prefix.as_str())?;
         let rev = self.rev.as_str();
         let (rev, rev_stop) = if rev.contains("..") {
@@ -266,7 +272,7 @@ impl Command for ChangelogCommand {
         let stdout = std::io::stdout();
         let stdout = stdout.lock();
         let template = config.template.as_deref();
-        let mut writer = ChangelogWriter::new(template, stdout)?;
+        let mut writer = ChangelogWriter::new(template, &config, stdout)?;
         writer.write_header(config.header.as_str())?;
 
         let transformer = ChangeLogTransformer::new(&config, &helper)?;

@@ -37,7 +37,7 @@ pub(crate) struct Config {
     pub(crate) types: Vec<Type>,
     /// Boolean indicating whether or not the action being run (generating CHANGELOG, recommendedBump, etc.) is being performed for a pre-major release (<1.0.0).\n This config setting will generally be set by tooling and not a user.
     #[serde(default)]
-    pre_major: bool,
+    pub(crate) pre_major: bool,
     /// A URL representing a specific commit at a hash.
     #[serde(default = "default_commit_url_format")]
     pub(crate) commit_url_format: String,
@@ -70,6 +70,16 @@ pub(crate) struct Config {
     /// default number of characters in a single line of the CHANGELOG.
     #[serde(default = "default_line_length")]
     pub(crate) line_length: usize,
+    /// Add link to compare 2 versions.
+    #[serde(default = "default_true")]
+    pub(crate) link_compare: bool,
+    /// Link commit and issue references in the changelog.
+    #[serde(default = "default_true")]
+    pub(crate) link_references: bool,
+}
+
+const fn default_true() -> bool {
+    true
 }
 
 impl Default for Config {
@@ -90,6 +100,8 @@ impl Default for Config {
             repository: None,
             template: None,
             scope_regex: "[[:alnum:]]+(?:[-_/][[:alnum:]]+)*".to_string(),
+            link_compare: true,
+            link_references: true,
         }
     }
 }
@@ -154,15 +166,16 @@ fn default_types() -> Vec<Type> {
 }
 
 fn default_commit_url_format() -> String {
-    "{{host}}/{{owner}}/{{repository}}/commit/{{hash}}".into()
+    "{{@root.host}}/{{@root.owner}}/{{@root.repository}}/commit/{{hash}}".into()
 }
 
 fn default_compare_url_format() -> String {
-    "{{host}}/{{owner}}/{{repository}}/compare/{{previousTag}}...{{currentTag}}".into()
+    "{{@root.host}}/{{@root.owner}}/{{@root.repository}}/compare/{{previousTag}}...{{currentTag}}"
+        .into()
 }
 
 fn default_issue_url_format() -> String {
-    "{{host}}/{{owner}}/{{repository}}/issues/{{id}}".into()
+    "{{@root.host}}/{{@root.owner}}/{{@root.repository}}/issues/{{issue}}".into()
 }
 
 fn default_user_url_format() -> String {
@@ -235,6 +248,10 @@ pub(crate) fn make_cl_config(git: &GitHelper, path: impl AsRef<Path>) -> Config 
             config.owner = owner;
             config.repository = repository;
         }
+    }
+
+    if config.host.is_none() || config.commit_url_format.is_empty() {
+        config.link_references = false;
     }
     config
 }
@@ -355,11 +372,14 @@ mod tests {
                     }
                 ],
                 pre_major: false,
-                commit_url_format: "{{host}}/{{owner}}/{{repository}}/commit/{{hash}}".to_string(),
+                commit_url_format: "{{@root.host}}/{{@root.owner}}/{{@root.repository}}/commit/{{hash}}"
+                    .to_string(),
                 compare_url_format:
-                    "{{host}}/{{owner}}/{{repository}}/compare/{{previousTag}}...{{currentTag}}"
+                    "{{@root.host}}/{{@root.owner}}/{{@root.repository}}/compare/{{previousTag}}...{{currentTag}}"
                         .to_string(),
-                issue_url_format: "{{host}}/{{owner}}/{{repository}}/issues/{{id}}".to_string(),
+                issue_url_format:
+                    "{{@root.host}}/{{@root.owner}}/{{@root.repository}}/issues/{{issue}}"
+                        .to_string(),
                 user_url_format: "{{host}}/{{user}}".to_string(),
                 release_commit_message_format: "chore(release): {{currentTag}}".to_string(),
                 issue_prefixes: vec!["#".into()],
@@ -368,6 +388,8 @@ mod tests {
                 repository: None,
                 template: None,
                 scope_regex: "[[:alnum:]]+(?:[-_/][[:alnum:]]+)*".to_string(),
+                link_compare: true,
+                link_references: true,
             }
         )
     }
