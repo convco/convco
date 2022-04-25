@@ -1,0 +1,58 @@
+{
+  "files.eol": "\n",
+  "files.exclude": {
+    "**/.vagrant": true,
+    "**/.git": true
+  },
+  "files.watcherExclude": {
+    "**/target/**": true
+  },
+  "[settings.json]": {
+    "editor.formatOnSave": false
+  },
+  "[devcontainer.json]": {
+    "editor.formatOnSave": false
+  },
+  "terminal.integrated.profiles.linux": {
+    "bash (login)": {
+      "path": "/bin/bash",
+      "args": [
+        "--login"
+      ]
+    }
+  },
+  "rust-analyzer.updates.askBeforeDownload": false,
+  "rust-analyzer.checkOnSave.allTargets": true,
+  "rust-analyzer.checkOnSave.enable": true,
+  "rust-analyzer.diagnostics.enable": true,
+  "rust-analyzer.callInfo.full": true,
+  "rust-analyzer.completion.addCallParenthesis": true,
+  "rust-analyzer.completion.addCallArgumentSnippets": true,
+  "rust-analyzer.inlayHints.typeHints": true,
+  "rust-analyzer.inlayHints.parameterHints": true,
+  "rust-analyzer.inlayHints.chainingHints": true,
+  "rust-analyzer.inlayHints.maxLength": 50,
+  "rust-analyzer.checkOnSave.command": "clippy",
+  "rust-analyzer.updates.channel": "stable",
+  "rust-analyzer.trace.extension": true,
+  "editor.formatOnSave": true,
+  "cSpell.words": [
+    "aget",
+    "consts",
+    "grammarly",
+    "KHTML",
+    "okey",
+    "reqwest",
+    "upath",
+    "urlencoding",
+    "wayou",
+    "wholroyd",
+    "wmaurer",
+    "wrapcheck",
+    "xfonts",
+    "yzhang",
+    "zclconf",
+    "znck"
+  ],
+  "cSpell.enabled": true
+}

@@ -1,0 +1,43 @@
+image: convco/convco-gitpod
+tasks:
+  - name: "setup"
+    command: |
+      echo >&2 "*** adding client's ssh public key to authorized list" ;
+      just ssh-pub-key
+      echo >&2 "*** setting up chisel" ;
+      just chisel
+      echo >&2 "*** setting up dropbear" ;
+      just dropbear
+      echo >&2 "*** ensuring gitpod user belongs to docker group" ;
+      sudo usermod -aG docker gitpod
+      echo >&2 "*** ensuring correct ownership of docker socket" ;
+      just docker-socket-chown ;
+      echo >&2 "*** signing into docker hub " ;
+      just docker-login
+      echo >&2 "*** setting up environment " ;
+      just bootstrap
+ports:
+  # [ NOTE ] => for chisel
+  - port: 8080
+    onOpen: ignore
+    visibility: public
+  # [ NOTE ] => for dropbear
+  - port: 2222
+    onOpen: ignore
+    visibility: public
+github:
+  prebuilds:
+    # enable for the default branch (defaults to true)
+    master: true
+    # enable for all branches in this repo (defaults to false)
+    branches: true
+    # enable for pull requests coming from this repo (defaults to true)
+    pullRequests: true
+    # enable for pull requests coming from forks (defaults to false)
+    pullRequestsFromForks: true
+    # add a check to pull requests (defaults to true)
+    addCheck: true
+    # add a "Review in Gitpod" button as a comment to pull requests (defaults to false)
+    addComment: true
+    # add a "Review in Gitpod" button to the pull request's description (defaults to false)
+    addBadge: false

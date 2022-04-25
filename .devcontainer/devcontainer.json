@@ -1,0 +1,68 @@
+{
+  "name": "convco-devcontainer",
+  "build": {
+    "dockerfile": "../contrib/docker/devcontainer/Dockerfile"
+  },
+  // [ NOTE ] => comment out build and uncomment this after building
+  // and pushing the image to Dockerhub
+  // image : "convco/convco-devcontainer"
+  "settings": {
+    "files.eol": "\n",
+    "workspaceFolder": "/workspace",
+    "files.exclude": {
+      "**/.vagrant": true,
+      "**/.git": true
+    },
+    "files.watcherExclude": {
+      "**/target/**": true
+    },
+    "[settings.json]": {
+      "editor.formatOnSave": false
+    },
+    "[devcontainer.json]": {
+      "editor.formatOnSave": false
+    },
+    "terminal.integrated.profiles.linux": {
+      "bash (login)": {
+        "path": "/bin/bash",
+        "args": [
+          "--login"
+        ]
+      }
+    },
+    "rust-analyzer.trace.extension": true,
+    "rust-analyzer.cargo.loadOutDirsFromCheck": true,
+    "rust-analyzer.updates.channel": "nightly",
+    "rust-analyzer.updates.askBeforeDownload": false,
+    "editor.formatOnSave": true
+  },
+  "extensions": [
+    "matklad.rust-analyzer",
+    "bungcip.better-toml",
+    "mutantdino.resourcemonitor",
+    "redhat.vscode-yaml",
+    "wayou.vscode-todo-highlight",
+    "wmaurer.change-case",
+    "yzane.markdown-pdf",
+    "yzhang.markdown-all-in-one",
+    "aaron-bond.better-comments",
+    "editorconfig.editorconfig",
+    "kevinkyang.auto-comment-blocks",
+    "ms-azuretools.vscode-docker",
+    "skellock.just"
+  ],
+  "forwardPorts": [],
+  "mounts": [
+    "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
+  ],
+  "runArgs": [
+    "--cap-add",
+    "SYS_PTRACE",
+    "--security-opt",
+    "seccomp=unconfined",
+    "--name",
+    "convco-devcontainer"
+  ],
+  "remoteUser": "devel",
+  "postCreateCommand": "uname -a && rustc --version"
+}

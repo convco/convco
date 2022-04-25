@@ -1,5 +1,6 @@
 # Convco
 
+[![Gitpod ready-to-code](https://img.shields.io/badge/Gitpod-ready--to--code-908a85?logo=gitpod)](https://gitpod.io/from-referrer/)
 ![GitHub Workflow Status](https://img.shields.io/github/workflow/status/convco/convco/Build%20binary)
 [![Crates.io](https://img.shields.io/crates/v/convco)](https://crates.io/crates/convco)
 
