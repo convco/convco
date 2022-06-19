@@ -1,24 +1,37 @@
 use conventional::Config;
 use git2::{Commit, Repository};
 
-use crate::{cli::CheckCommand, cmd::Command, conventional, Error};
+use crate::{
+    cli::CheckCommand,
+    cmd::Command,
+    conventional::{self, Type},
+    Error,
+};
 
-fn print_check(commit: &Commit<'_>, parser: &conventional::CommitParser) -> bool {
+fn print_check(commit: &Commit<'_>, parser: &conventional::CommitParser, types: &[Type]) -> bool {
     let msg = std::str::from_utf8(commit.message_bytes()).expect("valid utf-8 message");
     let short_id = commit.as_object().short_id().unwrap();
     let short_id = short_id.as_str().expect("short id");
     let msg_parsed = parser.parse(msg);
-    match msg_parsed {
-        Err(e) => {
-            let first_line = msg.lines().next().unwrap_or("");
-            let short_msg: String = first_line.chars().take(40).collect();
-            if first_line.len() > 40 {
-                println!("FAIL  {}  {}  {}...", short_id, e, short_msg)
-            } else {
-                println!("FAIL  {}  {}  {}", short_id, e, short_msg)
-            }
-            false
+    fn print_fail(msg: &str, short_id: &str, e: Error) -> bool {
+        let first_line = msg.lines().next().unwrap_or("");
+        let short_msg: String = first_line.chars().take(40).collect();
+        if first_line.len() > 40 {
+            println!("FAIL  {}  {}  {}...", short_id, e, short_msg)
+        } else {
+            println!("FAIL  {}  {}  {}", short_id, e, short_msg)
         }
+        false
+    }
+    match msg_parsed {
+        Err(e) => print_fail(msg, short_id, e.into()),
+        Ok(commit) if !types.contains(&commit.r#type) => print_fail(
+            msg,
+            short_id,
+            Error::Type {
+                wrong_type: commit.r#type.to_string(),
+            },
+        ),
         _ => true,
     }
 }
@@ -39,6 +52,12 @@ impl Command for CheckCommand {
         let parser = conventional::CommitParser::builder()
             .scope_regex(config.scope_regex)
             .build();
+        let types: Vec<Type> = config
+            .types
+            .iter()
+            .map(|ty| ty.r#type.as_str())
+            .map(Type::from)
+            .collect();
 
         for commit in revwalk
             .flatten()
@@ -47,7 +66,7 @@ impl Command for CheckCommand {
             .take(self.number.unwrap_or(std::usize::MAX))
         {
             total += 1;
-            fail += u32::from(!print_check(&commit, &parser));
+            fail += u32::from(!print_check(&commit, &parser, &types));
         }
         if fail == 0 {
             match total {

@@ -23,6 +23,8 @@ pub(crate) enum Error {
     SemVer(#[from] semver::Error),
     #[error("check error")]
     Check,
+    #[error("wrong type: {wrong_type}")]
+    Type { wrong_type: String },
     #[error("canceled by user")]
     CancelledByUser,
 }
