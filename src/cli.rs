@@ -76,6 +76,9 @@ pub struct ChangelogCommand {
     /// Do not generate links. Overrides linkReferences and linkCompare in the config.
     #[clap(short, long)]
     pub no_links: bool,
+    /// Print hidden sections
+    #[clap(long)]
+    pub include_hidden_sections: bool,
 }
 
 #[derive(Debug, Parser)]
