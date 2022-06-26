@@ -59,16 +59,19 @@ fn word_wrap_acc(mut acc: Vec<String>, word: String, line_length: usize) -> Vec<
 }
 
 impl<'a> ChangeLogTransformer<'a> {
-    fn new(config: &'a Config, git: &'a GitHelper) -> Result<Self, Error> {
-        let group_types =
-            config
-                .types
-                .iter()
-                .filter(|ty| !ty.hidden)
-                .fold(HashMap::new(), |mut acc, ty| {
-                    acc.insert(ty.r#type.as_str(), ty.section.as_str());
-                    acc
-                });
+    fn new(
+        config: &'a Config,
+        include_hidden_sections: bool,
+        git: &'a GitHelper,
+    ) -> Result<Self, Error> {
+        let group_types = config
+            .types
+            .iter()
+            .filter(|ty| include_hidden_sections || !ty.hidden)
+            .fold(HashMap::new(), |mut acc, ty| {
+                acc.insert(ty.r#type.as_str(), ty.section.as_str());
+                acc
+            });
         let commit_parser = CommitParser::builder()
             .scope_regex(config.scope_regex.clone())
             .references_regex(format!("({})([0-9]+)", config.issue_prefixes.join("|")))
@@ -275,7 +278,8 @@ impl Command for ChangelogCommand {
         let mut writer = ChangelogWriter::new(template, &config, stdout)?;
         writer.write_header(config.header.as_str())?;
 
-        let transformer = ChangeLogTransformer::new(&config, &helper)?;
+        let transformer =
+            ChangeLogTransformer::new(&config, self.include_hidden_sections, &helper)?;
         match helper.find_last_version(rev)? {
             Some(last_version) => {
                 let semver = SemVer::from_str(rev.trim_start_matches(&self.prefix));
