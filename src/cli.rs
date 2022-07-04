@@ -65,6 +65,9 @@ pub struct CheckCommand {
     /// Include conventional merge commits (commits with more than 1 parent) in the changelog.
     #[clap(long)]
     pub merges: bool,
+    /// Follow only the first parent
+    #[clap(long)]
+    pub first_parent: bool,
 }
 
 #[derive(Debug, Parser)]
@@ -91,6 +94,9 @@ pub struct ChangelogCommand {
     /// Only commits that update those <paths> will be taken into account. It is useful to support monorepos.
     #[clap(short = 'P', long)]
     pub paths: Vec<PathBuf>,
+    /// Follow only the first parent of merge commits. Commits from the merged branche(s) will be discarded.
+    #[clap(long)]
+    pub first_parent: bool,
 }
 
 #[derive(Debug, Parser)]
