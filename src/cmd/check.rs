@@ -5,6 +5,7 @@ use crate::{
     cli::CheckCommand,
     cmd::Command,
     conventional::{self, Type},
+    git::filter_merge_commits,
     Error,
 };
 
@@ -37,7 +38,10 @@ fn print_check(commit: &Commit<'_>, parser: &conventional::CommitParser, types: 
 }
 
 impl Command for CheckCommand {
-    fn exec(&self, config: Config) -> Result<(), Error> {
+    fn exec(&self, mut config: Config) -> Result<(), Error> {
+        if self.merges {
+            config.merges = true;
+        }
         let repo = Repository::open_from_env()?;
         let mut revwalk = repo.revwalk()?;
         if self.rev.contains("..") {
@@ -59,10 +63,12 @@ impl Command for CheckCommand {
             .map(Type::from)
             .collect();
 
+        let Config { merges, .. } = config;
+
         for commit in revwalk
             .flatten()
             .flat_map(|oid| repo.find_commit(oid).ok())
-            .filter(|commit| commit.parent_count() <= 1)
+            .filter(|commit| filter_merge_commits(commit, merges))
             .take(self.number.unwrap_or(std::usize::MAX))
         {
             total += 1;

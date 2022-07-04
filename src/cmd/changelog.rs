@@ -14,7 +14,7 @@ use crate::{
         config::Config,
         CommitParser, Footer,
     },
-    git::{GitHelper, VersionAndTag},
+    git::{filter_merge_commits, GitHelper, VersionAndTag},
     semver::SemVer,
     Error,
 };
@@ -147,13 +147,14 @@ impl<'a> ChangeLogTransformer<'a> {
             host,
             owner,
             repository,
+            merges,
             ..
         } = self.config;
         for commit in revwalk
             .flatten()
             .flat_map(|oid| self.git.find_commit(oid).ok())
             .filter(|commit| self.git.commit_updates_any_path(commit, &self.paths))
-            .filter(|commit| commit.parent_count() <= 1)
+            .filter(|commit| filter_merge_commits(commit, *merges))
         {
             if let Some(Ok(conv_commit)) = commit.message().map(|msg| self.commit_parser.parse(msg))
             {
@@ -261,6 +262,10 @@ impl Command for ChangelogCommand {
             config.link_references = false;
             config.link_compare = false;
         }
+        if self.merges {
+            config.merges = true;
+        }
+
         let helper = GitHelper::new(self.prefix.as_str())?;
         let rev = self.rev.as_str();
         let (rev, rev_stop) = if rev.contains("..") {
