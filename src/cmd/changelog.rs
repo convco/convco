@@ -1,5 +1,4 @@
-use std::{cmp::Ordering, collections::HashMap, str::FromStr};
-use std::path::PathBuf;
+use std::{cmp::Ordering, collections::HashMap, path::PathBuf, str::FromStr};
 
 use git2::Time;
 use time::Date;
@@ -87,7 +86,7 @@ impl<'a> ChangeLogTransformer<'a> {
             git,
             context_builder,
             commit_parser,
-            paths
+            paths,
         })
     }
 
