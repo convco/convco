@@ -49,6 +49,9 @@ pub struct VersionCommand {
     /// Bump to a patch release version, regardless of the conventional commits
     #[clap(long)]
     pub patch: bool,
+    /// Only commits that update those <paths> will be taken into account. It is useful to support monorepos.
+    #[clap(short = 'P', long)]
+    pub paths: Vec<PathBuf>,
 }
 
 #[derive(Debug, Parser)]
