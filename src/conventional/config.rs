@@ -76,6 +76,9 @@ pub(crate) struct Config {
     /// Link commit and issue references in the changelog.
     #[serde(default = "default_true")]
     pub(crate) link_references: bool,
+    /// Include merge commits
+    #[serde(default)]
+    pub(crate) merges: bool,
 }
 
 const fn default_true() -> bool {
@@ -102,6 +105,7 @@ impl Default for Config {
             scope_regex: "[[:alnum:]]+(?:[-_/][[:alnum:]]+)*".to_string(),
             link_compare: true,
             link_references: true,
+            merges: false,
         }
     }
 }
@@ -390,6 +394,7 @@ mod tests {
                 scope_regex: "[[:alnum:]]+(?:[-_/][[:alnum:]]+)*".to_string(),
                 link_compare: true,
                 link_references: true,
+                merges: false,
             }
         )
     }

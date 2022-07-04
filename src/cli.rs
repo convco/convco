@@ -62,6 +62,9 @@ pub struct CheckCommand {
     /// Limit the number of commits to check.
     #[clap(short, long = "max-count")]
     pub number: Option<usize>,
+    /// Include conventional merge commits (commits with more than 1 parent) in the changelog.
+    #[clap(long)]
+    pub merges: bool,
 }
 
 #[derive(Debug, Parser)]
@@ -79,6 +82,9 @@ pub struct ChangelogCommand {
     /// Do not generate links. Overrides linkReferences and linkCompare in the config.
     #[clap(short, long)]
     pub no_links: bool,
+    /// Include conventional merge commits (commits with more than 1 parent) in the changelog.
+    #[clap(long)]
+    pub merges: bool,
     /// Print hidden sections
     #[clap(long)]
     pub include_hidden_sections: bool,

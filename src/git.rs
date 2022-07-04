@@ -114,6 +114,10 @@ impl GitHelper {
     }
 }
 
+pub(crate) fn filter_merge_commits(commit: &git2::Commit, merges: bool) -> bool {
+    merges || commit.parent_count() <= 1
+}
+
 /// Build a hashmap that contains Commit `Oid` as key and `Version` as value.
 /// Can be used to easily walk a graph and check if it is a version.
 fn make_oid_version_map(repo: &Repository, prefix: &str) -> HashMap<Oid, VersionAndTag> {
