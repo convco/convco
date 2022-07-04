@@ -3,6 +3,20 @@ name: Pull request
 on: [ pull_request ]
 
 jobs:
+  style:
+    name: Style
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+      - name: Install stable toolchain and check style
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly
+          components: rustfmt
+      - run: cargo +nightly fmt -- --check
   check:
     name: Check
     runs-on: ubuntu-latest
