@@ -1,5 +1,4 @@
-use std::{cmp::Ordering, collections::HashMap};
-use std::path::PathBuf;
+use std::{cmp::Ordering, collections::HashMap, path::PathBuf};
 
 use git2::{Commit, Diff, Error, Object, Oid, Repository, Revwalk};
 use semver::Version;
@@ -146,17 +145,22 @@ fn object_to_target_commit_id(obj: Object<'_>) -> Oid {
     }
 }
 
-
 fn diff_updates_any_path(diff: &Diff, paths: &[PathBuf]) -> bool {
     let mut update_any_path = false;
 
-    diff.foreach(&mut |delta, _progress| {
-        delta.new_file().path().map(|file| {
-            update_any_path |= paths.iter().any(|path| file.starts_with(path));
-        });
+    diff.foreach(
+        &mut |delta, _progress| {
+            delta.new_file().path().map(|file| {
+                update_any_path |= paths.iter().any(|path| file.starts_with(path));
+            });
 
-        !update_any_path
-    }, None,None, None).ok();
+            !update_any_path
+        },
+        None,
+        None,
+        None,
+    )
+    .ok();
 
     update_any_path
 }
