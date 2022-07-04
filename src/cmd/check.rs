@@ -42,8 +42,14 @@ impl Command for CheckCommand {
         if self.merges {
             config.merges = true;
         }
+        if self.first_parent {
+            config.first_parent = true;
+        }
         let repo = Repository::open_from_env()?;
         let mut revwalk = repo.revwalk()?;
+        if config.first_parent {
+            revwalk.simplify_first_parent()?;
+        }
         if self.rev.contains("..") {
             revwalk.push_range(self.rev.as_str())?;
         } else {

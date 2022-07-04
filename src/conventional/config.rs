@@ -79,6 +79,9 @@ pub(crate) struct Config {
     /// Include merge commits
     #[serde(default)]
     pub(crate) merges: bool,
+    /// Follow only the first parent
+    #[serde(default)]
+    pub first_parent: bool,
 }
 
 const fn default_true() -> bool {
@@ -106,6 +109,7 @@ impl Default for Config {
             link_compare: true,
             link_references: true,
             merges: false,
+            first_parent: false,
         }
     }
 }
@@ -395,6 +399,7 @@ mod tests {
                 link_compare: true,
                 link_references: true,
                 merges: false,
+                first_parent: false,
             }
         )
     }

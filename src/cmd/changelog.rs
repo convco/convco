@@ -133,6 +133,9 @@ impl<'a> ChangeLogTransformer<'a> {
 
     fn transform(&self, from_rev: &Rev<'a>, to_rev: &Rev<'a>) -> Result<Context<'a>, Error> {
         let mut revwalk = self.git.revwalk()?;
+        if self.config.first_parent {
+            revwalk.simplify_first_parent()?;
+        }
         if to_rev.0.is_empty() {
             let to_commit = self.git.ref_to_commit(from_rev.0)?;
             revwalk.push(to_commit.id())?;
@@ -264,6 +267,9 @@ impl Command for ChangelogCommand {
         }
         if self.merges {
             config.merges = true;
+        }
+        if self.first_parent {
+            config.first_parent = true;
         }
 
         let helper = GitHelper::new(self.prefix.as_str())?;
