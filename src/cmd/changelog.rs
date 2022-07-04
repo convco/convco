@@ -1,4 +1,5 @@
 use std::{cmp::Ordering, collections::HashMap, str::FromStr};
+use std::path::PathBuf;
 
 use git2::Time;
 use time::Date;
@@ -35,6 +36,7 @@ struct ChangeLogTransformer<'a> {
     git: &'a GitHelper,
     context_builder: ContextBuilder<'a>,
     commit_parser: CommitParser,
+    paths: &'a [PathBuf],
 }
 
 fn date_from_time(time: &Time) -> Date {
@@ -63,6 +65,7 @@ impl<'a> ChangeLogTransformer<'a> {
         config: &'a Config,
         include_hidden_sections: bool,
         git: &'a GitHelper,
+        paths: &'a [PathBuf],
     ) -> Result<Self, Error> {
         let group_types = config
             .types
@@ -84,6 +87,7 @@ impl<'a> ChangeLogTransformer<'a> {
             git,
             context_builder,
             commit_parser,
+            paths
         })
     }
 
@@ -149,6 +153,7 @@ impl<'a> ChangeLogTransformer<'a> {
         for commit in revwalk
             .flatten()
             .flat_map(|oid| self.git.find_commit(oid).ok())
+            .filter(|commit| self.git.commit_updates_any_path(commit, &self.paths))
             .filter(|commit| commit.parent_count() <= 1)
         {
             if let Some(Ok(conv_commit)) = commit.message().map(|msg| self.commit_parser.parse(msg))
@@ -279,7 +284,7 @@ impl Command for ChangelogCommand {
         writer.write_header(config.header.as_str())?;
 
         let transformer =
-            ChangeLogTransformer::new(&config, self.include_hidden_sections, &helper)?;
+            ChangeLogTransformer::new(&config, self.include_hidden_sections, &helper, &self.paths)?;
         match helper.find_last_version(rev)? {
             Some(last_version) => {
                 let semver = SemVer::from_str(rev.trim_start_matches(&self.prefix));

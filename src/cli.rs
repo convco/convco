@@ -82,6 +82,9 @@ pub struct ChangelogCommand {
     /// Print hidden sections
     #[clap(long)]
     pub include_hidden_sections: bool,
+    /// Only commits that update those <paths> will be taken into account. It is useful to support monorepos.
+    #[clap(short = 'P', long)]
+    pub paths: Vec<PathBuf>,
 }
 
 #[derive(Debug, Parser)]
