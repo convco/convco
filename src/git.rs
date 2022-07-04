@@ -1,6 +1,7 @@
 use std::{cmp::Ordering, collections::HashMap};
+use std::path::PathBuf;
 
-use git2::{Commit, Error, Object, Oid, Repository, Revwalk};
+use git2::{Commit, Diff, Error, Object, Oid, Repository, Revwalk};
 use semver::Version;
 
 use crate::semver::SemVer;
@@ -99,6 +100,19 @@ impl GitHelper {
             .url()
             .map(|s| s.to_string()))
     }
+
+    pub(crate) fn commit_updates_any_path(&self, commit: &Commit, paths: &[PathBuf]) -> bool {
+        if paths.is_empty() {
+            return true;
+        }
+
+        let tree = commit.tree().ok();
+        let parent_tree = commit.parent(0).and_then(|item| item.tree()).ok();
+        self.repo
+            .diff_tree_to_tree(parent_tree.as_ref(), tree.as_ref(), None)
+            .map(|diff| diff_updates_any_path(&diff, paths))
+            .unwrap_or(false)
+    }
 }
 
 /// Build a hashmap that contains Commit `Oid` as key and `Version` as value.
@@ -130,4 +144,19 @@ fn object_to_target_commit_id(obj: Object<'_>) -> Oid {
     } else {
         obj.id()
     }
+}
+
+
+fn diff_updates_any_path(diff: &Diff, paths: &[PathBuf]) -> bool {
+    let mut update_any_path = false;
+
+    diff.foreach(&mut |delta, _progress| {
+        delta.new_file().path().map(|file| {
+            update_any_path |= paths.iter().any(|path| file.starts_with(path));
+        });
+
+        !update_any_path
+    }, None,None, None).ok();
+
+    update_any_path
 }

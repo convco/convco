@@ -64,6 +64,7 @@ impl VersionCommand {
         let i = revwalk
             .flatten()
             .filter_map(|oid| git.find_commit(oid).ok())
+            .filter(|commit| git.commit_updates_any_path(commit, &self.paths))
             .filter_map(|commit| commit.message().and_then(|msg| parser.parse(msg).ok()));
 
         let mut major = false;
