@@ -227,7 +227,11 @@ pub(crate) fn host_info(git: &GitHelper) -> Result<HostOwnerRepo, Error> {
 }
 
 fn host_info_from_url(url: Url) -> Result<HostOwnerRepo, Error> {
-    let host = url.host().map(|h| format!("https://{}", h));
+    let scheme = match url.scheme() {
+        "scheme" => "https",
+        scheme => scheme,
+    };
+    let host = url.host().map(|h| format!("{scheme}://{}", h));
     let (owner, repository) = match url.path().rsplit_once('/') {
         Some((owner, repository)) => {
             let owner = Some(owner.trim_start_matches('/').to_owned());
@@ -286,10 +290,23 @@ mod tests {
             "convco",
         );
         assert_all(
+            "http://github.com/convco/convco.git",
+            "http://github.com",
+            "convco",
+            "convco",
+        );
+        assert_all(
             "https://gitlab.com/group/subgroup/repo.git",
             "https://gitlab.com",
             "group/subgroup",
             "repo",
+        );
+        assert_all(
+            // git@github.com:convco/convco.git is replaced to scheme://git@github.com/convco/convco.git
+            "scheme://git@github.com/convco/convco.git",
+            "https://github.com",
+            "convco",
+            "convco",
         );
     }
 
