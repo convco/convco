@@ -1,6 +1,7 @@
 name: Build binary
 # This workflow is triggered on pushes to the repository.
 on:
+  workflow_dispatch:
   push:
     tags:
       - v*
