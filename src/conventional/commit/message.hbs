@@ -1,0 +1,8 @@
+{{type}}{{#if scope}}({{scope}}){{/if}}{{#if breaking}}!{{/if}}: {{description}}
+{{body}}
+{{#if breaking_change}}BREAKING CHANGE: {{breaking_change}}{{/if}}
+
+{{#if issues}}Refs: {{#each issues}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}{{/if}}
+{{#each footers}}
+{{this}}
+{{/each}}

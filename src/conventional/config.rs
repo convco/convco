@@ -62,6 +62,8 @@ pub(crate) struct Config {
     pub(crate) repository: Option<String>,
     /// `template`. An optional template directory. The template should be called `template.hbs`. Partials can be used.
     pub(crate) template: Option<PathBuf>,
+    /// `commitTemplate`. An optional template file for convco commit.
+    pub(crate) commit_template: Option<PathBuf>,
     /// `scopeRegex`. A regex to define possible scopes.
     /// For this project this could be `"changelog|check|commit|version"`.
     /// Defaults to `"[[:alnum:]]+(?:[-_/][[:alnum:]]+)*"`.
@@ -105,6 +107,7 @@ impl Default for Config {
             owner: None,
             repository: None,
             template: None,
+            commit_template: None,
             scope_regex: "[[:alnum:]]+(?:[-_/][[:alnum:]]+)*".to_string(),
             link_compare: true,
             link_references: true,
@@ -412,6 +415,7 @@ mod tests {
                 owner: None,
                 repository: None,
                 template: None,
+                commit_template: None,
                 scope_regex: "[[:alnum:]]+(?:[-_/][[:alnum:]]+)*".to_string(),
                 link_compare: true,
                 link_references: true,
