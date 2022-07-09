@@ -1,6 +1,8 @@
 use std::process::{self, ExitStatus};
 
+use handlebars::{no_escape, Handlebars};
 use regex::Regex;
+use serde::Serialize;
 
 use crate::{
     cli::CommitCommand,
@@ -18,50 +20,6 @@ fn read_single_line(
         .default(default.to_string())
         .allow_empty(true)
         .interact()?)
-}
-
-fn make_commit_message(
-    Dialog {
-        r#type,
-        scope,
-        description,
-        body,
-        breaking_change,
-        issues,
-        footers,
-    }: &Dialog,
-    breaking: bool,
-) -> String {
-    let mut msg = r#type.to_string();
-    if !scope.trim().is_empty() {
-        msg.push('(');
-        msg.push_str(scope.trim());
-        msg.push(')');
-    }
-    if breaking || !breaking_change.trim().is_empty() {
-        msg.push('!');
-    }
-    msg.push_str(": ");
-    msg.push_str(description.trim());
-    if !body.is_empty() {
-        msg.push_str("\n\n");
-        msg.push_str(body.trim())
-    }
-    if !breaking_change.trim().is_empty() {
-        msg.push_str("\n\n");
-        msg.push_str(format!("BREAKING CHANGE: {}", breaking_change.trim()).as_str());
-    }
-    if !issues.trim().is_empty() {
-        msg.push_str("\n\n");
-        msg.push_str(format!("Refs: {}", issues.trim()).as_str());
-    }
-    if !footers.is_empty() {
-        footers.iter().for_each(|footer| {
-            msg.push_str("\n\n");
-            msg.push_str(footer);
-        });
-    }
-    msg
 }
 
 impl CommitCommand {
@@ -132,13 +90,15 @@ fn edit_message(msg: &str) -> Result<String, Error> {
         .to_owned())
 }
 
+#[derive(Serialize)]
 struct Dialog {
     r#type: String,
     scope: String,
     description: String,
     body: String,
+    breaking: bool,
     breaking_change: String,
-    issues: String,
+    issues: Vec<String>,
     footers: Vec<String>,
 }
 
@@ -167,11 +127,18 @@ impl Dialog {
         &mut self,
         config: &Config,
         parser: CommitParser,
-        breaking: bool,
         interactive: bool,
     ) -> Result<String, Error> {
+        let mut handlebars = Handlebars::new();
+        handlebars.set_strict_mode(true);
+        handlebars.register_escape_fn(no_escape);
+        let commit_template = match &config.commit_template {
+            Some(path) => std::fs::read_to_string(path)?,
+            None => include_str!("../conventional/commit/message.hbs").to_owned(),
+        };
+        handlebars.register_template_string("commit-message", commit_template.as_str())?;
         if !(interactive || self.r#type.is_empty() || self.description.is_empty()) {
-            let msg = make_commit_message(self, breaking || !self.breaking_change.is_empty());
+            let msg = handlebars.render("commit-message", self)?;
             parser
                 .parse(msg.as_str())
                 .map(|_| msg)
@@ -195,11 +162,20 @@ impl Dialog {
                 "optional BREAKING change",
                 self.breaking_change.as_str(),
             )?;
-            self.issues = read_single_line(theme, "issues (e.g. #2, #8)", self.issues.as_str())?;
+            self.breaking = self.breaking || !self.breaking_change.is_empty();
+            self.issues = read_single_line(
+                theme,
+                "issues (e.g. #2, #8)",
+                self.issues.join(", ").as_str(),
+            )?
+            .split(|c| c == ' ' || c == ',')
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_owned())
+            .collect();
 
             loop {
                 // finally make message
-                let msg = make_commit_message(self, breaking);
+                let msg = handlebars.render("commit-message", self)?;
                 let msg = edit_message(msg.as_str())?;
                 match parser.parse(msg.as_str()).map(|_| msg) {
                     Ok(msg) => break Ok(msg),
@@ -285,15 +261,16 @@ impl Command for CommitCommand {
             scope: self.scope.as_ref().cloned().unwrap_or_default(),
             description,
             body,
+            breaking: self.breaking,
             breaking_change: String::new(),
-            issues: String::new(),
+            issues: Vec::new(),
             footers: self
                 .footers
                 .iter()
                 .map(|f| format!("{}: {}", f.0, f.1))
                 .collect(),
         }
-        .wizard(&config, parser, self.breaking, self.interactive)?;
+        .wizard(&config, parser, self.interactive)?;
 
         self.commit(msg)?;
         Ok(())
