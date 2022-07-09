@@ -154,9 +154,9 @@ fn diff_updates_any_path(diff: &Diff, paths: &[PathBuf]) -> bool {
 
     diff.foreach(
         &mut |delta, _progress| {
-            delta.new_file().path().map(|file| {
+            if let Some(file) = delta.new_file().path() {
                 update_any_path |= paths.iter().any(|path| file.starts_with(path));
-            });
+            }
 
             !update_any_path
         },
