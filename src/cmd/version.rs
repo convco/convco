@@ -107,10 +107,8 @@ impl VersionCommand {
         };
         Ok((last_version.0, label))
     }
-}
 
-impl Command for VersionCommand {
-    fn exec(&self, config: Config) -> Result<(), Error> {
+    fn get_version(&self, scope_regex: String) -> Result<(Version, Label), Error> {
         if let Some(VersionAndTag { tag, mut version }) = self.find_last_version()? {
             let v = if self.major {
                 version.increment_major();
@@ -127,27 +125,32 @@ impl Command for VersionCommand {
                     version.build_clear();
                     (version.0, Label::Release)
                 } else {
-                    let parser = CommitParser::builder()
-                        .scope_regex(config.scope_regex)
-                        .build();
+                    let parser = CommitParser::builder().scope_regex(scope_regex).build();
                     self.find_bump_version(tag.as_str(), version, &parser)?
                 }
             } else {
                 (version.0, Label::Release)
             };
-            if self.label {
-                println!("{}", v.1);
-            } else {
-                println!("{}", v.0);
-            }
+            Ok(v)
         } else if self.bump || self.minor {
-            println!("0.1.0");
+            Ok(("0.1.0".parse()?, Label::Minor))
         } else if self.major {
-            println!("1.0.0");
+            Ok(("1.0.0".parse()?, Label::Major))
         } else if self.patch {
-            println!("0.0.1");
+            Ok(("0.0.1".parse()?, Label::Patch))
         } else {
-            println!("0.0.0");
+            Ok(("0.0.0".parse()?, Label::Patch))
+        }
+    }
+}
+
+impl Command for VersionCommand {
+    fn exec(&self, config: Config) -> Result<(), Error> {
+        let (version, label) = self.get_version(config.scope_regex)?;
+        if self.label {
+            println!("{label}");
+        } else {
+            println!("{version}");
         }
         Ok(())
     }
