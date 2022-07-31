@@ -24,6 +24,8 @@ pub enum Command {
     Version(VersionCommand),
     /// Helps to make conventional commits.
     Commit(CommitCommand),
+    /// Updates the version, creates a changelog and makes a pull request
+    Release(ReleaseCommand),
 }
 
 #[derive(Debug, Parser)]
@@ -180,6 +182,9 @@ pub struct CommitCommand {
     #[clap(last = true)]
     pub extra_args: Vec<String>,
 }
+
+#[derive(Debug, Parser)]
+pub struct ReleaseCommand {}
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Footer(pub(crate) String, pub(crate) String);

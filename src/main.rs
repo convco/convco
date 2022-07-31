@@ -25,6 +25,7 @@ fn main() -> Result<(), Error> {
         cli::Command::Changelog(cmd) => cmd.exec(config),
         cli::Command::Version(cmd) => cmd.exec(config),
         cli::Command::Commit(cmd) => cmd.exec(config),
+        cli::Command::Release(cmd) => cmd.exec(config),
     };
     match res {
         Err(e) => {
