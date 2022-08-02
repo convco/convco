@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, collections::HashMap, path::PathBuf, str::FromStr};
+use std::{cmp::Ordering, collections::HashMap, io::Write, path::PathBuf, str::FromStr};
 
 use git2::Time;
 use time::Date;
@@ -259,8 +259,8 @@ impl<'a> ChangeLogTransformer<'a> {
     }
 }
 
-impl Command for ChangelogCommand {
-    fn exec(&self, mut config: Config) -> Result<(), Error> {
+impl ChangelogCommand {
+    pub(crate) fn write(&self, mut config: Config, stdout: impl Write) -> Result<(), Error> {
         if self.no_links {
             config.link_references = false;
             config.link_compare = false;
@@ -287,8 +287,6 @@ impl Command for ChangelogCommand {
             (rev, "")
         };
 
-        let stdout = std::io::stdout();
-        let stdout = stdout.lock();
         let template = config.template.as_deref();
         let mut writer = ChangelogWriter::new(template, &config, stdout)?;
         writer.write_header(config.header.as_str())?;
@@ -352,5 +350,12 @@ impl Command for ChangelogCommand {
             }
         }
         Ok(())
+    }
+}
+
+impl Command for ChangelogCommand {
+    fn exec(&self, config: Config) -> Result<(), Error> {
+        let stdout = std::io::stdout().lock();
+        self.write(config, stdout)
     }
 }
