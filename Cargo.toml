@@ -18,6 +18,7 @@ include = [
 ]
 
 [dependencies]
+anyhow = { version = "1.0.62", features = ["backtrace"] }
 clap = { version = "3.2.6", features = ["derive"] }
 ctrlc = "3.2.2"
 dialoguer = "0.10.1"

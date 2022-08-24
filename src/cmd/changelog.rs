@@ -1,5 +1,6 @@
 use std::{cmp::Ordering, collections::HashMap, io::Write, path::PathBuf, str::FromStr};
 
+use anyhow::Context as _;
 use git2::Time;
 use time::Date;
 
@@ -260,7 +261,7 @@ impl<'a> ChangeLogTransformer<'a> {
 }
 
 impl ChangelogCommand {
-    pub(crate) fn write(&self, mut config: Config, stdout: impl Write) -> Result<(), Error> {
+    pub(crate) fn write(&self, mut config: Config, stdout: impl Write) -> anyhow::Result<()> {
         if self.no_links {
             config.link_references = false;
             config.link_compare = false;
@@ -293,7 +294,10 @@ impl ChangelogCommand {
 
         let transformer =
             ChangeLogTransformer::new(&config, self.include_hidden_sections, &helper, &self.paths)?;
-        match helper.find_last_version(rev)? {
+        match helper
+            .find_last_version(rev)
+            .with_context(|| format!("Could not find the last version for revision {rev}"))?
+        {
             Some(last_version) => {
                 let semver = SemVer::from_str(rev.trim_start_matches(&self.prefix));
                 let from_rev = if let Ok(ref semver) = &semver {
@@ -354,8 +358,9 @@ impl ChangelogCommand {
 }
 
 impl Command for ChangelogCommand {
-    fn exec(&self, config: Config) -> Result<(), Error> {
+    fn exec(&self, config: Config) -> anyhow::Result<()> {
         let stdout = std::io::stdout().lock();
-        self.write(config, stdout)
+        self.write(config, stdout)?;
+        Ok(())
     }
 }

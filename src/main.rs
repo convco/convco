@@ -28,10 +28,10 @@ fn main() -> Result<(), Error> {
     };
     match res {
         Err(e) => {
-            match e {
-                Error::Check => (),
+            match e.downcast_ref::<Error>() {
+                Some(Error::Check) => (),
                 _ => {
-                    eprintln!("{}", e);
+                    eprintln!("{:?}", e);
                 }
             }
             exit(1)

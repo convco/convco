@@ -145,7 +145,7 @@ impl VersionCommand {
 }
 
 impl Command for VersionCommand {
-    fn exec(&self, config: Config) -> Result<(), Error> {
+    fn exec(&self, config: Config) -> anyhow::Result<()> {
         let (version, label) = self.get_version(config.scope_regex)?;
         if self.label {
             println!("{label}");

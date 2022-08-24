@@ -196,7 +196,7 @@ impl Dialog {
 }
 
 impl Command for CommitCommand {
-    fn exec(&self, config: Config) -> Result<(), Error> {
+    fn exec(&self, config: Config) -> anyhow::Result<()> {
         let r#type = match (
             self.feat,
             self.fix,
