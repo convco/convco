@@ -38,7 +38,7 @@ fn print_check(commit: &Commit<'_>, parser: &conventional::CommitParser, types: 
 }
 
 impl Command for CheckCommand {
-    fn exec(&self, mut config: Config) -> Result<(), Error> {
+    fn exec(&self, mut config: Config) -> anyhow::Result<()> {
         if self.merges {
             config.merges = true;
         }
@@ -89,7 +89,7 @@ impl Command for CheckCommand {
             Ok(())
         } else {
             println!("\n{}/{} failed", fail, total);
-            Err(Error::Check)
+            Err(Error::Check)?
         }
     }
 }
