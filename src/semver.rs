@@ -33,6 +33,10 @@ impl SemVer {
         self.0.major
     }
 
+    pub fn minor(&self) -> u64 {
+        self.0.minor
+    }
+
     pub fn patch(&self) -> u64 {
         self.0.patch
     }

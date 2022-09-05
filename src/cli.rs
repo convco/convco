@@ -79,9 +79,18 @@ pub struct ChangelogCommand {
     pub rev: String,
     #[clap(short, long)]
     pub skip_empty: bool,
-    /// Limits the number of version tags to add in the changelog
+    /// Limits the number of version tags to add in the changelog.
     #[clap(short, long)]
     pub max_versions: Option<usize>,
+    /// Only print this number of major versions.
+    #[clap(long, default_value_t=u64::MAX, hide_default_value=true)]
+    pub max_minors: u64,
+    /// Only show this number of minor versions.
+    #[clap(long, default_value_t=u64::MAX, hide_default_value=true)]
+    pub max_majors: u64,
+    /// Only show this number of patch versions.
+    #[clap(long, default_value_t=u64::MAX, hide_default_value=true)]
+    pub max_patches: u64,
     /// Do not generate links. Overrides linkReferences and linkCompare in the config.
     #[clap(short, long)]
     pub no_links: bool,
