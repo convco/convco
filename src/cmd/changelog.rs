@@ -325,6 +325,14 @@ impl ChangelogCommand {
                 } else {
                     iter.chain(None)
                 };
+
+                let stop_at_major =
+                    (last_version.version.0.major + 1).saturating_sub(self.max_majors);
+                let stop_at_minor =
+                    (last_version.version.0.minor + 1).saturating_sub(self.max_minors);
+                let stop_at_patch =
+                    (last_version.version.0.patch + 1).saturating_sub(self.max_patches);
+
                 let iter = iter
                     .chain(
                         helper
@@ -332,6 +340,9 @@ impl ChangelogCommand {
                             .into_iter()
                             .rev()
                             .take_while(|v| v.tag != rev_stop)
+                            .take_while(|v| v.version.major() >= stop_at_major)
+                            .take_while(|v| v.version.minor() >= stop_at_minor)
+                            .take_while(|v| v.version.patch() >= stop_at_patch)
                             .map(|v| v.into()),
                     )
                     .chain(Some(Rev(rev_stop, None)))
