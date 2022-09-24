@@ -5,7 +5,7 @@ use crate::{
     cli::CheckCommand,
     cmd::Command,
     conventional::{self, Type},
-    git::filter_merge_commits,
+    git::{filter_merge_commits, filter_revert_commits},
     Error,
 };
 
@@ -75,6 +75,7 @@ impl Command for CheckCommand {
             .flatten()
             .flat_map(|oid| repo.find_commit(oid).ok())
             .filter(|commit| filter_merge_commits(commit, merges))
+            .filter(|commit| filter_revert_commits(commit, self.ignore_reverts))
             .take(self.number.unwrap_or(std::usize::MAX))
         {
             total += 1;
