@@ -68,6 +68,9 @@ pub struct CheckCommand {
     /// Follow only the first parent
     #[clap(long)]
     pub first_parent: bool,
+    /// Ignore commits created by `git revert` commands
+    #[clap(long)]
+    pub ignore_reverts: bool,
 }
 
 #[derive(Debug, Parser)]
