@@ -23,7 +23,7 @@ jobs:
             binary: convco
           - os:
               name: windows
-              version: 2019
+              version: latest
             binary: convco.exe
     steps:
       - uses: actions/checkout@v3
