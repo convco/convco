@@ -120,7 +120,10 @@ pub(crate) fn filter_merge_commits(commit: &git2::Commit, merges: bool) -> bool 
 
 pub(crate) fn filter_revert_commits(commit: &git2::Commit, ignore_reverts: bool) -> bool {
     if ignore_reverts {
-        return commit.message().map(|m| !m.starts_with("Revert \"")).unwrap_or(true)
+        return commit
+            .message()
+            .map(|m| !m.starts_with("Revert \""))
+            .unwrap_or(true);
     }
     true
 }
