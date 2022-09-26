@@ -85,10 +85,10 @@ pub struct ChangelogCommand {
     /// Limits the number of version tags to add in the changelog.
     #[clap(short, long)]
     pub max_versions: Option<usize>,
-    /// Only print this number of major versions.
+    /// Only print this number of minor versions.
     #[clap(long, default_value_t=u64::MAX, hide_default_value=true)]
     pub max_minors: u64,
-    /// Only show this number of minor versions.
+    /// Only show this number of major versions.
     #[clap(long, default_value_t=u64::MAX, hide_default_value=true)]
     pub max_majors: u64,
     /// Only show this number of patch versions.
