@@ -1,10 +1,12 @@
+mod handlebars;
+
 use std::{
     fs::File,
     io::{self, BufReader, Read},
     path::Path,
 };
 
-use handlebars::{no_escape, Handlebars};
+use ::handlebars::Handlebars;
 use serde::Serialize;
 use time::Date;
 use walkdir::WalkDir;
@@ -29,7 +31,7 @@ pub(crate) struct Reference<'a> {
 #[derive(Debug, Serialize)]
 pub(crate) struct Note {
     pub(crate) scope: Option<String>,
-    pub(crate) text: Vec<String>,
+    pub(crate) text: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -129,9 +131,7 @@ pub(crate) struct ChangelogWriter<W: io::Write> {
 
 impl<W: io::Write> ChangelogWriter<W> {
     pub(crate) fn new(template: Option<&Path>, config: &Config, writer: W) -> Result<Self, Error> {
-        let mut handlebars = Handlebars::new();
-        handlebars.set_strict_mode(true);
-        handlebars.register_escape_fn(no_escape);
+        let mut handlebars = self::handlebars::new(config.line_length, config.wrap_disabled);
 
         fn replace_url_formats(tpl_str: &str, config: &Config) -> String {
             tpl_str

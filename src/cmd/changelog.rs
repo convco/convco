@@ -45,21 +45,6 @@ fn date_from_time(time: &Time) -> Date {
         .date()
 }
 
-fn word_wrap_acc(mut acc: Vec<String>, word: String, line_length: usize) -> Vec<String> {
-    let length = acc.len();
-    if length != 0 {
-        let last_line = acc.clone().pop().unwrap();
-        if last_line.len() + word.len() < line_length {
-            acc[length - 1] = format!("{} {}", last_line, word);
-        } else {
-            acc.push(word);
-        }
-    } else {
-        acc.push(word);
-    }
-    acc
-}
-
 impl<'a> ChangeLogTransformer<'a> {
     fn new(
         config: &'a Config,
@@ -92,7 +77,6 @@ impl<'a> ChangeLogTransformer<'a> {
     }
 
     fn make_notes(&self, footers: &'a [Footer], scope: Option<String>) -> Vec<(String, Note)> {
-        let line_length = self.config.line_length;
         footers
             .iter()
             .filter(|footer| footer.key.starts_with("BREAKING"))
@@ -101,14 +85,7 @@ impl<'a> ChangeLogTransformer<'a> {
                     footer.key.clone(),
                     Note {
                         scope: scope.clone(),
-                        text: footer
-                            .value
-                            .to_owned()
-                            .split_whitespace()
-                            .map(String::from)
-                            .fold(Vec::<String>::new(), |acc, word| {
-                                word_wrap_acc(acc, word, line_length)
-                            }),
+                        text: footer.value.clone(),
                     },
                 )
             })
@@ -173,15 +150,7 @@ impl<'a> ChangeLogTransformer<'a> {
                     .unwrap()
                     .date();
                 let scope = conv_commit.scope;
-                let subject = conv_commit
-                    .description
-                    .to_owned()
-                    .split_whitespace()
-                    .map(String::from)
-                    .fold(Vec::<String>::new(), |acc, word| {
-                        word_wrap_acc(acc, word, self.config.line_length)
-                    })
-                    .join("  \n");
+                let subject = conv_commit.description;
                 let body = conv_commit.body;
                 let short_hash = hash[..7].into();
                 let references = conv_commit
@@ -271,6 +240,12 @@ impl ChangelogCommand {
         }
         if self.first_parent {
             config.first_parent = true;
+        }
+        if let Some(line_length) = self.line_length {
+            config.line_length = line_length;
+        }
+        if self.no_wrap {
+            config.wrap_disabled = true;
         }
 
         let helper = GitHelper::new(self.prefix.as_str())?;
