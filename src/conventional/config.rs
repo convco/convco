@@ -72,6 +72,9 @@ pub(crate) struct Config {
     /// default number of characters in a single line of the CHANGELOG.
     #[serde(default = "default_line_length")]
     pub(crate) line_length: usize,
+    /// default number of characters in a single line of the CHANGELOG.
+    #[serde(default)]
+    pub(crate) wrap_disabled: bool,
     /// Add link to compare 2 versions.
     #[serde(default = "default_true")]
     pub(crate) link_compare: bool,
@@ -113,6 +116,7 @@ impl Default for Config {
             link_references: true,
             merges: false,
             first_parent: false,
+            wrap_disabled: false,
         }
     }
 }
@@ -421,6 +425,7 @@ mod tests {
                 link_references: true,
                 merges: false,
                 first_parent: false,
+                wrap_disabled: false,
             }
         )
     }

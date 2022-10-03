@@ -109,6 +109,12 @@ pub struct ChangelogCommand {
     /// Follow only the first parent of merge commits. Commits from the merged branche(s) will be discarded.
     #[clap(long)]
     pub first_parent: bool,
+    /// Max line length before wrapping
+    #[clap(long)]
+    pub line_length: Option<usize>,
+    /// Do not wrap lines
+    #[clap(long)]
+    pub no_wrap: bool,
 }
 
 #[derive(Debug, Parser)]
