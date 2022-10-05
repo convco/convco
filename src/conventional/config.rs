@@ -69,10 +69,12 @@ pub(crate) struct Config {
     /// Defaults to `"[[:alnum:]]+(?:[-_/][[:alnum:]]+)*"`.
     #[serde(default = "default_scope_regex")]
     pub(crate) scope_regex: String,
-    /// default number of characters in a single line of the CHANGELOG.
+    /// Default number of characters in a single line of the CHANGELOG.
+    /// This only makes sense if the template makes use of `{{#word-wrap}}` blocks.
     #[serde(default = "default_line_length")]
     pub(crate) line_length: usize,
-    /// default number of characters in a single line of the CHANGELOG.
+    /// Disable word-wrap in the CHANGELOG.
+    /// This only makes sense if the template makes use of `{{#word-wrap}}` blocks.
     #[serde(default)]
     pub(crate) wrap_disabled: bool,
     /// Add link to compare 2 versions.

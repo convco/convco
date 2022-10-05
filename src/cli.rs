@@ -109,10 +109,12 @@ pub struct ChangelogCommand {
     /// Follow only the first parent of merge commits. Commits from the merged branche(s) will be discarded.
     #[clap(long)]
     pub first_parent: bool,
-    /// Max line length before wrapping
+    /// Max line length before wrapping.
+    /// This only makes sense if the template makes use of `{{#word-wrap}}` blocks.
     #[clap(long)]
     pub line_length: Option<usize>,
-    /// Do not wrap lines
+    /// Do not wrap lines.
+    /// This only makes sense if the template makes use of `{{#word-wrap}}` blocks.
     #[clap(long)]
     pub no_wrap: bool,
 }
