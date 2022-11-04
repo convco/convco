@@ -179,6 +179,11 @@ fn default_types() -> Vec<Type> {
             section: "Other".into(),
             hidden: true,
         },
+        Type {
+            r#type: "revert".into(),
+            section: "Other".into(),
+            hidden: true,
+        },
     ]
 }
 
