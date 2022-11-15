@@ -315,17 +315,24 @@ impl ChangelogCommand {
                             .into_iter()
                             .rev()
                             .take_while(|v| v.tag != rev_stop)
-                            .take_while(|v| v.version.major() >= stop_at_major)
-                            .take_while(|v| v.version.minor() >= stop_at_minor)
-                            .take_while(|v| v.version.patch() >= stop_at_patch)
                             .map(|v| v.into()),
                     )
                     .chain(Some(Rev(rev_stop, None)))
                     .take(self.max_versions.map(|x| x + 1).unwrap_or(std::usize::MAX));
                 let iter: Vec<Rev<'_>> = iter.collect();
                 for w in iter.windows(2) {
-                    let from = &w[0];
+                    let from = match &w[0] {
+                        Rev(_, Some(v))
+                            if v.major() < stop_at_major
+                                || v.minor() < stop_at_minor
+                                || v.patch() < stop_at_patch =>
+                        {
+                            break
+                        }
+                        _ => &w[0],
+                    };
                     let to = &w[1];
+
                     let context = transformer.transform(from, to)?;
                     if !self.skip_empty || !context.context.commit_groups.is_empty() {
                         writer.write_template(&context)?;
