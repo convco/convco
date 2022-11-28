@@ -26,7 +26,7 @@ impl CommitCommand {
     fn commit(&self, msg: String) -> Result<ExitStatus, Error> {
         // build the command
         let mut cmd = process::Command::new("git");
-        cmd.args(&["commit", "-m", msg.as_str()]);
+        cmd.args(["commit", "-m", msg.as_str()]);
 
         if !self.extra_args.is_empty() {
             cmd.args(&self.extra_args);
