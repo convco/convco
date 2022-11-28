@@ -94,23 +94,33 @@ impl<'a> ContextBuilder<'a> {
     pub fn new(config: &'a Config) -> Result<ContextBuilder<'a>, Error> {
         let mut handlebars = Handlebars::new();
         handlebars
-            .register_template_string("compare_url_format", config.compare_url_format.as_str())?;
-        handlebars.register_template_string(
-            "release_commit_message_format",
-            config.release_commit_message_format.as_str(),
-        )?;
-        handlebars.register_template_string("user_url_format", config.user_url_format.as_str())?;
+            .register_template_string("compare_url_format", config.compare_url_format.as_str())
+            .map_err(Box::new)?;
+        handlebars
+            .register_template_string(
+                "release_commit_message_format",
+                config.release_commit_message_format.as_str(),
+            )
+            .map_err(Box::new)?;
+        handlebars
+            .register_template_string("user_url_format", config.user_url_format.as_str())
+            .map_err(Box::new)?;
         Ok(Self { handlebars })
     }
 
     pub fn build(&self, context_base: ContextBase<'a>) -> Result<Context<'a>, Error> {
         let compare_url_format = self
             .handlebars
-            .render("compare_url_format", &context_base)?;
+            .render("compare_url_format", &context_base)
+            .map_err(Box::new)?;
         let release_commit_message_format = self
             .handlebars
-            .render("release_commit_message_format", &context_base)?;
-        let user_url_format = self.handlebars.render("user_url_format", &context_base)?;
+            .render("release_commit_message_format", &context_base)
+            .map_err(Box::new)?;
+        let user_url_format = self
+            .handlebars
+            .render("user_url_format", &context_base)
+            .map_err(Box::new)?;
         let link_compare = context_base.link_compare
             && !context_base.current_tag.is_empty()
             && !context_base.previous_tag.is_empty();
@@ -156,15 +166,24 @@ impl<W: io::Write> ChangelogWriter<W> {
                     let name = entry.file_name().to_string_lossy();
                     let name = name.trim_end_matches(".hbs");
 
-                    handlebars.register_template_string(name, tpl_str)?;
+                    handlebars
+                        .register_template_string(name, tpl_str)
+                        .map_err(Box::new)?;
                 }
             }
         } else {
             handlebars
-                .register_template_string("template", replace_url_formats(TEMPLATE, config))?;
-            handlebars.register_partial("header", replace_url_formats(HEADER, config))?;
-            handlebars.register_partial("commit", replace_url_formats(COMMIT, config))?;
-            handlebars.register_partial("footer", replace_url_formats(FOOTER, config))?;
+                .register_template_string("template", replace_url_formats(TEMPLATE, config))
+                .map_err(Box::new)?;
+            handlebars
+                .register_partial("header", replace_url_formats(HEADER, config))
+                .map_err(Box::new)?;
+            handlebars
+                .register_partial("commit", replace_url_formats(COMMIT, config))
+                .map_err(Box::new)?;
+            handlebars
+                .register_partial("footer", replace_url_formats(FOOTER, config))
+                .map_err(Box::new)?;
         }
 
         Ok(Self { writer, handlebars })
@@ -178,7 +197,8 @@ impl<W: io::Write> ChangelogWriter<W> {
     pub(crate) fn write_template(&mut self, context: &Context<'_>) -> Result<(), Error> {
         let writer = &mut self.writer;
         self.handlebars
-            .render_to_write("template", context, writer)?;
+            .render_to_write("template", context, writer)
+            .map_err(Box::new)?;
         Ok(())
     }
 }
