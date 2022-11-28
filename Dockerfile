@@ -16,7 +16,7 @@ RUN \
   openssl-libs-static
 # ────────────────────────────────────────────────────────────────────────────────
 FROM base AS builder-layer
-ARG RUST_VERSION="1.56.0"
+ARG RUST_VERSION="1.65.0"
 ARG RUSTUP_URL="https://sh.rustup.rs"
 ENV RUSTUP_HOME="/usr/local/rustup"
 ENV CARGO_HOME="/usr/local/cargo"
