@@ -136,9 +136,13 @@ impl Dialog {
             Some(path) => std::fs::read_to_string(path)?,
             None => include_str!("../conventional/commit/message.hbs").to_owned(),
         };
-        handlebars.register_template_string("commit-message", commit_template.as_str())?;
+        handlebars
+            .register_template_string("commit-message", commit_template.as_str())
+            .map_err(Box::new)?;
         if !(interactive || self.r#type.is_empty() || self.description.is_empty()) {
-            let msg = handlebars.render("commit-message", self)?;
+            let msg = handlebars
+                .render("commit-message", self)
+                .map_err(Box::new)?;
             parser
                 .parse(msg.as_str())
                 .map(|_| msg)
@@ -175,7 +179,9 @@ impl Dialog {
 
             loop {
                 // finally make message
-                let msg = handlebars.render("commit-message", self)?;
+                let msg = handlebars
+                    .render("commit-message", self)
+                    .map_err(Box::new)?;
                 let msg = edit_message(msg.as_str())?;
                 match parser.parse(msg.as_str()).map(|_| msg) {
                     Ok(msg) => break Ok(msg),

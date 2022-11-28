@@ -12,11 +12,11 @@ pub(crate) enum Error {
     #[error(transparent)]
     Io(#[from] io::Error),
     #[error(transparent)]
-    Template(#[from] TemplateError),
+    Template(#[from] Box<TemplateError>),
     #[error(transparent)]
     Parser(#[from] conventional::ParseError),
     #[error(transparent)]
-    Render(#[from] RenderError),
+    Render(#[from] Box<RenderError>),
     #[error(transparent)]
     Url(#[from] url::ParseError),
     #[error(transparent)]
