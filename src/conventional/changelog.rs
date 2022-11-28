@@ -157,7 +157,7 @@ impl<W: io::Write> ChangelogWriter<W> {
                 .filter_entry(|e| e.file_name().to_string_lossy().ends_with(".hbs"))
                 .filter_map(|e| e.ok())
             {
-                if (&entry).metadata().unwrap().is_file() {
+                if entry.metadata().unwrap().is_file() {
                     let mut reader = BufReader::new(File::open(entry.path())?);
                     let mut tpl_str = String::new();
                     reader.read_to_string(&mut tpl_str)?;
