@@ -16,6 +16,8 @@ pub struct Opt {
 
 #[derive(Debug, Parser)]
 pub enum Command {
+    /// Actions for configuration
+    Config(ConfigCommand),
     /// Verifies if all commits are conventional
     Check(CheckCommand),
     /// Writes out a changelog
@@ -24,6 +26,13 @@ pub enum Command {
     Version(VersionCommand),
     /// Helps to make conventional commits.
     Commit(CommitCommand),
+}
+
+#[derive(Debug, Parser)]
+pub struct ConfigCommand {
+    /// Print out the default configuration instead of the current configuration.
+    #[clap(short, long)]
+    pub default: bool,
 }
 
 #[derive(Debug, Parser)]
