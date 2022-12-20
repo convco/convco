@@ -27,6 +27,7 @@ fn main() -> anyhow::Result<()> {
         )?;
     let config = make_cl_config(&git, opt.config.unwrap_or_else(|| ".versionrc".into()));
     let res = match opt.cmd {
+        cli::Command::Config(cmd) => cmd.exec(config),
         cli::Command::Check(cmd) => cmd.exec(config),
         cli::Command::Changelog(cmd) => cmd.exec(config),
         cli::Command::Version(cmd) => cmd.exec(config),

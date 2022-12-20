@@ -21,6 +21,23 @@ It provides already the following commands:
 
 This build depends on `git2` with the `zlib-ng-compat` feature. It requires `cmake`.
 
+## Configuration
+
+`convco` uses follows the [conventional-changelog-config-spec][3].
+
+The configuration file is loaded in the following order
+
+1. Load the internal defaults
+    - specified in [src/conventional/config.rs](src/conventional/config.rs),
+    - see these defaults as YAML in [./versionrc-default.yaml](versionrc-default.yaml).
+2. Then override with values from the command line, `convco -c|--config path/to/.versionrc`
+3. Or, if not specified via `-c|--config`, load `${PWD}/.versionrc` if it exists.
+
+To get the final derived configuration run `convco config`.
+
+The `host: ...`, `owner: ...` and `repository: ...` when not supplied via custom or the `.versionrc` are loaded
+from the `git remote origin` value.
+
 ## Docker usage
 
 ```shell script
@@ -48,8 +65,7 @@ convco:check:
 ### Changelog
 
 A changelog can be generated using the conventional commits.
-It is inspired by [conventional changelog][2].
-Configuration follows the [conventional-changelog-config-spec][3]
+It is inspired by [conventional changelog][2] and the [configuration file](#configuration) allows changes to the generated the output.
 
 ```sh
 convco changelog > CHANGELOG.md

@@ -21,6 +21,8 @@ pub(crate) enum Error {
     Url(#[from] url::ParseError),
     #[error(transparent)]
     SemVer(#[from] semver::Error),
+    #[error(transparent)]
+    Yaml(#[from] serde_yaml::Error),
     #[error("check error")]
     Check,
     #[error("wrong type: {wrong_type}")]
