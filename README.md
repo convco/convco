@@ -5,10 +5,11 @@
 
 A Conventional commit cli.
 
+Documentation: <https://convco.github.io>.
+
 `convco` gives tools to work with [Conventional Commits][1].
 
-The tool is still in early development.
-It provides already the following commands:
+It provides the following commands:
 
 - `convco changelog`: Create a changelog file.
 - `convco check`: Checks if a range of commits is following the convention.
@@ -108,17 +109,6 @@ It is useful to use it with release tools, such as [`cargo-release`](https://cra
 ```sh
 cargo release $(convco version --bump)
 ```
-
-#### TODO
-
-- [x] automatic notes for breaking changes
-- [x] custom template folder
-- [x] use a `.versionrc` file
-- [x] limit to a range of versions
-- [x] sort sections in changelog
-- [x] issue references
-- [ ] better documentation
-- [ ] better error handling
 
 [1]: https://www.conventionalcommits.org/
 [2]: https://github.com/conventional-changelog/conventional-changelog
