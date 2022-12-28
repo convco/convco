@@ -14,6 +14,8 @@ jobs:
         uses: actions/checkout@v3
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
+        with:
+          image: multiarch/qemu-user-static
       - name: Set up Docker Buildx
         id: buildx
         uses: docker/setup-buildx-action@v2
@@ -31,4 +33,4 @@ jobs:
           export TAG=$(echo ${{ github.ref }} | rev | cut -d/ -f1 | rev | tr -d 'v' | sed 's/master/latest/') ;
           docker buildx use "convco" \
           || docker buildx create --use --name "convco" --driver docker-container ;
-          ARM64=false AMD64=true docker buildx bake --builder convco ;
+          ARM64=true AMD64=true docker buildx bake --builder convco ;
