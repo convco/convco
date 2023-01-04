@@ -48,6 +48,12 @@ docker build -t convco .
 docker run -v "$PWD:/tmp" --workdir /tmp --rm convco
 ```
 
+or
+
+```shell script
+docker run -v "$PWD:/tmp" --workdir /tmp --rm convco/convco
+```
+
 ### Use it in .gitlab-ci.yml
 
 If you've created an image and pushed it into your private registry
