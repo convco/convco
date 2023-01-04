@@ -48,7 +48,7 @@ docker build -t convco .
 docker run -v "$PWD:/tmp" --workdir /tmp --rm convco
 ```
 
-or
+or use it from the Docker Hub:
 
 ```shell script
 docker run -v "$PWD:/tmp" --workdir /tmp --rm convco/convco
