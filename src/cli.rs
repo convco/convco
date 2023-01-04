@@ -126,6 +126,10 @@ pub struct ChangelogCommand {
     /// This only makes sense if the template makes use of `{{#word-wrap}}` blocks.
     #[clap(long)]
     pub no_wrap: bool,
+    /// Change the title for the unreleased commits.
+    /// If a semantic version is given, the title will be prefixed.
+    #[clap(short, long, default_value = "Unreleased")]
+    pub unreleased: String,
 }
 
 #[derive(Debug, Parser)]

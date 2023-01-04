@@ -29,14 +29,21 @@ impl<'a> From<&'a VersionAndTag> for Rev<'a> {
     }
 }
 
+struct Unreleased {
+    str: String,
+    version: Option<SemVer>,
+}
+
 /// Transforms a range of commits to pass them to the changelog writer.
 struct ChangeLogTransformer<'a> {
     group_types: HashMap<&'a str, &'a str>,
     config: &'a Config,
+    unreleased: Unreleased,
     git: &'a GitHelper,
     context_builder: ContextBuilder<'a>,
     commit_parser: CommitParser,
     paths: &'a [PathBuf],
+    changelog_command: &'a ChangelogCommand,
 }
 
 fn date_from_time(time: &Time) -> Date {
@@ -51,6 +58,8 @@ impl<'a> ChangeLogTransformer<'a> {
         include_hidden_sections: bool,
         git: &'a GitHelper,
         paths: &'a [PathBuf],
+        unreleased: String,
+        changelog_command: &'a ChangelogCommand,
     ) -> Result<Self, Error> {
         let group_types = config
             .types
@@ -66,6 +75,17 @@ impl<'a> ChangeLogTransformer<'a> {
             .build();
 
         let context_builder = ContextBuilder::new(config)?;
+        let unreleased = match unreleased.parse::<SemVer>() {
+            Ok(version) => Unreleased {
+                str: unreleased,
+                version: Some(version),
+            },
+            _ => Unreleased {
+                str: unreleased,
+                version: None,
+            },
+        };
+
         Ok(Self {
             config,
             group_types,
@@ -73,6 +93,8 @@ impl<'a> ChangeLogTransformer<'a> {
             context_builder,
             commit_parser,
             paths,
+            unreleased,
+            changelog_command,
         })
     }
 
@@ -109,7 +131,7 @@ impl<'a> ChangeLogTransformer<'a> {
         )
     }
 
-    fn transform(&self, from_rev: &Rev<'a>, to_rev: &Rev<'a>) -> Result<Context<'a>, Error> {
+    fn transform(&'a self, from_rev: &Rev<'a>, to_rev: &Rev<'a>) -> Result<Context<'a>, Error> {
         let mut revwalk = self.git.revwalk()?;
         if self.config.first_parent {
             revwalk.simplify_first_parent()?;
@@ -180,11 +202,22 @@ impl<'a> ChangeLogTransformer<'a> {
         }
 
         let version = if from_rev.0 == "HEAD" {
-            "Unreleased"
+            format!(
+                "{}{}",
+                self.changelog_command.prefix, self.changelog_command.unreleased
+            )
+            .into()
         } else {
-            from_rev.0
+            from_rev.0.into()
         };
-        let is_patch = from_rev.1.map(|i| i.patch() != 0).unwrap_or(false);
+        let is_patch = from_rev.1.map(|i| i.patch() != 0).unwrap_or(false)
+            || (self.unreleased.str == version
+                && self
+                    .unreleased
+                    .version
+                    .as_ref()
+                    .map(|i| i.patch() != 0)
+                    .unwrap_or(false));
         let mut commit_groups: Vec<CommitGroup<'_>> = commits
             .into_iter()
             .map(|(title, commits)| CommitGroup { title, commits })
@@ -267,8 +300,14 @@ impl ChangelogCommand {
         let mut writer = ChangelogWriter::new(template, &config, stdout)?;
         writer.write_header(config.header.as_str())?;
 
-        let transformer =
-            ChangeLogTransformer::new(&config, self.include_hidden_sections, &helper, &self.paths)?;
+        let transformer = ChangeLogTransformer::new(
+            &config,
+            self.include_hidden_sections,
+            &helper,
+            &self.paths,
+            self.unreleased.clone(),
+            self,
+        )?;
         match helper
             .find_last_version(rev)
             .with_context(|| format!("Could not find the last version for revision {rev}"))?

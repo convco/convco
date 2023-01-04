@@ -1,6 +1,7 @@
 mod handlebars;
 
 use std::{
+    borrow::Cow,
     fs::File,
     io::{self, BufReader, Read},
     path::Path,
@@ -72,7 +73,7 @@ pub(crate) struct Context<'a> {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ContextBase<'a> {
-    pub(crate) version: &'a str,
+    pub(crate) version: Cow<'a, str>,
     pub(crate) date: Option<Date>,
     pub(crate) is_patch: bool,
     pub(crate) commit_groups: Vec<CommitGroup<'a>>,
