@@ -217,7 +217,7 @@ pub struct CommitCommand {
     pub extra_args: Vec<String>,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Footer(pub(crate) String, pub(crate) String);
 
 impl From<(&str, &str)> for Footer {

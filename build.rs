@@ -1,6 +1,6 @@
 use std::{fs, iter::FromIterator};
 
-use clap::IntoApp;
+use clap::CommandFactory;
 use clap_complete::{generate_to, Shell};
 include!("src/cli.rs");
 
