@@ -130,6 +130,9 @@ pub struct ChangelogCommand {
     /// If a semantic version is given, the title will be prefixed.
     #[clap(short, long, default_value = "Unreleased")]
     pub unreleased: String,
+    /// Path to write the changelog to.
+    #[clap(short, long, default_value = "-")]
+    pub output: PathBuf,
 }
 
 #[derive(Debug, Parser)]

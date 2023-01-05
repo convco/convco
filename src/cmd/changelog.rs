@@ -391,8 +391,11 @@ impl ChangelogCommand {
 
 impl Command for ChangelogCommand {
     fn exec(&self, config: Config) -> anyhow::Result<()> {
-        let stdout = std::io::stdout().lock();
-        self.write(config, stdout)?;
+        let out: Box<dyn Write> = match self.output.as_path() {
+            p if p.to_string_lossy() == "-" => Box::new(std::io::stdout().lock()),
+            p => Box::new(std::fs::File::create(p)?),
+        };
+        self.write(config, out)?;
         Ok(())
     }
 }
