@@ -1,5 +1,8 @@
+use std::io::{stdin, Read};
+
 use conventional::Config;
 use git2::{Commit, Repository};
+use is_terminal::IsTerminal;
 
 use crate::{
     cli::CheckCommand,
@@ -45,16 +48,6 @@ impl Command for CheckCommand {
         if self.first_parent {
             config.first_parent = true;
         }
-        let repo = Repository::open_from_env()?;
-        let mut revwalk = repo.revwalk()?;
-        if config.first_parent {
-            revwalk.simplify_first_parent()?;
-        }
-        if self.rev.contains("..") {
-            revwalk.push_range(self.rev.as_str())?;
-        } else {
-            revwalk.push_ref(self.rev.as_str())?;
-        }
 
         let mut total = 0;
         let mut fail = 0;
@@ -70,6 +63,25 @@ impl Command for CheckCommand {
             .collect();
 
         let Config { merges, .. } = config;
+
+        if !stdin().is_terminal() {
+            let mut stdin = stdin().lock();
+            let mut commit_msg = String::new();
+            stdin.read_to_string(&mut commit_msg)?;
+            parser.parse(&commit_msg)?;
+            return Ok(());
+        }
+
+        let repo = Repository::open_from_env()?;
+        let mut revwalk = repo.revwalk()?;
+        if config.first_parent {
+            revwalk.simplify_first_parent()?;
+        }
+        if self.rev.contains("..") {
+            revwalk.push_range(self.rev.as_str())?;
+        } else {
+            revwalk.push_ref(self.rev.as_str())?;
+        }
 
         for commit in revwalk
             .flatten()
