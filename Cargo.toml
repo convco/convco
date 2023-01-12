@@ -24,6 +24,7 @@ ctrlc = "3.2.3"
 dialoguer = "0.10.2"
 git2 = { version = "0.15.0", default-features = false, features = [ "zlib-ng-compat" ] }
 handlebars = "4.3.5"
+is-terminal = "0.4.2"
 regex = "1.7.0"
 semver = "1.0.14"
 serde = { version = "1.0.147", features = ["derive"] }
