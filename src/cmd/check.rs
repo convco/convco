@@ -64,7 +64,7 @@ impl Command for CheckCommand {
 
         let Config { merges, .. } = config;
 
-        if self.rev == "HEAD" && !stdin().is_terminal() {
+        if self.rev.is_some() && !stdin().is_terminal() {
             let mut stdin = stdin().lock();
             let mut commit_msg = String::new();
             stdin.read_to_string(&mut commit_msg)?;
@@ -77,10 +77,15 @@ impl Command for CheckCommand {
         if config.first_parent {
             revwalk.simplify_first_parent()?;
         }
-        if self.rev.contains("..") {
-            revwalk.push_range(self.rev.as_str())?;
+        let rev = match self.rev.as_ref() {
+            Some(rev) if !rev.is_empty() => rev.as_str(),
+            _ => "HEAD",
+        };
+
+        if rev.contains("..") {
+            revwalk.push_range(rev)?;
         } else {
-            revwalk.push_ref(self.rev.as_str())?;
+            revwalk.push_ref(rev)?;
         }
 
         for commit in revwalk
