@@ -1,15 +1,22 @@
 # Changelog
 
-## v0.3.13 (2023-01-12)
+## v0.3.14 (2023-01-13)
 
-### Features
+### Fixes
+
+* only check stdin when rev is HEAD and a tty (b1bb07e), closes #102
+* **changelog:** correctly set unreleased header (7bff516), closes #101
+
+### v0.3.13 (2023-01-12)
+
+#### Features
 
 * **check:** check from stdin if not a tty (f53b02c), closes #100
 * **changelog:** add output flag (ca37fe4)
 * **changelog:** customize unreleased header (d5cc605), closes #85
 * add cli parameter to show the configuration (2a8c92a), closes #95
 
-### Fixes
+#### Fixes
 
 * **changelog:** correctly render last version if limited by `--max-*`
 (6caa988), closes #92
