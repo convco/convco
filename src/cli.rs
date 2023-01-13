@@ -66,8 +66,10 @@ pub struct VersionCommand {
 #[derive(Debug, Parser)]
 pub struct CheckCommand {
     /// Start of the revwalk, can also be a commit range. Can be in the form `<commit>..<commit>`.
-    #[clap(default_value = "HEAD")]
-    pub rev: String,
+    /// If not provided and a tty it will check from HEAD.
+    /// If not provided and not a tty it will check a single commit message from stdin.
+    #[clap()]
+    pub rev: Option<String>,
     /// Limit the number of commits to check.
     #[clap(short, long = "max-count")]
     pub number: Option<usize>,
