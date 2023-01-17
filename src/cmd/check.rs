@@ -64,7 +64,7 @@ impl Command for CheckCommand {
 
         let Config { merges, .. } = config;
 
-        if self.rev.is_some() && !stdin().is_terminal() {
+        if self.rev.is_none() && !stdin().is_terminal() {
             let mut stdin = stdin().lock();
             let mut commit_msg = String::new();
             stdin.read_to_string(&mut commit_msg)?;
