@@ -1,8 +1,14 @@
 # Changelog
 
-## v0.3.14 (2023-01-13)
+## v0.3.15 (2023-01-17)
 
 ### Fixes
+
+* **check:** read from stdin when rev is not set (7840b8a), closes #102
+
+### v0.3.14 (2023-01-13)
+
+#### Fixes
 
 * only check stdin when rev is HEAD and a tty (b1bb07e), closes #102
 * **changelog:** correctly set unreleased header (7bff516), closes #101
