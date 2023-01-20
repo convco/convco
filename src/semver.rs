@@ -49,6 +49,21 @@ impl SemVer {
         self.0.pre = Prerelease::EMPTY
     }
 
+    pub fn increment_prerelease(&mut self, prerelease: &Prerelease) {
+        if self.0.pre.is_empty() {
+            self.0.pre = Prerelease::new(format!("{prerelease}.1").as_str()).unwrap();
+        } else {
+            let next = self
+                .0
+                .pre
+                .split_once('.')
+                .and_then(|(_, number)| number.parse::<u64>().ok())
+                .unwrap_or_default()
+                + 1;
+            self.0.pre = Prerelease::new(format!("{prerelease}.{next}").as_str()).unwrap();
+        }
+    }
+
     pub fn build_clear(&mut self) {
         self.0.build = BuildMetadata::EMPTY
     }

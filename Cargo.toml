@@ -37,6 +37,7 @@ walkdir = "2.3.2"
 [build-dependencies]
 clap = { version = "4.0.26", features = ["derive"] }
 clap_complete = "4.0.5"
+semver = "1.0.14"
 
 [package.metadata.deb]
 depends = ""
