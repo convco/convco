@@ -1,6 +1,7 @@
 use std::{path::PathBuf, str::FromStr};
 
 use clap::Parser;
+use semver::Prerelease;
 
 #[derive(Debug, Parser)]
 #[clap(name = "convco", about = "Conventional commit tools", version)]
@@ -58,6 +59,9 @@ pub struct VersionCommand {
     /// Bump to a patch release version, regardless of the conventional commits
     #[clap(long)]
     pub patch: bool,
+    /// Suffix with a prerelease version. Requires --bump.
+    #[clap(long, requires = "bump", default_value_t = Prerelease::new("").unwrap())]
+    pub prerelease: Prerelease,
     /// Only commits that update those <paths> will be taken into account. It is useful to support monorepos.
     #[clap(short = 'P', long)]
     pub paths: Vec<PathBuf>,

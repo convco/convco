@@ -12,14 +12,16 @@ use crate::{
 };
 
 enum Label {
-    /// Bump minor version (0.1.0 -> 1.0.0)
+    /// Bump major version (0.1.0 -> 1.0.0)
     Major,
     /// Bump minor version (0.1.0 -> 0.2.0)
     Minor,
-    /// Bump the patch field (0.1.0 -> 0.1.1)
+    /// Bump patch version (0.1.0 -> 0.1.1)
     Patch,
     /// Remove the pre-release extension; if any (0.1.0-dev.1 -> 0.1.0, 0.1.0 -> 0.1.0)
     Release,
+    /// Output a pre-release version
+    Prerelease,
 }
 
 impl fmt::Display for Label {
@@ -29,6 +31,7 @@ impl fmt::Display for Label {
             Self::Minor => write!(f, "minor"),
             Self::Patch => write!(f, "patch"),
             Self::Release => write!(f, "release"),
+            Self::Prerelease => write!(f, "prerelease"),
         }
     }
 }
@@ -105,6 +108,9 @@ impl VersionCommand {
             // TODO what should be the behaviour? always increment patch? or stay on same version?
             _ => Label::Release,
         };
+        if !self.prerelease.is_empty() {
+            last_version.increment_prerelease(&self.prerelease);
+        }
         Ok((last_version.0, label))
     }
 
@@ -121,9 +127,14 @@ impl VersionCommand {
                 (version.0, Label::Patch)
             } else if self.bump {
                 if version.is_prerelease() {
-                    version.pre_clear();
-                    version.build_clear();
-                    (version.0, Label::Release)
+                    if self.prerelease.is_empty() {
+                        version.pre_clear();
+                        version.build_clear();
+                        (version.0, Label::Release)
+                    } else {
+                        version.increment_prerelease(&self.prerelease);
+                        (version.0, Label::Prerelease)
+                    }
                 } else {
                     let parser = CommitParser::builder().scope_regex(scope_regex).build();
                     self.find_bump_version(tag.as_str(), version, &parser)?
