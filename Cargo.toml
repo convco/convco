@@ -22,7 +22,7 @@ anyhow = { version = "1.0.66", features = ["backtrace"] }
 clap = { version = "4.0.26", features = ["derive"] }
 ctrlc = "3.2.3"
 dialoguer = "0.10.2"
-git2 = { version = "0.15.0", default-features = false, features = [ "zlib-ng-compat" ] }
+git2 = { version = "0.16.1", default-features = false, features = [ "zlib-ng-compat" ] }
 handlebars = "4.3.5"
 is-terminal = "0.4.2"
 regex = "1.7.0"
