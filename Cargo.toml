@@ -18,26 +18,26 @@ include = [
 ]
 
 [dependencies]
-anyhow = { version = "1.0.66", features = ["backtrace"] }
-clap = { version = "4.0.26", features = ["derive"] }
-ctrlc = "3.2.3"
-dialoguer = "0.10.2"
-git2 = { version = "0.15.0", default-features = false, features = [ "zlib-ng-compat" ] }
-handlebars = "4.3.5"
+anyhow = { version = "1.0.68", features = ["backtrace"] }
+clap = { version = "4.1.2", features = ["derive"] }
+ctrlc = "3.2.4"
+dialoguer = "0.10.3"
+git2 = { version = "0.16.1", default-features = false, features = [ "zlib-ng-compat" ] }
+handlebars = "4.3.6"
 is-terminal = "0.4.2"
-regex = "1.7.0"
-semver = "1.0.14"
-serde = { version = "1.0.147", features = ["derive"] }
-serde_yaml = "0.9.14"
-thiserror = "1.0.37"
+regex = "1.7.1"
+semver = "1.0.16"
+serde = { version = "1.0.152", features = ["derive"] }
+serde_yaml = "0.9.17"
+thiserror = "1.0.38"
 time = { version = "0.3.17", features = [ "serde-human-readable" ] }
 url = "2.3.1"
 walkdir = "2.3.2"
 
 [build-dependencies]
-clap = { version = "4.0.26", features = ["derive"] }
-clap_complete = "4.0.5"
-semver = "1.0.14"
+clap = { version = "4.1.2", features = ["derive"] }
+clap_complete = "4.1.1"
+semver = "1.0.16"
 
 [package.metadata.deb]
 depends = ""
