@@ -155,6 +155,7 @@ impl Dialog {
             ctrlc::set_handler(move || {
                 let term = dialoguer::console::Term::stdout();
                 let _ = term.show_cursor();
+                std::process::exit(1);
             })
             .unwrap();
             self.r#type = Self::select_type(theme, self.r#type.as_str(), types)?;
