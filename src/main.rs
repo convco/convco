@@ -4,6 +4,7 @@ mod conventional;
 mod error;
 mod git;
 mod semver;
+mod strip;
 
 use std::process::exit;
 

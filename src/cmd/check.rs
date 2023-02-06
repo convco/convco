@@ -8,6 +8,7 @@ use crate::{
     cmd::Command,
     conventional::{self, Type},
     git::{filter_merge_commits, filter_revert_commits},
+    strip::Strip,
     Error,
 };
 
@@ -67,6 +68,9 @@ impl Command for CheckCommand {
             let mut stdin = stdin().lock();
             let mut commit_msg = String::new();
             stdin.read_to_string(&mut commit_msg)?;
+            if self.strip {
+                commit_msg = commit_msg.strip();
+            }
             parser.parse(&commit_msg)?;
             return Ok(());
         }

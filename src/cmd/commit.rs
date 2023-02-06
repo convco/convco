@@ -7,6 +7,7 @@ use serde::Serialize;
 use crate::{
     cli::CommitCommand,
     conventional::{config::Type, CommitParser, Config, ParseError},
+    strip::Strip,
     Command, Error,
 };
 
@@ -82,12 +83,7 @@ fn edit_message(msg: &str) -> Result<String, Error> {
         .require_save(false)
         .edit(msg)?
         .unwrap_or_default()
-        .lines()
-        .filter(|line| !line.starts_with('#'))
-        .collect::<Vec<&str>>()
-        .join("\n")
-        .trim()
-        .to_owned())
+        .strip())
 }
 
 #[derive(Serialize)]
