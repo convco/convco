@@ -2,7 +2,6 @@ use std::io::{stdin, Read};
 
 use conventional::Config;
 use git2::{Commit, Repository};
-use is_terminal::IsTerminal;
 
 use crate::{
     cli::CheckCommand,
@@ -64,7 +63,7 @@ impl Command for CheckCommand {
 
         let Config { merges, .. } = config;
 
-        if self.rev.is_none() && !stdin().is_terminal() {
+        if self.from_stdin {
             let mut stdin = stdin().lock();
             let mut commit_msg = String::new();
             stdin.read_to_string(&mut commit_msg)?;
