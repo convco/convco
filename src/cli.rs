@@ -70,8 +70,6 @@ pub struct VersionCommand {
 #[derive(Debug, Parser)]
 pub struct CheckCommand {
     /// Start of the revwalk, can also be a commit range. Can be in the form `<commit>..<commit>`.
-    /// If not provided and a tty it will check from HEAD.
-    /// If not provided and not a tty it will check a single commit message from stdin.
     #[clap()]
     pub rev: Option<String>,
     /// Limit the number of commits to check.
@@ -86,6 +84,9 @@ pub struct CheckCommand {
     /// Ignore commits created by `git revert` commands
     #[clap(long)]
     pub ignore_reverts: bool,
+    /// Read a single commit message from stdin
+    #[clap(long)]
+    pub from_stdin: bool,
 }
 
 #[derive(Debug, Parser)]

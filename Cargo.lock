@@ -165,7 +165,6 @@ dependencies = [
  "dialoguer",
  "git2",
  "handlebars",
- "is-terminal",
  "regex",
  "semver",
  "serde",
