@@ -87,6 +87,10 @@ pub struct CheckCommand {
     /// Read a single commit message from stdin
     #[clap(long)]
     pub from_stdin: bool,
+    /// String comments and whitespace from commit message
+    /// This is similar to `git commit --cleanup=strip`
+    #[clap(long, requires("from_stdin"))]
+    pub strip: bool,
 }
 
 #[derive(Debug, Parser)]
