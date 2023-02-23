@@ -88,7 +88,8 @@ impl Command for CheckCommand {
         if rev.contains("..") {
             revwalk.push_range(rev)?;
         } else {
-            revwalk.push_ref(rev)?;
+            let oid = repo.revparse_single(rev)?.id();
+            revwalk.push(oid)?;
         }
 
         for commit in revwalk
