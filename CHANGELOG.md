@@ -1,8 +1,29 @@
 # Changelog
 
-## v0.3.15 (2023-01-17)
+## v0.4.0 (2023-02-23)
+
+### ⚠ BREAKING CHANGE
+
+* when not run in a tty the flag is necessary to indicateit should read from stdin
+
+
+
+### Features
+
+* **check:** add `--strip` flag when checking from stdin (23cd8cf), closes
+#114
+* **version:** allows bumping a prerelease version (e731f08), closes #90
 
 ### Fixes
+
+* **check:** push oid from revparse single instead of calling push_ref
+(a4b4111), closes #117
+* read from stdin only when --from-stdin is provided (aaeb8dc)
+* **commit:** explicit exit process on ctrlc (68966aa), closes #113
+
+### v0.3.15 (2023-01-18)
+
+#### Fixes
 
 * **check:** read from stdin when rev is not set (7840b8a), closes #102
 
@@ -92,6 +113,7 @@ change (712f455), closes #40
 
 * **commit:** empty message in editor aborts commit (260a5d2)
 * **changelog:** add skip empty flag (c3f4972), closes #30
+* **check:** add max-number option (a781286), closes #18
 
 #### Fixes
 
@@ -104,12 +126,6 @@ address markdownlint issue MD013 (a01e53a), closes #20
 MD022 (1a87e67), closes #20
 * **changelog:** fixes whitespace issues (91b5b72), closes #20
 * correct `is_prerelease()` for SemVer (0e99770)
-
-### v0.3.6 (2021-08-08)
-
-#### Features
-
-* **check:** add max-number option (a781286), closes #18
 
 ### v0.3.5 (2021-05-01)
 
