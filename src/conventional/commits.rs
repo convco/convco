@@ -150,6 +150,16 @@ impl CommitParser {
                         let mut body = String::new();
                         let mut footers: Vec<Footer> = Vec::new();
                         let mut references = Vec::new();
+                        for captures in self.regex_references.captures_iter(&description) {
+                            let prefix = &captures[1];
+                            let issue = &captures[2];
+                            let reference = Reference {
+                                action: None,
+                                prefix: prefix.into(),
+                                issue: issue.into(),
+                            };
+                            references.push(reference);
+                        }
                         for line in lines {
                             if let Some(capts) = self.regex_footer.captures(line) {
                                 let key = capts.name("key").map(|key| key.as_str());
@@ -436,9 +446,9 @@ mod tests {
 
     #[test]
     fn multiple_refs() {
-        let msg = "revert: let us never again speak of the noodle incident\n\
+        let msg = "revert: let us never again speak of the noodle incident #1\n\
         \n\
-        Closes: #1, #42";
+        Closes: #2, #42";
         let commit: Commit = parser().parse(msg).expect("valid");
         assert_eq!(
             commit,
@@ -446,17 +456,22 @@ mod tests {
                 r#type: Type::Revert,
                 scope: None,
                 breaking: false,
-                description: "let us never again speak of the noodle incident".into(),
+                description: "let us never again speak of the noodle incident #1".into(),
                 body: None,
                 footers: vec![Footer {
                     key: "Closes".into(),
-                    value: "#1, #42".into()
+                    value: "#2, #42".into()
                 }],
                 references: vec![
                     Reference {
-                        action: Some("Closes".into()),
+                        action: None,
                         prefix: "#".into(),
                         issue: "1".into()
+                    },
+                    Reference {
+                        action: Some("Closes".into()),
+                        prefix: "#".into(),
+                        issue: "2".into()
                     },
                     Reference {
                         action: Some("Closes".into()),
