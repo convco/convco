@@ -43,6 +43,7 @@ struct ChangeLogTransformer<'a> {
     context_builder: ContextBuilder<'a>,
     commit_parser: CommitParser,
     paths: &'a [PathBuf],
+    prefix: &'a str,
 }
 
 fn date_from_time(time: &Time) -> Date {
@@ -58,6 +59,7 @@ impl<'a> ChangeLogTransformer<'a> {
         git: &'a GitHelper,
         paths: &'a [PathBuf],
         unreleased: String,
+        prefix: &'a str,
     ) -> Result<Self, Error> {
         let group_types = config
             .types
@@ -92,6 +94,7 @@ impl<'a> ChangeLogTransformer<'a> {
             commit_parser,
             paths,
             unreleased,
+            prefix,
         })
     }
 
@@ -200,7 +203,7 @@ impl<'a> ChangeLogTransformer<'a> {
 
         let version = if from_rev.0 == "HEAD" {
             match &self.unreleased.version {
-                Some(v) => format!("v{}", v.0).into(),
+                Some(v) => format!("{}{}", self.prefix, v.0).into(),
                 None => self.unreleased.str.as_str().into(),
             }
         } else {
@@ -302,6 +305,7 @@ impl ChangelogCommand {
             &helper,
             &self.paths,
             self.unreleased.clone(),
+            &self.prefix,
         )?;
         match helper
             .find_last_version(rev)
