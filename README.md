@@ -20,7 +20,15 @@ It provides the following commands:
 
 `cargo install convco`
 
-This build depends on `git2` with the `zlib-ng-compat` feature. It requires `cmake`.
+## Building from source
+
+Rust 1.60 or newer is required.
+
+Building with `cargo` depends on `git2` and `cmake` due to linking with `zlib-ng`.
+You can optionally disable this by changing the defaults for a build:
+```console
+$ cargo build --no-default-features
+```
 
 ## Configuration
 
