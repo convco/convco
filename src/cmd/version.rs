@@ -114,7 +114,11 @@ impl VersionCommand {
         Ok((last_version.0, label))
     }
 
-    fn get_version(&self, scope_regex: String) -> Result<(Version, Label), Error> {
+    fn get_version(
+        &self,
+        scope_regex: String,
+        strip_regex: String,
+    ) -> Result<(Version, Label), Error> {
         if let Some(VersionAndTag { tag, mut version }) = self.find_last_version()? {
             let v = if self.major {
                 version.increment_major();
@@ -136,7 +140,10 @@ impl VersionCommand {
                         (version.0, Label::Prerelease)
                     }
                 } else {
-                    let parser = CommitParser::builder().scope_regex(scope_regex).build();
+                    let parser = CommitParser::builder()
+                        .scope_regex(scope_regex)
+                        .strip_regex(strip_regex)
+                        .build();
                     self.find_bump_version(tag.as_str(), version, &parser)?
                 }
             } else {
@@ -157,7 +164,7 @@ impl VersionCommand {
 
 impl Command for VersionCommand {
     fn exec(&self, config: Config) -> anyhow::Result<()> {
-        let (version, label) = self.get_version(config.scope_regex)?;
+        let (version, label) = self.get_version(config.scope_regex, config.strip_regex)?;
         if self.label {
             println!("{label}");
         } else {
