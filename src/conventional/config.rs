@@ -89,6 +89,9 @@ pub(crate) struct Config {
     /// Follow only the first parent
     #[serde(default)]
     pub first_parent: bool,
+    /// Strip the commit message(s) by the given regex pattern
+    #[serde(default = "default_strip_regex")]
+    pub(crate) strip_regex: String,
 }
 
 const fn default_true() -> bool {
@@ -119,6 +122,7 @@ impl Default for Config {
             merges: false,
             first_parent: false,
             wrap_disabled: false,
+            strip_regex: "".to_string(),
         }
     }
 }
@@ -212,6 +216,10 @@ fn default_issue_prefixes() -> Vec<String> {
 
 fn default_scope_regex() -> String {
     "[[:alnum:]]+(?:[-_/][[:alnum:]]+)*".to_string()
+}
+
+fn default_strip_regex() -> String {
+    "".to_string()
 }
 
 type HostOwnerRepo = (Option<String>, Option<String>, Option<String>);
@@ -428,6 +436,7 @@ mod tests {
                 merges: false,
                 first_parent: false,
                 wrap_disabled: false,
+                strip_regex: "".to_string(),
             }
         )
     }

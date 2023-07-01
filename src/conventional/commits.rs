@@ -123,6 +123,7 @@ pub struct CommitParser {
     regex_scope: Regex,
     regex_footer: Regex,
     regex_references: Regex,
+    regex_strip: Regex,
 }
 
 impl CommitParser {
@@ -130,7 +131,8 @@ impl CommitParser {
         CommitParserBuilder::new()
     }
 
-    pub fn parse(&self, s: &str) -> Result<Commit, ParseError> {
+    pub fn parse(&self, msg: &str) -> Result<Commit, ParseError> {
+        let s = self.regex_strip.replace(msg, "");
         let mut lines = s.lines();
         if let Some(first) = lines.next() {
             if let Some(capts) = self.regex_first_line.captures(first) {
@@ -229,6 +231,7 @@ impl CommitParser {
 pub struct CommitParserBuilder {
     scope_regex: String,
     references_regex: String,
+    strip_regex: String,
 }
 
 impl CommitParserBuilder {
@@ -236,6 +239,7 @@ impl CommitParserBuilder {
         Self {
             scope_regex: "[[:alnum:]]+(?:[-_/][[:alnum:]]+)*".into(),
             references_regex: "(#)([0-9]+)".into(),
+            strip_regex: "".into(),
         }
     }
 
@@ -243,12 +247,22 @@ impl CommitParserBuilder {
         Self {
             scope_regex,
             references_regex: self.references_regex,
+            strip_regex: self.strip_regex,
         }
     }
 
     pub fn references_regex(self, references_regex: String) -> Self {
         Self {
             references_regex,
+            scope_regex: self.scope_regex,
+            strip_regex: self.strip_regex,
+        }
+    }
+
+    pub fn strip_regex(self, strip_regex: String) -> Self {
+        Self {
+            strip_regex,
+            references_regex: self.references_regex,
             scope_regex: self.scope_regex,
         }
     }
@@ -277,11 +291,14 @@ impl CommitParserBuilder {
             Regex::new(self.scope_regex.as_str()).expect("scope regex should be valid");
         let regex_references =
             Regex::new(self.references_regex.as_str()).expect("references regex should be valid");
+        let regex_strip: Regex =
+            Regex::new(self.strip_regex.as_str()).expect("strip regex should be valid");
         CommitParser {
             regex_scope,
             regex_first_line,
             regex_footer,
             regex_references,
+            regex_strip,
         }
     }
 }
@@ -479,6 +496,29 @@ mod tests {
                         issue: "42".into()
                     },
                 ],
+            }
+        );
+        assert!(!commit.is_breaking());
+    }
+
+    #[test]
+    fn test_with_strip_prefix() {
+        let msg = "Merge PR 14: docs: correct spelling of CHANGELOG";
+        let commit: Commit = CommitParser::builder()
+            .strip_regex("^(?:Merge PR [0-9]+: )?".to_string())
+            .build()
+            .parse(msg)
+            .expect("valid");
+        assert_eq!(
+            commit,
+            Commit {
+                r#type: Type::Docs,
+                scope: None,
+                breaking: false,
+                description: "correct spelling of CHANGELOG".into(),
+                body: None,
+                footers: Vec::new(),
+                references: Vec::new(),
             }
         );
         assert!(!commit.is_breaking());

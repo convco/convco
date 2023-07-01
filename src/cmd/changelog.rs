@@ -71,6 +71,7 @@ impl<'a> ChangeLogTransformer<'a> {
             });
         let commit_parser = CommitParser::builder()
             .scope_regex(config.scope_regex.clone())
+            .strip_regex(config.strip_regex.clone())
             .references_regex(format!("({})([0-9]+)", config.issue_prefixes.join("|")))
             .build();
 

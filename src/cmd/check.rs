@@ -54,6 +54,7 @@ impl Command for CheckCommand {
 
         let parser = conventional::CommitParser::builder()
             .scope_regex(config.scope_regex)
+            .strip_regex(config.strip_regex)
             .build();
         let types: Vec<Type> = config
             .types
