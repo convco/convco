@@ -12,30 +12,38 @@ use crate::{
     Error,
 };
 
+fn print_fail(msg: &str, short_id: &str, e: Error) -> bool {
+    let first_line = msg.lines().next().unwrap_or("");
+    let short_msg: String = first_line.chars().take(40).collect();
+    if first_line.len() > 40 {
+        println!("FAIL  {}  {}  {}...", short_id, e, short_msg)
+    } else {
+        println!("FAIL  {}  {}  {}", short_id, e, short_msg)
+    }
+    false
+}
+
+fn print_wrong_type(msg: &str, short_id: &str, commit_type: Type) -> bool {
+    print_fail(
+        msg,
+        short_id,
+        Error::Type {
+            wrong_type: commit_type.to_string(),
+        },
+    )
+}
+
 fn print_check(commit: &Commit<'_>, parser: &conventional::CommitParser, types: &[Type]) -> bool {
     let msg = std::str::from_utf8(commit.message_bytes()).expect("valid utf-8 message");
     let short_id = commit.as_object().short_id().unwrap();
     let short_id = short_id.as_str().expect("short id");
     let msg_parsed = parser.parse(msg);
-    fn print_fail(msg: &str, short_id: &str, e: Error) -> bool {
-        let first_line = msg.lines().next().unwrap_or("");
-        let short_msg: String = first_line.chars().take(40).collect();
-        if first_line.len() > 40 {
-            println!("FAIL  {}  {}  {}...", short_id, e, short_msg)
-        } else {
-            println!("FAIL  {}  {}  {}", short_id, e, short_msg)
-        }
-        false
-    }
+
     match msg_parsed {
         Err(e) => print_fail(msg, short_id, e.into()),
-        Ok(commit) if !types.contains(&commit.r#type) => print_fail(
-            msg,
-            short_id,
-            Error::Type {
-                wrong_type: commit.r#type.to_string(),
-            },
-        ),
+        Ok(commit) if !types.contains(&commit.r#type) => {
+            print_wrong_type(msg, short_id, commit.r#type)
+        }
         _ => true,
     }
 }
@@ -72,7 +80,14 @@ impl Command for CheckCommand {
             if self.strip {
                 commit_msg = commit_msg.strip();
             }
-            parser.parse(&commit_msg)?;
+            let msg_parsed = parser.parse(&commit_msg);
+            match msg_parsed {
+                Err(e) => print_fail(&commit_msg, "-", e.into()),
+                Ok(commit) if !types.contains(&commit.r#type) => {
+                    print_wrong_type(&commit_msg, "-", commit.r#type)
+                }
+                _ => true,
+            };
             return Ok(());
         }
 
