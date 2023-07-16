@@ -21,12 +21,12 @@ fn main() -> anyhow::Result<()> {
     }
     let git = GitHelper::new("v").map_err(|e|
         if e.message().contains("config value 'safe.directory' was not found") {
-            anyhow::Error::new(e).context("Could not open the git repository.\nIf run from docker set the right user id and group id.\nE.g. `docker run -u \"$(id -u):$(id -g)\" -v \"$PWD:/tmp\" --workdir /tmp --rm convco/convco`")
+            eprintln!("Could not open the git repository.\nIf run from docker set the right user id and group id.\nE.g. `docker run -u \"$(id -u):$(id -g)\" -v \"$PWD:/tmp\" --workdir /tmp --rm convco/convco`")
         } else {
-            anyhow::Error::new(e)
+            eprintln!("{e}")
         }
-        )?;
-    let config = make_cl_config(&git, opt.config.unwrap_or_else(|| ".versionrc".into()));
+    ).ok();
+    let config = make_cl_config(git, opt.config.unwrap_or_else(|| ".versionrc".into()));
     let res = match opt.cmd {
         cli::Command::Config(cmd) => cmd.exec(config),
         cli::Command::Check(cmd) => cmd.exec(config),
