@@ -260,7 +260,7 @@ fn host_info_from_url(url: Url) -> Result<HostOwnerRepo, Error> {
     Ok((host, owner, repository))
 }
 
-pub(crate) fn make_cl_config(git: &GitHelper, path: impl AsRef<Path>) -> Config {
+pub(crate) fn make_cl_config(git: Option<GitHelper>, path: impl AsRef<Path>) -> Config {
     let mut config: Config = (std::fs::read(path))
         .ok()
         .and_then(|versionrc| (serde_yaml::from_reader(versionrc.as_slice())).ok())
@@ -272,10 +272,12 @@ pub(crate) fn make_cl_config(git: &GitHelper, path: impl AsRef<Path>) -> Config 
         ..
     } = config
     {
-        if let Ok((host, owner, repository)) = host_info(git) {
-            config.host = host;
-            config.owner = owner;
-            config.repository = repository;
+        if let Some(ref git) = git {
+            if let Ok((host, owner, repository)) = host_info(git) {
+                config.host = host;
+                config.owner = owner;
+                config.repository = repository;
+            }
         }
     }
 
