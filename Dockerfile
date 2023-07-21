@@ -30,8 +30,8 @@ EOT
 WORKDIR "/workspace"
 COPY . /workspace
 RUN \
-  --mount=type=cache,target=/root/.cargo \
-  --mount=type=cache,target=/usr/local/cargo/registry \
+  --mount=type=cache,target=/root/.cargo,sharing=locked \
+  --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
     case "${TARGETARCH}" in \
      aarch64|arm64) \
        target_arch='aarch64'; \
