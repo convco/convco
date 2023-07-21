@@ -43,6 +43,9 @@ semver = "1.0.16"
 default = ["zlib-ng-compat"]
 zlib-ng-compat = ["git2/zlib-ng-compat"]
 
+[profile.release]
+strip = true
+
 [package.metadata.deb]
 depends = ""
 extended-description = """\
