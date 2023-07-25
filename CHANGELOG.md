@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.4.1 (2023-07-25)
+
+### Features
+
+* strip prefix regex (3f0d30d)
+* make `zlib-ng-compat` a default feature flag (4b17cb6)
+
+### Fixes
+
+* **check:** check should not fail if read from stdin (69ace8d), closes #130
+* **check:** check should fail on unrecognized types from stdin (951253f),
+closes #53
+* parse issues in description (2778b81), closes #122
+* **changelog:** changelog generator should respect the --prefix flag for
+unreleased version (011d2ad), closes #123
+
 ## v0.4.0 (2023-02-23)
 
 ### ⚠ BREAKING CHANGE
@@ -84,8 +100,8 @@ closes #84
 
 * **changelog:** correctly format links (0286f48), closes #47
 * set right version for unreleased repo (2d4d673), closes #49
-* parse issue references correctly (#50) (b31ae66), closes #48
-* support gitlab subgroups at url (#44) (995a527)
+* parse issue references correctly (#50) (b31ae66), closes #50 #48
+* support gitlab subgroups at url (#44) (995a527), closes #44
 
 ### v0.3.9 (2022-03-02)
 
