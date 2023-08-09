@@ -82,15 +82,11 @@ impl Command for CheckCommand {
             if self.strip {
                 commit_msg = commit_msg.strip();
             }
-            let msg_parsed = parser.parse(&commit_msg);
-            match msg_parsed {
-                Err(e) => print_fail(&commit_msg, "-", e.into()),
-                Ok(commit) if !types.contains(&commit.r#type) => {
-                    print_wrong_type(&commit_msg, "-", commit.r#type)
-                }
-                _ => true,
-            };
-            return Ok(());
+            let is_conventional = print_check(commit_msg.as_str(), "-", &parser, &types);
+            match is_conventional {
+                true => return Ok(()),
+                false => return Err(Error::Check)?,
+            }
         }
 
         let repo = Repository::open_from_env()?;
