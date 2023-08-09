@@ -1,7 +1,7 @@
 use std::io::{stdin, Read};
 
 use conventional::Config;
-use git2::{Commit, Repository};
+use git2::Repository;
 
 use crate::{
     cli::CheckCommand,
@@ -33,10 +33,12 @@ fn print_wrong_type(msg: &str, short_id: &str, commit_type: Type) -> bool {
     )
 }
 
-fn print_check(commit: &Commit<'_>, parser: &conventional::CommitParser, types: &[Type]) -> bool {
-    let msg = std::str::from_utf8(commit.message_bytes()).expect("valid utf-8 message");
-    let short_id = commit.as_object().short_id().unwrap();
-    let short_id = short_id.as_str().expect("short id");
+fn print_check(
+    msg: &str,
+    short_id: &str,
+    parser: &conventional::CommitParser,
+    types: &[Type],
+) -> bool {
     let msg_parsed = parser.parse(msg);
 
     match msg_parsed {
@@ -116,7 +118,10 @@ impl Command for CheckCommand {
             .take(self.number.unwrap_or(std::usize::MAX))
         {
             total += 1;
-            fail += u32::from(!print_check(&commit, &parser, &types));
+            let msg = std::str::from_utf8(commit.message_bytes()).expect("valid utf-8 message");
+            let short_id = commit.as_object().short_id().unwrap();
+            let short_id = short_id.as_str().expect("short id");
+            fail += u32::from(!print_check(&msg, &short_id, &parser, &types));
         }
         if fail == 0 {
             match total {
