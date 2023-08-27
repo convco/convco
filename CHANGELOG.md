@@ -1,13 +1,19 @@
 # Changelog
 
-## v0.4.1 (2023-07-25)
+## v0.4.2 (2023-08-09)
 
-### Features
+### Fixes
+
+* return non-zero exit code on from-stdin fail (19c1682)
+
+### v0.4.1 (2023-07-25)
+
+#### Features
 
 * strip prefix regex (3f0d30d)
 * make `zlib-ng-compat` a default feature flag (4b17cb6)
 
-### Fixes
+#### Fixes
 
 * **check:** check should not fail if read from stdin (69ace8d), closes #130
 * **check:** check should fail on unrecognized types from stdin (951253f),
