@@ -237,7 +237,7 @@ pub struct CommitParserBuilder {
 impl CommitParserBuilder {
     pub fn new() -> Self {
         Self {
-            scope_regex: "[[:alnum:]]+(?:[-_/][[:alnum:]]+)*".into(),
+            scope_regex: "^[[:alnum:]]+(?:[-_/][[:alnum:]]+)*$".into(),
             references_regex: "(#)([0-9]+)".into(),
             strip_regex: "".into(),
         }
@@ -366,6 +366,16 @@ mod tests {
             }
         );
         assert!(!commit.is_breaking());
+    }
+
+    #[test]
+    fn test_with_invalid_scope() {
+        let msg = "feat(invalid scope): add a foo to new bar";
+        let err = parser().parse(msg).expect_err("space not allowed");
+        assert_eq!(
+            err.to_string(),
+            "scope does not match regex: ^[[:alnum:]]+(?:[-_/][[:alnum:]]+)*$"
+        );
     }
 
     #[test]
