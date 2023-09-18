@@ -66,7 +66,7 @@ pub(crate) struct Config {
     pub(crate) commit_template: Option<PathBuf>,
     /// `scopeRegex`. A regex to define possible scopes.
     /// For this project this could be `"changelog|check|commit|version"`.
-    /// Defaults to `"[[:alnum:]]+(?:[-_/][[:alnum:]]+)*"`.
+    /// Defaults to `"^[[:alnum:]]+(?:[-_/][[:alnum:]]+)*$"`.
     #[serde(default = "default_scope_regex")]
     pub(crate) scope_regex: String,
     /// Default number of characters in a single line of the CHANGELOG.
@@ -116,7 +116,7 @@ impl Default for Config {
             repository: None,
             template: None,
             commit_template: None,
-            scope_regex: "[[:alnum:]]+(?:[-_/][[:alnum:]]+)*".to_string(),
+            scope_regex: "^[[:alnum:]]+(?:[-_/][[:alnum:]]+)*$".to_string(),
             link_compare: true,
             link_references: true,
             merges: false,
@@ -215,7 +215,7 @@ fn default_issue_prefixes() -> Vec<String> {
 }
 
 fn default_scope_regex() -> String {
-    "[[:alnum:]]+(?:[-_/][[:alnum:]]+)*".to_string()
+    "^[[:alnum:]]+(?:[-_/][[:alnum:]]+)*$".to_string()
 }
 
 fn default_strip_regex() -> String {
@@ -432,7 +432,7 @@ mod tests {
                 repository: None,
                 template: None,
                 commit_template: None,
-                scope_regex: "[[:alnum:]]+(?:[-_/][[:alnum:]]+)*".to_string(),
+                scope_regex: "^[[:alnum:]]+(?:[-_/][[:alnum:]]+)*$".to_string(),
                 link_compare: true,
                 link_references: true,
                 merges: false,
