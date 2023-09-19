@@ -34,6 +34,16 @@ impl CommitCommand {
         }
         Ok(cmd.status()?)
     }
+
+    fn intend_to_add(&self) -> Result<ExitStatus, Error> {
+        let mut cmd = process::Command::new("git");
+        Ok(cmd.args(["add", "-N", "."]).status()?)
+    }
+
+    fn patch(&self) -> Result<ExitStatus, Error> {
+        let mut cmd = process::Command::new("git");
+        Ok(cmd.args(["add", "-p"]).status()?)
+    }
 }
 
 fn read_scope(
@@ -200,6 +210,8 @@ impl Dialog {
 
 impl Command for CommitCommand {
     fn exec(&self, config: Config) -> anyhow::Result<()> {
+        self.intend_to_add()?;
+        self.patch()?;
         let r#type = match (
             self.feat,
             self.fix,
