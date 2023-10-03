@@ -22,8 +22,8 @@ rust-version = "1.60" # for `--features`
 anyhow = { version = "1.0.72", features = ["backtrace"] }
 clap = { version = "4.3.19", features = ["derive"] }
 ctrlc = "3.4.0"
-dialoguer = "0.10.4"
-git2 = { version = "0.17.2", default-features = false }
+dialoguer = "0.11.0"
+git2 = { version = "0.18.1", default-features = false }
 handlebars = "4.3.7"
 regex = "1.9.1"
 semver = "1.0.18"
