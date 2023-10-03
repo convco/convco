@@ -1,8 +1,19 @@
 # Changelog
 
-## v0.4.2 (2023-08-09)
+## v0.4.3 (2023-10-03)
+
+### Features
+
+* **commit:** intend to add and patch unstaged changes (50cdbbe), closes #146
 
 ### Fixes
+
+* **check:** do match start of line and end of line for the default scope
+regex (9986150), closes #145
+
+### v0.4.2 (2023-08-27)
+
+#### Fixes
 
 * return non-zero exit code on from-stdin fail (19c1682)
 

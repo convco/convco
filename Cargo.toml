@@ -1,6 +1,6 @@
 [package]
 name = "convco"
-version = "0.4.2"
+version = "0.4.3"
 description = "Conventional commit tools"
 keywords = ["conventional", "commit", "changelog", "semantic", "versioning"]
 categories = ["development-tools::build-utils"]
