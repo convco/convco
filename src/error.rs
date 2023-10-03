@@ -8,6 +8,8 @@ use crate::conventional;
 #[derive(Debug, Error)]
 pub(crate) enum Error {
     #[error(transparent)]
+    Dialoguer(#[from] dialoguer::Error),
+    #[error(transparent)]
     Git(#[from] git2::Error),
     #[error(transparent)]
     Io(#[from] io::Error),
