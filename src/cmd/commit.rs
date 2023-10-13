@@ -1,4 +1,7 @@
-use std::process::{self, ExitStatus};
+use std::{
+    path::PathBuf,
+    process::{self, ExitStatus},
+};
 
 use handlebars::{no_escape, Handlebars};
 use regex::Regex;
@@ -35,9 +38,9 @@ impl CommitCommand {
         Ok(cmd.status()?)
     }
 
-    fn intend_to_add(&self) -> Result<ExitStatus, Error> {
+    fn intend_to_add(&self, paths: &[PathBuf]) -> Result<ExitStatus, Error> {
         let mut cmd = process::Command::new("git");
-        Ok(cmd.args(["add", "-N", "."]).status()?)
+        Ok(cmd.args(["add", "-N"]).args(paths).status()?)
     }
 
     fn patch(&self) -> Result<ExitStatus, Error> {
@@ -210,8 +213,12 @@ impl Dialog {
 
 impl Command for CommitCommand {
     fn exec(&self, config: Config) -> anyhow::Result<()> {
-        self.intend_to_add()?;
-        self.patch()?;
+        if !self.intent_to_add.is_empty() {
+            self.intend_to_add(self.intent_to_add.as_slice())?;
+        }
+        if self.patch {
+            self.patch()?;
+        }
         let r#type = match (
             self.feat,
             self.fix,
