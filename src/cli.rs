@@ -9,7 +9,7 @@ pub struct Opt {
     /// Run as if convco was started in <path> instead of the current working directory.
     #[clap(short = 'C', global = true)]
     pub path: Option<PathBuf>,
-    #[clap(short = 'c', long = "config", global = true)]
+    #[clap(short = 'c', long = "config", global = true, env = "CONVCO_CONFIG")]
     pub config: Option<PathBuf>,
     #[clap(subcommand)]
     pub cmd: Command,
@@ -39,7 +39,7 @@ pub struct ConfigCommand {
 #[derive(Debug, Parser)]
 pub struct VersionCommand {
     /// Prefix used in front of the semantic version
-    #[clap(short, long, default_value = "v")]
+    #[clap(short, long, default_value = "v", env = "CONVCO_PREFIX")]
     pub prefix: String,
     /// Revision to show the version for
     #[clap(default_value = "HEAD")]
@@ -63,26 +63,26 @@ pub struct VersionCommand {
     #[clap(long, requires = "bump", default_value_t = Prerelease::new("").unwrap())]
     pub prerelease: Prerelease,
     /// Only commits that update those <paths> will be taken into account. It is useful to support monorepos.
-    #[clap(short = 'P', long)]
+    #[clap(short = 'P', long, env = "CONVCO_PATHS")]
     pub paths: Vec<PathBuf>,
 }
 
 #[derive(Debug, Parser)]
 pub struct CheckCommand {
     /// Start of the revwalk, can also be a commit range. Can be in the form `<commit>..<commit>`.
-    #[clap()]
+    #[clap(env = "CONVCO_REV")]
     pub rev: Option<String>,
     /// Limit the number of commits to check.
-    #[clap(short, long = "max-count")]
+    #[clap(short, long = "max-count", env = "CONVCO_MAX_COUNT")]
     pub number: Option<usize>,
     /// Include conventional merge commits (commits with more than 1 parent) in the changelog.
-    #[clap(long)]
+    #[clap(long, env = "CONVCO_MERGES")]
     pub merges: bool,
     /// Follow only the first parent
-    #[clap(long)]
+    #[clap(long, env = "CONVCO_FIRST_PARENT")]
     pub first_parent: bool,
     /// Ignore commits created by `git revert` commands
-    #[clap(long)]
+    #[clap(long, env = "CONVCO_IGNORE_REVERTS")]
     pub ignore_reverts: bool,
     /// Read a single commit message from stdin
     #[clap(long)]
@@ -96,53 +96,53 @@ pub struct CheckCommand {
 #[derive(Debug, Parser)]
 pub struct ChangelogCommand {
     /// Prefix used in front of the semantic version.
-    #[clap(short, long, default_value = "v")]
+    #[clap(short, long, default_value = "v", env = "CONVCO_PREFIX")]
     pub prefix: String,
-    #[clap(default_value = "HEAD")]
+    #[clap(default_value = "HEAD", env = "CONVCO_REV")]
     pub rev: String,
-    #[clap(short, long)]
+    #[clap(short, long, env = "CONVCO_SKIP_EMPTY")]
     pub skip_empty: bool,
     /// Limits the number of version tags to add in the changelog.
-    #[clap(short, long)]
+    #[clap(short, long, env = "CONVCO_MAX_VERSIONS")]
     pub max_versions: Option<usize>,
     /// Only print this number of minor versions.
-    #[clap(long, default_value_t=u64::MAX, hide_default_value=true)]
+    #[clap(long, default_value_t=u64::MAX, hide_default_value=true, env = "CONVCO_MAX_MINORS")]
     pub max_minors: u64,
     /// Only show this number of major versions.
-    #[clap(long, default_value_t=u64::MAX, hide_default_value=true)]
+    #[clap(long, default_value_t=u64::MAX, hide_default_value=true, env = "CONVCO_MAX_MAJORS")]
     pub max_majors: u64,
     /// Only show this number of patch versions.
-    #[clap(long, default_value_t=u64::MAX, hide_default_value=true)]
+    #[clap(long, default_value_t=u64::MAX, hide_default_value=true, env = "CONVCO_MAX_PATCHES")]
     pub max_patches: u64,
     /// Do not generate links. Overrides linkReferences and linkCompare in the config.
-    #[clap(short, long)]
+    #[clap(short, long, env = "CONVCO_NO_LINKS")]
     pub no_links: bool,
     /// Include conventional merge commits (commits with more than 1 parent) in the changelog.
-    #[clap(long)]
+    #[clap(long, env = "CONVCO_MERGES")]
     pub merges: bool,
     /// Print hidden sections
-    #[clap(long)]
+    #[clap(long, env = "CONVCO_INCLUDE_HIDDEN_SECTIONS")]
     pub include_hidden_sections: bool,
     /// Only commits that update those <paths> will be taken into account. It is useful to support monorepos.
-    #[clap(short = 'P', long)]
+    #[clap(short = 'P', long, env = "CONVCO_PATHS")]
     pub paths: Vec<PathBuf>,
     /// Follow only the first parent of merge commits. Commits from the merged branche(s) will be discarded.
-    #[clap(long)]
+    #[clap(long, env = "CONVCO_FIRST_PARENT")]
     pub first_parent: bool,
     /// Max line length before wrapping.
     /// This only makes sense if the template makes use of `{{#word-wrap}}` blocks.
-    #[clap(long)]
+    #[clap(long, env = "CONVCO_LINE_LENGTH")]
     pub line_length: Option<usize>,
     /// Do not wrap lines.
     /// This only makes sense if the template makes use of `{{#word-wrap}}` blocks.
-    #[clap(long)]
+    #[clap(long, env = "CONVCO_NO_WRAP")]
     pub no_wrap: bool,
     /// Change the title for the unreleased commits.
     /// If a semantic version is given, the title will be prefixed.
-    #[clap(short, long, default_value = "Unreleased")]
+    #[clap(short, long, default_value = "Unreleased", env = "CONVCO_UNRELEASED")]
     pub unreleased: String,
     /// Path to write the changelog to.
-    #[clap(short, long, default_value = "-")]
+    #[clap(short, long, default_value = "-", env = "CONVCO_OUTPUT")]
     pub output: PathBuf,
 }
 
@@ -221,7 +221,7 @@ pub struct CommitCommand {
     #[clap(long)]
     pub breaking: bool,
     /// Interactive mode
-    #[clap(long, short)]
+    #[clap(long, short, env = "CONVCO_INTERACTIVE")]
     pub interactive: bool,
     /// Extra arguments passed to the git commit command
     #[clap(last = true)]
