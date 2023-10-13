@@ -220,9 +220,18 @@ pub struct CommitCommand {
     /// Introduces a breaking change
     #[clap(long)]
     pub breaking: bool,
-    /// Interactive mode
+    /// Interactive mode. Start the wizard if no type and description is given.
     #[clap(long, short, env = "CONVCO_INTERACTIVE")]
     pub interactive: bool,
+    /// Runs `git add -N <PATH>`.
+    /// An entry for the path is placed in the index with no content.
+    /// This is useful in combination with --patch.
+    #[clap(short = 'N', long, env = "CONVCO_INTENT_TO_ADD")]
+    pub intent_to_add: Vec<PathBuf>,
+    /// Runs `git add -p`.
+    /// Interactively choose hunks of patch between the index and the work tree.
+    #[clap(short, long, env = "CONVCO_PATCH")]
+    pub patch: bool,
     /// Extra arguments passed to the git commit command
     #[clap(last = true)]
     pub extra_args: Vec<String>,
