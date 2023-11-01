@@ -38,7 +38,7 @@ The configuration file is loaded in the following order
 
 1. Load the internal defaults
     - specified in [src/conventional/config.rs](src/conventional/config.rs),
-    - see these defaults as YAML in [./versionrc-default.yaml](versionrc-default.yaml).
+    - see these defaults at [`convco config --default`](https://convco.github.io/configuration#default-configuration).
 2. Then override with values from the command line, `convco -c|--config path/to/.versionrc`
 3. Or, if not specified via `-c|--config`, load `${PWD}/.versionrc` if it exists.
 
