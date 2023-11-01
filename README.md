@@ -26,8 +26,9 @@ Rust 1.60 or newer is required.
 
 Building with `cargo` depends on `git2` and `cmake` due to linking with `zlib-ng`.
 You can optionally disable this by changing the defaults for a build:
-```console
-$ cargo build --no-default-features
+
+```sh
+cargo build --no-default-features
 ```
 
 ## Configuration
@@ -49,7 +50,7 @@ from the `git remote origin` value.
 
 ## Docker usage
 
-```shell script
+```sh
 # build the convco image
 docker build -t convco .
 # run it on any codebase
@@ -58,7 +59,7 @@ docker run -v "$PWD:/tmp" --workdir /tmp --rm convco
 
 or use it from the Docker Hub:
 
-```shell script
+```sh
 docker run -v "$PWD:/tmp" --workdir /tmp --rm convco/convco
 ```
 
