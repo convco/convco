@@ -19,25 +19,25 @@ include = [
 rust-version = "1.60" # for `--features`
 
 [dependencies]
-anyhow = { version = "1.0.72", features = ["backtrace"] }
-clap = { version = "4.3.19", features = ["derive", "env"] }
-ctrlc = "3.4.0"
+anyhow = { version = "1.0.75", features = ["backtrace"] }
+clap = { version = "4.4.6", features = ["derive", "env"] }
+ctrlc = "3.4.1"
 dialoguer = "0.11.0"
 git2 = { version = "0.18.1", default-features = false }
-handlebars = "4.3.7"
-regex = "1.9.1"
-semver = "1.0.18"
-serde = { version = "1.0.175", features = ["derive"] }
+handlebars = "4.4.0"
+regex = "1.9.6"
+semver = "1.0.19"
+serde = { version = "1.0.188", features = ["derive"] }
 serde_yaml = "0.9.25"
-thiserror = "1.0.44"
-time = { version = "0.3.23", features = [ "serde-human-readable" ] }
-url = "2.4.0"
-walkdir = "2.3.3"
+thiserror = "1.0.49"
+time = { version = "0.3.29", features = [ "serde-human-readable" ] }
+url = "2.4.1"
+walkdir = "2.4.0"
 
 [build-dependencies]
-clap = { version = "4.3.19", features = ["derive", "env"] }
-clap_complete = "4.3.2"
-semver = "1.0.18"
+clap = { version = "4.4.6", features = ["derive", "env"] }
+clap_complete = "4.4.3"
+semver = "1.0.19"
 
 [features]
 default = ["zlib-ng-compat"]
