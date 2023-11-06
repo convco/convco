@@ -15,6 +15,7 @@ pub(crate) struct GitHelper {
 pub(crate) struct VersionAndTag {
     pub(crate) tag: String,
     pub(crate) version: SemVer,
+    pub(crate) commit_sha: String,
 }
 
 impl Eq for VersionAndTag {}
@@ -143,6 +144,7 @@ fn make_oid_version_map(repo: &Repository, prefix: &str) -> HashMap<Oid, Version
                     VersionAndTag {
                         tag: tag.to_owned(),
                         version: SemVer(version),
+                        commit_sha: oid.to_string(),
                     },
                 );
             }
