@@ -41,6 +41,9 @@ pub struct VersionCommand {
     /// Prefix used in front of the semantic version
     #[clap(short, long, default_value = "v", env = "CONVCO_PREFIX")]
     pub prefix: String,
+    /// Print prefix in front of the semantic version
+    #[clap(long, visible_alias = "pp", env = "CONVCO_PRINT_PREFIX")]
+    pub print_prefix: bool,
     /// Revision to show the version for
     #[clap(default_value = "HEAD")]
     pub rev: String,
