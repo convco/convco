@@ -65,6 +65,9 @@ pub struct VersionCommand {
     /// Only commits that update those <paths> will be taken into account. It is useful to support monorepos.
     #[clap(short = 'P', long, env = "CONVCO_PATHS")]
     pub paths: Vec<PathBuf>,
+    /// Print the commit-sha of the version instead of the semantic version
+    #[clap(long)]
+    pub commit_sha: bool,
 }
 
 #[derive(Debug, Parser)]
