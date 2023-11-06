@@ -190,6 +190,8 @@ impl Command for VersionCommand {
             println!("{label}");
         } else if self.commit_sha {
             println!("{commit_sha}");
+        } else if self.print_prefix {
+            println!("{}{version}", self.prefix);
         } else {
             println!("{version}");
         }
