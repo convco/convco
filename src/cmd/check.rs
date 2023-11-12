@@ -117,7 +117,7 @@ impl Command for CheckCommand {
             let msg = std::str::from_utf8(commit.message_bytes()).expect("valid utf-8 message");
             let short_id = commit.as_object().short_id().unwrap();
             let short_id = short_id.as_str().expect("short id");
-            fail += u32::from(!print_check(&msg, &short_id, &parser, &types));
+            fail += u32::from(!print_check(msg, short_id, &parser, &types));
         }
         if fail == 0 {
             match total {

@@ -332,10 +332,10 @@ impl ChangelogCommand {
                 let is_head = from_rev.0 == "HEAD";
                 let iter = Some(from_rev).into_iter();
                 let iter = if is_head {
-                    iter.chain(
-                        Some(Rev(last_version.tag.as_str(), Some(&last_version.version)))
-                            .into_iter(),
-                    )
+                    iter.chain(Some(Rev(
+                        last_version.tag.as_str(),
+                        Some(&last_version.version),
+                    )))
                 } else {
                     iter.chain(None)
                 };

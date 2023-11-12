@@ -269,22 +269,22 @@ impl CommitParserBuilder {
 
     pub fn build(&self) -> CommitParser {
         let regex_first_line = Regex::new(
-            r#"(?xms)
+            r"(?xms)
         ^
         (?P<type>[a-zA-Z]+)
         (?:\((?P<scope>[^()\r\n]+)\))?
         (?P<breaking>!)?
         :\x20(?P<desc>[^\r\n]+)
-        $"#,
+        $",
         )
         .expect("valid scope regex");
         let regex_footer = Regex::new(
-            r#"(?xm)
+            r"(?xm)
                     ^
                     (?:(?P<key>(?:BREAKING\x20CHANGE|[a-zA-Z]+(?:-[a-zA-Z]+)*)):\x20|
                     (?P<ref>[a-zA-Z]+(?:-[a-zA-Z]+)*)\x20\#)
                     (?P<value>.+)
-                    $"#,
+                    $",
         )
         .unwrap();
         let regex_scope =
