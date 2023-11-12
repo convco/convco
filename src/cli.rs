@@ -238,6 +238,10 @@ pub struct CommitCommand {
     /// Interactively choose hunks of patch between the index and the work tree.
     #[clap(short, long, env = "CONVCO_PATCH")]
     pub patch: bool,
+    /// Path to store the commit message to recover from in case of an error
+    /// If the path is `$GIT_DIR/COMMIT_EDITMSG` convco will not call `git commit`
+    #[clap(hide = true)]
+    pub commit_msg_path: Option<PathBuf>,
     /// Extra arguments passed to the git commit command
     #[clap(last = true)]
     pub extra_args: Vec<String>,

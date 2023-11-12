@@ -27,10 +27,10 @@ fn read_single_line(
 }
 
 impl CommitCommand {
-    fn commit(&self, msg: String) -> Result<ExitStatus, Error> {
+    fn commit(&self, msg: &str) -> Result<ExitStatus, Error> {
         // build the command
         let mut cmd = process::Command::new("git");
-        cmd.args(["commit", "-m", msg.as_str()]);
+        cmd.args(["commit", "-m", msg]);
 
         if !self.extra_args.is_empty() {
             cmd.args(&self.extra_args);
@@ -46,6 +46,20 @@ impl CommitCommand {
     fn patch(&self) -> Result<ExitStatus, Error> {
         let mut cmd = process::Command::new("git");
         Ok(cmd.args(["add", "-p"]).status()?)
+    }
+
+    fn commit_msg_and_remove_file(
+        &self,
+        msg: &str,
+        commit_editmsg: &std::path::Path,
+    ) -> Result<(), anyhow::Error> {
+        let exit_status = self.commit(msg)?;
+        if exit_status.success() {
+            std::fs::remove_file(commit_editmsg)?;
+        } else {
+            Err(Error::GitCommitFailed(exit_status))?;
+        };
+        Ok(())
     }
 }
 
@@ -97,6 +111,47 @@ fn edit_message(msg: &str) -> Result<String, Error> {
         .edit(msg)?
         .unwrap_or_default()
         .strip())
+}
+
+fn edit_loop(
+    msg: &str,
+    parser: &CommitParser,
+    types: &[crate::conventional::Type],
+) -> Result<String, Error> {
+    let mut edit_msg = msg.to_owned();
+    loop {
+        edit_msg = edit_message(&edit_msg)?;
+        match parser.parse(&edit_msg) {
+            Ok(commit) => {
+                if !types.contains(&commit.r#type) {
+                    eprintln!(
+                        "ParseError: {}",
+                        Error::Type {
+                            wrong_type: commit.r#type.to_string(),
+                        }
+                    );
+                    if !dialoguer::Confirm::new()
+                        .with_prompt("Continue?")
+                        .interact()?
+                    {
+                        break Err(Error::CancelledByUser);
+                    }
+                } else {
+                    break Ok(edit_msg);
+                }
+            }
+            Err(ParseError::EmptyCommitMessage) => break Err(Error::CancelledByUser),
+            Err(e) => {
+                eprintln!("ParseError: {}", e);
+                if !dialoguer::Confirm::new()
+                    .with_prompt("Continue?")
+                    .interact()?
+                {
+                    break Err(Error::CancelledByUser);
+                }
+            }
+        }
+    }
 }
 
 #[derive(Serialize)]
@@ -186,38 +241,57 @@ impl Dialog {
             .filter(|s| !s.is_empty())
             .map(|s| s.to_owned())
             .collect();
-
-            loop {
-                // finally make message
-                let msg = handlebars
-                    .render("commit-message", self)
-                    .map_err(Box::new)?;
-                let msg = edit_message(msg.as_str())?;
-                match parser.parse(msg.as_str()).map(|_| msg) {
-                    Ok(msg) => break Ok(msg),
-                    Err(ParseError::EmptyCommitMessage) => break Err(Error::CancelledByUser),
-                    Err(e) => {
-                        eprintln!("ParseError: {}", e);
-                        if !dialoguer::Confirm::new()
-                            .with_prompt("Continue?")
-                            .interact()?
-                        {
-                            break Err(Error::CancelledByUser);
-                        }
-                    }
-                }
-            }
+            // finally make message
+            let msg = handlebars
+                .render("commit-message", self)
+                .map_err(Box::new)?;
+            edit_loop(&msg, &parser, &config_types_to_conventional(types))
         }
     }
 }
 
 impl Command for CommitCommand {
     fn exec(&self, config: Config) -> anyhow::Result<()> {
-        if !self.intent_to_add.is_empty() {
-            self.intend_to_add(self.intent_to_add.as_slice())?;
-        }
-        if self.patch {
-            self.patch()?;
+        let commit_editmsg = match &self.commit_msg_path {
+            Some(path) => path.to_owned(),
+            None => get_default_commit_msg_path()?,
+        };
+        let commit_editmsg_path = commit_editmsg.as_path();
+        let is_git_editor = commit_editmsg_path.ends_with("COMMIT_EDITMSG");
+        let parser = CommitParser::builder()
+            .scope_regex(config.scope_regex.clone())
+            .build();
+        let types = config_types_to_conventional(&config.types);
+        if !is_git_editor {
+            if !self.intent_to_add.is_empty() {
+                self.intend_to_add(self.intent_to_add.as_slice())?;
+            }
+            if self.patch {
+                self.patch()?;
+            }
+            if let Ok(ref msg) = std::fs::read_to_string(commit_editmsg_path) {
+                if parser.parse(msg).is_ok() {
+                    loop {
+                        println!("Recovery commit message found:\n\n{msg}\n",);
+                        let input: String = dialoguer::Input::new()
+                            .with_prompt("Do you want to (a)ccept/(e)dit/(r)eject?")
+                            .interact()
+                            .unwrap();
+                        match input.as_str() {
+                            "a" | "accept" => {
+                                self.commit_msg_and_remove_file(msg, commit_editmsg_path)?;
+                                return Ok(());
+                            }
+                            "e" | "edit" => {
+                                let msg = edit_loop(msg, &parser, &types)?;
+                                self.commit_msg_and_remove_file(&msg, commit_editmsg_path)?;
+                            }
+                            "r" | "reject" => break,
+                            _ => continue,
+                        }
+                    }
+                }
+            }
         }
         let r#type = match (
             self.feat,
@@ -267,9 +341,6 @@ impl Command for CommitCommand {
             }
             _ => Default::default(),
         };
-        let parser = CommitParser::builder()
-            .scope_regex(config.scope_regex.clone())
-            .build();
         let description = self.message.first().cloned().unwrap_or_default();
         let body = self
             .message
@@ -294,7 +365,24 @@ impl Command for CommitCommand {
         }
         .wizard(&config, parser, self.interactive)?;
 
-        self.commit(msg)?;
+        std::fs::write(commit_editmsg_path, &msg)?;
+        if !is_git_editor {
+            self.commit_msg_and_remove_file(&msg, commit_editmsg_path)?;
+        }
+
         Ok(())
     }
+}
+
+fn config_types_to_conventional(types: &[Type]) -> Vec<crate::conventional::Type> {
+    types
+        .iter()
+        .map(|ty| ty.r#type.as_str())
+        .map(crate::conventional::Type::from)
+        .collect()
+}
+
+fn get_default_commit_msg_path() -> Result<PathBuf, Error> {
+    let repo = git2::Repository::open_from_env()?;
+    Ok(repo.path().join("CONVCO_MSG"))
 }

@@ -102,11 +102,14 @@ convco check $remote_sha..$local_sha
 
 Helps to make conventional commits.
 A scope, description, body, breaking change and issues will be prompted.
+Convco will recover the previous message in case git failed to create the commit.
 
 ```sh
-# commit a new feature and then run git commit with the interactive patch switch
-convco commit --feat -- --patch
+convco commit --feat
 ```
+
+`convco commit` can also be used as [git editor](https://git-scm.com/docs/git-var#Documentation/git-var.txt-GITEDITOR).
+In this case `convco commit` will not invoke `git commit`, but `git` will invoke `convco commit`
 
 ### Version
 
