@@ -1,4 +1,4 @@
-use std::io;
+use std::{io, process::ExitStatus};
 
 use handlebars::{RenderError, TemplateError};
 use thiserror::Error;
@@ -31,4 +31,6 @@ pub(crate) enum Error {
     Type { wrong_type: String },
     #[error("canceled by user")]
     CancelledByUser,
+    #[error("git commit failed: {0}")]
+    GitCommitFailed(ExitStatus),
 }
