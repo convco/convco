@@ -20,18 +20,18 @@ rust-version = "1.60" # for `--features`
 
 [dependencies]
 anyhow = { version = "1.0.75", features = ["backtrace"] }
-clap = { version = "4.4.6", features = ["derive", "env"] }
+clap = { version = "4.4.11", features = ["derive", "env"] }
 ctrlc = "3.4.1"
 dialoguer = "0.11.0"
 git2 = { version = "0.18.1", default-features = false }
-handlebars = "4.4.0"
-regex = "1.9.6"
-semver = "1.0.19"
-serde = { version = "1.0.188", features = ["derive"] }
-serde_yaml = "0.9.25"
-thiserror = "1.0.49"
-time = { version = "0.3.29", features = [ "serde-human-readable" ] }
-url = "2.4.1"
+handlebars = "4.5.0"
+regex = "1.10.2"
+semver = "1.0.20"
+serde = { version = "1.0.193", features = ["derive"] }
+serde_yaml = "0.9.27"
+thiserror = "1.0.50"
+time = { version = "0.3.30", features = [ "serde-human-readable" ] }
+url = "2.5.0"
 walkdir = "2.4.0"
 
 [build-dependencies]
