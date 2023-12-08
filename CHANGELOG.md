@@ -1,12 +1,30 @@
 # Changelog
 
-## v0.4.3 (2023-10-03)
+## v0.5.0 (2023-12-08)
+
+### ⚠ BREAKING CHANGE
+
+* The defaults of these flags disable the previous behavior of automatically calling git add -N and git add -p
+
+
 
 ### Features
 
+* **commit:** save message to a file to recover or use as a git editor
+(d83207f), closes #157
+* **version:** print prefix before semantic version with `--pp` (bfa3b6a),
+closes #156
+* **version:** display commit-sha of the version (6b42ecc), closes #156
+* **commit:** add flags for intent_to_add and patch (252c136), closes #151
+* allow env variables for most cli options (76fb072)
+
+### v0.4.3 (2023-10-03)
+
+#### Features
+
 * **commit:** intend to add and patch unstaged changes (50cdbbe), closes #146
 
-### Fixes
+#### Fixes
 
 * **check:** do match start of line and end of line for the default scope
 regex (9986150), closes #145
