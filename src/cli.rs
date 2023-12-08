@@ -66,6 +66,7 @@ pub struct VersionCommand {
     #[clap(long, requires = "bump", default_value_t = Prerelease::new("").unwrap())]
     pub prerelease: Prerelease,
     /// Only commits that update those <paths> will be taken into account. It is useful to support monorepos.
+    /// Each path should be relative to the root of the repository.
     #[clap(short = 'P', long, env = "CONVCO_PATHS")]
     pub paths: Vec<PathBuf>,
     /// Print the commit-sha of the version instead of the semantic version
@@ -130,6 +131,7 @@ pub struct ChangelogCommand {
     #[clap(long, env = "CONVCO_INCLUDE_HIDDEN_SECTIONS")]
     pub include_hidden_sections: bool,
     /// Only commits that update those <paths> will be taken into account. It is useful to support monorepos.
+    /// Each path should be relative to the root of the repository.
     #[clap(short = 'P', long, env = "CONVCO_PATHS")]
     pub paths: Vec<PathBuf>,
     /// Follow only the first parent of merge commits. Commits from the merged branche(s) will be discarded.
