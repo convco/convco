@@ -111,6 +111,12 @@ convco commit --feat
 `convco commit` can also be used as [git editor](https://git-scm.com/docs/git-var#Documentation/git-var.txt-GITEDITOR).
 In this case `convco commit` will not invoke `git commit`, but `git` will invoke `convco commit`
 
+e.g.:
+
+```sh
+GIT_EDITOR='convco commit' git commit -p
+```
+
 ### Version
 
 When no options are given it will return the current version.
