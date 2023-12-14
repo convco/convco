@@ -113,11 +113,7 @@ fn edit_message(msg: &str) -> Result<String, Error> {
         .strip())
 }
 
-fn edit_loop(
-    msg: &str,
-    parser: &CommitParser,
-    types: &[crate::conventional::Type],
-) -> Result<String, Error> {
+fn edit_loop(msg: &str, parser: &CommitParser, types: &[String]) -> Result<String, Error> {
     let mut edit_msg = msg.to_owned();
     loop {
         edit_msg = edit_message(&edit_msg)?;
@@ -374,11 +370,11 @@ impl Command for CommitCommand {
     }
 }
 
-fn config_types_to_conventional(types: &[Type]) -> Vec<crate::conventional::Type> {
+fn config_types_to_conventional(types: &[Type]) -> Vec<String> {
     types
         .iter()
         .map(|ty| ty.r#type.as_str())
-        .map(crate::conventional::Type::from)
+        .map(String::from)
         .collect()
 }
 

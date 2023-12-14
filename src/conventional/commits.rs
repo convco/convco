@@ -5,66 +5,6 @@ use serde::Serialize;
 use thiserror::Error;
 
 #[derive(Debug, PartialEq)]
-pub(crate) enum Type {
-    Build,
-    Chore,
-    Ci,
-    Docs,
-    Feat,
-    Fix,
-    Perf,
-    Refactor,
-    Revert,
-    Style,
-    Test,
-    Custom(String),
-}
-
-impl AsRef<str> for Type {
-    fn as_ref(&self) -> &str {
-        match self {
-            Self::Build => "build",
-            Self::Chore => "chore",
-            Self::Ci => "ci",
-            Self::Docs => "docs",
-            Self::Feat => "feat",
-            Self::Fix => "fix",
-            Self::Perf => "perf",
-            Self::Refactor => "refactor",
-            Self::Revert => "revert",
-            Self::Style => "style",
-            Self::Test => "test",
-            Self::Custom(c) => c.as_str(),
-        }
-    }
-}
-
-impl From<&str> for Type {
-    fn from(s: &str) -> Type {
-        match s.to_ascii_lowercase().as_str() {
-            "build" => Self::Build,
-            "chore" => Self::Chore,
-            "ci" => Self::Ci,
-            "docs" => Self::Docs,
-            "feat" => Self::Feat,
-            "fix" => Self::Fix,
-            "perf" => Self::Perf,
-            "refactor" => Self::Refactor,
-            "revert" => Self::Revert,
-            "style" => Self::Style,
-            "test" => Self::Test,
-            custom => Self::Custom(custom.to_owned()),
-        }
-    }
-}
-
-impl fmt::Display for Type {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.as_ref())
-    }
-}
-
-#[derive(Debug, PartialEq)]
 pub(crate) struct Footer {
     pub(crate) key: String,
     pub(crate) value: String,
@@ -79,7 +19,7 @@ pub(crate) struct Reference {
 
 #[derive(Debug, PartialEq)]
 pub struct Commit {
-    pub(crate) r#type: Type,
+    pub(crate) r#type: String,
     pub(crate) scope: Option<String>,
     pub(crate) breaking: bool,
     pub(crate) description: String,
@@ -136,7 +76,7 @@ impl CommitParser {
         let mut lines = s.lines();
         if let Some(first) = lines.next() {
             if let Some(capts) = self.regex_first_line.captures(first) {
-                let r#type: Option<Type> = capts.name("type").map(|t| t.as_str().into());
+                let r#type = capts.name("type").map(|t| t.as_str().to_owned());
                 let scope = capts.name("scope").map(|s| s.as_str().to_owned());
                 if let Some(ref scope) = scope {
                     if !self.regex_scope.is_match(scope.as_str()) {
@@ -318,7 +258,7 @@ mod tests {
         assert_eq!(
             commit,
             Commit {
-                r#type: Type::Docs,
+                r#type: "docs".into(),
                 scope: None,
                 breaking: false,
                 description: "correct spelling of CHANGELOG".into(),
@@ -337,7 +277,7 @@ mod tests {
         assert_eq!(
             commit,
             Commit {
-                r#type: Type::Feat,
+                r#type: "feat".into(),
                 scope: Some("lang".into()),
                 breaking: false,
                 description: "add polish language".into(),
@@ -356,7 +296,7 @@ mod tests {
         assert_eq!(
             commit,
             Commit {
-                r#type: Type::Feat,
+                r#type: "feat".into(),
                 scope: Some("bar2/a_b-C4".into()),
                 breaking: false,
                 description: "add a foo to new bar".into(),
@@ -385,7 +325,7 @@ mod tests {
         assert_eq!(
             commit,
             Commit {
-                r#type: Type::Refactor,
+                r#type: "refactor".into(),
                 scope: None,
                 breaking: true,
                 description: "drop support for Node 6".into(),
@@ -406,7 +346,7 @@ mod tests {
         assert_eq!(
             commit,
             Commit {
-                r#type: Type::Feat,
+                r#type: "feat".into(),
                 scope: None,
                 breaking: false,
                 description: "allow provided config object to extend other configs".into(),
@@ -446,7 +386,7 @@ mod tests {
         assert_eq!(
             commit,
             Commit {
-                r#type: Type::Fix,
+                r#type: "fix".into(),
                 scope: None,
                 breaking: false,
                 description: "correct minor typos in code".into(),
@@ -480,7 +420,7 @@ mod tests {
         assert_eq!(
             commit,
             Commit {
-                r#type: Type::Revert,
+                r#type: "revert".into(),
                 scope: None,
                 breaking: false,
                 description: "let us never again speak of the noodle incident #1".into(),
@@ -522,7 +462,7 @@ mod tests {
         assert_eq!(
             commit,
             Commit {
-                r#type: Type::Docs,
+                r#type: "docs".into(),
                 scope: None,
                 breaking: false,
                 description: "correct spelling of CHANGELOG".into(),
