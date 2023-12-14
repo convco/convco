@@ -6,7 +6,7 @@ use git2::Repository;
 use crate::{
     cli::CheckCommand,
     cmd::Command,
-    conventional::{self, Type},
+    conventional,
     git::{filter_merge_commits, filter_revert_commits},
     strip::Strip,
     Error,
@@ -23,7 +23,7 @@ fn print_fail(msg: &str, short_id: &str, e: Error) -> bool {
     false
 }
 
-fn print_wrong_type(msg: &str, short_id: &str, commit_type: Type) -> bool {
+fn print_wrong_type(msg: &str, short_id: &str, commit_type: String) -> bool {
     print_fail(
         msg,
         short_id,
@@ -37,7 +37,7 @@ fn print_check(
     msg: &str,
     short_id: &str,
     parser: &conventional::CommitParser,
-    types: &[Type],
+    types: &[String],
 ) -> bool {
     let msg_parsed = parser.parse(msg);
 
@@ -66,11 +66,11 @@ impl Command for CheckCommand {
             .scope_regex(config.scope_regex)
             .strip_regex(config.strip_regex)
             .build();
-        let types: Vec<Type> = config
+        let types: Vec<String> = config
             .types
             .iter()
             .map(|ty| ty.r#type.as_str())
-            .map(Type::from)
+            .map(String::from)
             .collect();
 
         let Config { merges, .. } = config;

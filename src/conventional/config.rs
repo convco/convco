@@ -9,8 +9,17 @@ use url::Url;
 use crate::{error::Error, git::GitHelper};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub(crate) enum Increment {
+    Major,
+    Minor,
+    Patch,
+    None,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub(crate) struct Type {
     pub(crate) r#type: String,
+    pub(crate) increment: Increment,
     #[serde(default)]
     pub(crate) section: String,
     #[serde(default)]
@@ -135,51 +144,61 @@ fn default_types() -> Vec<Type> {
     vec![
         Type {
             r#type: "feat".into(),
+            increment: Increment::Minor,
             section: "Features".into(),
             hidden: false,
         },
         Type {
             r#type: "fix".into(),
+            increment: Increment::Patch,
             section: "Fixes".into(),
             hidden: false,
         },
         Type {
             r#type: "build".into(),
+            increment: Increment::None,
             section: "Other".into(),
             hidden: true,
         },
         Type {
             r#type: "chore".into(),
+            increment: Increment::None,
             section: "Other".into(),
             hidden: true,
         },
         Type {
             r#type: "ci".into(),
+            increment: Increment::None,
             section: "Other".into(),
             hidden: true,
         },
         Type {
             r#type: "docs".into(),
+            increment: Increment::None,
             section: "Documentation".into(),
             hidden: true,
         },
         Type {
             r#type: "style".into(),
+            increment: Increment::None,
             section: "Other".into(),
             hidden: true,
         },
         Type {
             r#type: "refactor".into(),
+            increment: Increment::None,
             section: "Other".into(),
             hidden: true,
         },
         Type {
             r#type: "perf".into(),
+            increment: Increment::None,
             section: "Other".into(),
             hidden: true,
         },
         Type {
             r#type: "test".into(),
+            increment: Increment::None,
             section: "Other".into(),
             hidden: true,
         },
@@ -356,61 +375,73 @@ mod tests {
                 types: vec![
                     Type {
                         r#type: "chore".into(),
+                        increment: Increment::Patch,
                         section: "Others".into(),
                         hidden: false
                     },
                     Type {
                         r#type: "revert".into(),
+                        increment: Increment::Patch,
                         section: "Reverts".into(),
                         hidden: false
                     },
                     Type {
                         r#type: "feat".into(),
+                        increment: Increment::Patch,
                         section: "Features".into(),
                         hidden: false
                     },
                     Type {
                         r#type: "fix".into(),
+                        increment: Increment::Patch,
                         section: "Bug Fixes".into(),
                         hidden: false
                     },
                     Type {
                         r#type: "improvement".into(),
+                        increment: Increment::Patch,
                         section: "Feature Improvements".into(),
                         hidden: false
                     },
                     Type {
                         r#type: "docs".into(),
+                        increment: Increment::Patch,
                         section: "Docs".into(),
                         hidden: false
                     },
                     Type {
                         r#type: "style".into(),
+                        increment: Increment::Patch,
                         section: "Styling".into(),
                         hidden: false
                     },
                     Type {
                         r#type: "refactor".into(),
+                        increment: Increment::Patch,
                         section: "Code Refactoring".into(),
                         hidden: false
                     },
                     Type {
                         r#type: "perf".into(),
+                        increment: Increment::Patch,
                         section: "Performance Improvements".into(),
                         hidden: false
                     },
                     Type {
                         r#type: "test".into(),
+                        increment: Increment::Patch,
                         section: "Tests".into(),
                         hidden: false
                     },
                     Type {
                         r#type: "build".into(),
+                        increment: Increment::Patch,
                         section: "Build System".into(),
                         hidden: false
                     },
                     Type {
                         r#type: "ci".into(),
+                        increment: Increment::Patch,
                         section: "CI".into(),
                         hidden: false
                     }

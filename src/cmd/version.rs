@@ -5,7 +5,10 @@ use semver::Version;
 use crate::{
     cli::VersionCommand,
     cmd::Command,
-    conventional::{CommitParser, Config, Type},
+    conventional::{
+        config::{Config, Increment, Type},
+        CommitParser,
+    },
     git::{GitHelper, VersionAndTag},
     semver::SemVer,
     Error,
@@ -59,6 +62,7 @@ impl VersionCommand {
         last_v_tag: &str,
         mut last_version: SemVer,
         parser: &CommitParser,
+        types: Vec<Type>,
     ) -> Result<(Version, Label, String), Error> {
         let prefix = self.prefix.as_str();
         let git = GitHelper::new(prefix)?;
@@ -94,11 +98,17 @@ impl VersionCommand {
                 }
                 break;
             }
-            match (commit.r#type, major_version_zero) {
-                (Type::Feat, true) => patch = true,
-                (Type::Feat, false) => minor = true,
-                (Type::Fix, _) => patch = true,
-                _ => (),
+
+            let option_commit_type = types.iter().find(|x| x.to_string() == commit.r#type);
+
+            if let Some(some_commit_type) = option_commit_type {
+                match (&some_commit_type.increment, major_version_zero) {
+                    (&Increment::Major, _) => major = true,
+                    (&Increment::Minor, true) => patch = true,
+                    (&Increment::Minor, false) => minor = true,
+                    (&Increment::Patch, _) => patch = true,
+                    (&Increment::None, _) => {}
+                }
             }
         }
         let label = match (major, minor, patch) {
@@ -127,6 +137,7 @@ impl VersionCommand {
         &self,
         scope_regex: String,
         strip_regex: String,
+        types: Vec<Type>,
     ) -> Result<(Version, Label, String), Error> {
         if let Some(VersionAndTag {
             tag,
@@ -158,7 +169,7 @@ impl VersionCommand {
                         .scope_regex(scope_regex)
                         .strip_regex(strip_regex)
                         .build();
-                    self.find_bump_version(tag.as_str(), version, &parser)?
+                    self.find_bump_version(tag.as_str(), version, &parser, types)?
                 }
             } else {
                 (version.0, Label::Release, commit_sha)
@@ -185,7 +196,7 @@ impl VersionCommand {
 impl Command for VersionCommand {
     fn exec(&self, config: Config) -> anyhow::Result<()> {
         let (version, label, commit_sha) =
-            self.get_version(config.scope_regex, config.strip_regex)?;
+            self.get_version(config.scope_regex, config.strip_regex, config.types)?;
         if self.label {
             println!("{label}");
         } else if self.commit_sha {

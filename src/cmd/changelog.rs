@@ -196,7 +196,7 @@ impl<'a> ChangeLogTransformer<'a> {
                     short_hash,
                     references,
                 };
-                if let Some(section) = self.group_types.get(conv_commit.r#type.as_ref()) {
+                if let Some(section) = self.group_types.get(conv_commit.r#type.as_str()) {
                     commits.entry(section).or_default().push(commit_context)
                 }
             }
