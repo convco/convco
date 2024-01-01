@@ -24,7 +24,7 @@ clap = { version = "4.4.12", features = ["derive", "env"] }
 ctrlc = "3.4.1"
 dialoguer = "0.11.0"
 git2 = { version = "0.18.1", default-features = false }
-handlebars = "4.5.0"
+handlebars = "5.0.0"
 regex = "1.10.2"
 semver = "1.0.20"
 serde = { version = "1.0.193", features = ["derive"] }
