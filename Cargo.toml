@@ -29,7 +29,7 @@ regex = "1.10.2"
 semver = "1.0.20"
 serde = { version = "1.0.193", features = ["derive"] }
 serde_yaml = "0.9.29"
-thiserror = "1.0.52"
+thiserror = "1.0.53"
 time = { version = "0.3.30", features = [ "serde-human-readable" ] }
 url = "2.5.0"
 walkdir = "2.4.0"
