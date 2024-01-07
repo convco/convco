@@ -19,24 +19,24 @@ include = [
 rust-version = "1.60" # for `--features`
 
 [dependencies]
-anyhow = { version = "1.0.75", features = ["backtrace"] }
-clap = { version = "4.4.12", features = ["derive", "env"] }
-ctrlc = "3.4.1"
+anyhow = { version = "1.0.79", features = ["backtrace"] }
+clap = { version = "4.4.13", features = ["derive", "env"] }
+ctrlc = "3.4.2"
 dialoguer = "0.11.0"
 git2 = { version = "0.18.1", default-features = false }
 handlebars = "5.0.0"
 regex = "1.10.2"
-semver = "1.0.20"
+semver = "1.0.21"
 serde = { version = "1.0.193", features = ["derive"] }
-serde_yaml = "0.9.29"
-thiserror = "1.0.52"
-time = { version = "0.3.30", features = [ "serde-human-readable" ] }
+serde_yaml = "0.9.30"
+thiserror = "1.0.56"
+time = { version = "0.3.31", features = [ "serde-human-readable" ] }
 url = "2.5.0"
 walkdir = "2.4.0"
 
 [build-dependencies]
 clap = { version = "4.4.12", features = ["derive", "env"] }
-clap_complete = "4.4.5"
+clap_complete = "4.4.6"
 semver = "1.0.19"
 
 [features]
