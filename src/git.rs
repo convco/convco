@@ -28,7 +28,7 @@ impl PartialEq for VersionAndTag {
 
 impl PartialOrd for VersionAndTag {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.version.partial_cmp(&other.version)
+        Some(self.cmp(other))
     }
 }
 
