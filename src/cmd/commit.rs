@@ -265,26 +265,32 @@ impl Command for CommitCommand {
             if self.patch {
                 self.patch()?;
             }
-            if let Ok(ref msg) = std::fs::read_to_string(commit_editmsg_path) {
-                if parser.parse(msg).is_ok() {
-                    loop {
-                        println!("Recovery commit message found:\n\n{msg}\n",);
-                        let input: String = dialoguer::Input::new()
-                            .with_prompt("Do you want to (a)ccept/(e)dit/(r)eject?")
-                            .interact()
-                            .unwrap();
-                        match input.as_str() {
-                            "a" | "accept" => {
-                                self.commit_msg_and_remove_file(msg, commit_editmsg_path)?;
-                                return Ok(());
-                            }
-                            "e" | "edit" => {
-                                let msg = edit_loop(msg, &parser, &types)?;
-                                self.commit_msg_and_remove_file(&msg, commit_editmsg_path)?;
-                            }
-                            "r" | "reject" => break,
-                            _ => continue,
+        }
+        if let Ok(ref msg) = std::fs::read_to_string(commit_editmsg_path) {
+            if parser.parse(msg).is_ok() {
+                if is_git_editor {
+                    let msg = edit_loop(msg, &parser, &types)?;
+                    std::fs::write(commit_editmsg_path, msg)?;
+                    return Ok(());
+                }
+                loop {
+                    println!("Recovery commit message found:\n\n{msg}\n",);
+
+                    let input: String = dialoguer::Input::new()
+                        .with_prompt("Do you want to (a)ccept/(e)dit/(r)eject?")
+                        .interact()
+                        .unwrap();
+                    match input.as_str() {
+                        "a" | "accept" => {
+                            self.commit_msg_and_remove_file(msg, commit_editmsg_path)?;
+                            return Ok(());
                         }
+                        "e" | "edit" => {
+                            let msg = edit_loop(msg, &parser, &types)?;
+                            self.commit_msg_and_remove_file(&msg, commit_editmsg_path)?;
+                        }
+                        "r" | "reject" => break,
+                        _ => continue,
                     }
                 }
             }
