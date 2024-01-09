@@ -6,7 +6,7 @@ mod git;
 mod semver;
 mod strip;
 
-use std::process::exit;
+use std::{path::PathBuf, process::exit};
 
 use clap::Parser;
 use conventional::config::make_cl_config;
@@ -26,7 +26,14 @@ fn main() -> anyhow::Result<()> {
             eprintln!("{e}")
         }
     ).ok();
-    let config = make_cl_config(git, opt.config.unwrap_or_else(|| ".versionrc".into()));
+    let config = make_cl_config(
+        git,
+        opt.config
+            .unwrap_or_else(|| match PathBuf::from(".convco") {
+                p if p.is_file() => p,
+                _ => ".versionrc".into(),
+            }),
+    );
     let res = match opt.cmd {
         cli::Command::Config(cmd) => cmd.exec(config),
         cli::Command::Check(cmd) => cmd.exec(config),

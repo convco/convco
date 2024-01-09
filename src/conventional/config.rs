@@ -318,9 +318,9 @@ fn host_info_from_url(url: Url) -> Result<HostOwnerRepo, Error> {
 }
 
 pub(crate) fn make_cl_config(git: Option<GitHelper>, path: impl AsRef<Path>) -> Config {
-    let mut config: Config = (std::fs::read(path))
+    let mut config: Config = std::fs::read(path)
         .ok()
-        .and_then(|versionrc| (serde_yaml::from_reader(versionrc.as_slice())).ok())
+        .and_then(|vec| (serde_yaml::from_reader(vec.as_slice())).ok())
         .unwrap_or_default();
     if let Config {
         host: None,
