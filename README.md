@@ -108,13 +108,21 @@ Convco will recover the previous message in case git failed to create the commit
 convco commit --feat
 ```
 
-`convco commit` can also be used as [git editor](https://git-scm.com/docs/git-var#Documentation/git-var.txt-GITEDITOR).
+`convco commit` can also be used as git [core.editor][4].
 In this case `convco commit` will not invoke `git commit`, but `git` will invoke `convco commit`
 
 e.g.:
 
 ```sh
 GIT_EDITOR='convco commit' git commit -p
+```
+
+When persisting the git editor also set [`sequence.editor`][5] when editing the todo list of an interactive rebase.
+
+Or configure a git alias:
+
+```sh
+git config --global alias.convco '!GIT_EDITOR="convco commit" git commit'
 ```
 
 ### Version
@@ -137,3 +145,5 @@ cargo release $(convco version --bump)
 [1]: https://www.conventionalcommits.org/
 [2]: https://github.com/conventional-changelog/conventional-changelog
 [3]: https://github.com/conventional-changelog/conventional-changelog-config-spec/blob/master/versions/2.1.0/README.md
+[4]: https://git-scm.com/docs/git-var#Documentation/git-var.txt-GITEDITOR
+[5]: https://git-scm.com/docs/git-var#Documentation/git-var.txt-GITSEQUENCEEDITOR
