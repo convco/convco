@@ -1,6 +1,6 @@
 use std::{cmp::Ordering, collections::HashMap, path::PathBuf};
 
-use git2::{Commit, Diff, Error, Object, Oid, Repository, Revwalk};
+use git2::{Commit, DiffOptions, Error, Object, Oid, Repository, Revwalk};
 use semver::Version;
 
 use crate::semver::SemVer;
@@ -101,16 +101,20 @@ impl GitHelper {
             .map(|s| s.to_string()))
     }
 
-    pub(crate) fn commit_updates_any_path(&self, commit: &Commit, paths: &[PathBuf]) -> bool {
-        if paths.is_empty() {
+    pub(crate) fn commit_updates_any_path(
+        &self,
+        commit: &Commit,
+        diff_options: &mut Option<DiffOptions>,
+    ) -> bool {
+        if diff_options.is_none() {
             return true;
         }
-
+        let diff_options = diff_options.as_mut();
         let tree = commit.tree().ok();
         let parent_tree = commit.parent(0).and_then(|item| item.tree()).ok();
         self.repo
-            .diff_tree_to_tree(parent_tree.as_ref(), tree.as_ref(), None)
-            .map(|diff| diff_updates_any_path(&diff, paths))
+            .diff_tree_to_tree(parent_tree.as_ref(), tree.as_ref(), diff_options)
+            .map(|diff| diff.deltas().next().is_some())
             .unwrap_or(false)
     }
 }
@@ -161,22 +165,16 @@ fn object_to_target_commit_id(obj: Object<'_>) -> Oid {
     }
 }
 
-fn diff_updates_any_path(diff: &Diff, paths: &[PathBuf]) -> bool {
-    let mut update_any_path = false;
-
-    diff.foreach(
-        &mut |delta, _progress| {
-            if let Some(file) = delta.new_file().path() {
-                update_any_path |= paths.iter().any(|path| file.starts_with(path));
-            }
-
-            !update_any_path
-        },
-        None,
-        None,
-        None,
-    )
-    .ok();
-
-    update_any_path
+pub fn diff_options_from_paths(paths: &[PathBuf]) -> Option<DiffOptions> {
+    if paths.is_empty() {
+        None
+    } else {
+        let mut diff_options = DiffOptions::new();
+        diff_options.skip_binary_check(true);
+        paths
+            .iter()
+            .map(|path| path.as_os_str().as_encoded_bytes())
+            .fold(&mut diff_options, |acc, path| acc.pathspec(path));
+        Some(diff_options)
+    }
 }
