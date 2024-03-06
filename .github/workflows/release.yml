@@ -33,23 +33,14 @@ jobs:
           sudo apt install -y musl-tools
 
       - name: Install stable toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          target: x86_64-unknown-linux-musl
-          override: true
-
+        run: |
+          rustup toolchain install --profile minimal stable
+          rustup target add x86_64-unknown-linux-musl
       - name: Test on ${{ matrix.os.name }}
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
+        run: cargo test
 
       - name: Build ${{ matrix.os.name }} binary
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release
+        run: cargo build --release
 
       - name: Upload ${{ matrix.os.name }} binary
         uses: actions/upload-artifact@v4

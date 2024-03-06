@@ -11,11 +11,7 @@ jobs:
         with:
           fetch-depth: 1
       - name: Install stable toolchain and check style
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: nightly
-          components: rustfmt
+        run: rustup toolchain install --profile minimal nightly --component rustfmt
       - run: cargo +nightly fmt -- --check
   check:
     name: Check
@@ -33,11 +29,6 @@ jobs:
           ./convco check ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}
           rm convco
       - name: Install stable toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
+        run: rustup toolchain install --profile minimal stable
       - name: Run tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
+        run: cargo test
