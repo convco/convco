@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - master
+      - main
     tags:
       - 'v*.*.*'
 jobs:
@@ -32,7 +32,7 @@ jobs:
         shell: bash
         run: |
           set -ex ;
-          export TAG=$(echo ${{ github.ref }} | rev | cut -d/ -f1 | rev | tr -d 'v' | sed 's/master/latest/') ;
+          export TAG=$(echo ${{ github.ref }} | rev | cut -d/ -f1 | rev | tr -d 'v' | sed 's/main/latest/') ;
           docker buildx use "convco" \
           || docker buildx create --use --name "convco" --driver docker-container ;
           ARM64=true AMD64=true docker buildx bake --builder convco ;
