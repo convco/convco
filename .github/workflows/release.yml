@@ -52,14 +52,14 @@ jobs:
           args: --release
 
       - name: Upload ${{ matrix.os.name }} binary
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: convco-${{ matrix.os.name }}
           path: target/release/${{ matrix.binary }}
 
       - name: Upload shell completions
         if: matrix.os.name == 'ubuntu'
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: convco-shell-completions
           path: target/completions
@@ -72,7 +72,7 @@ jobs:
 
       - name: Upload Debian package
         if: matrix.os.name == 'ubuntu'
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: convco-deb
           path: target/debian
