@@ -1,7 +1,7 @@
 # syntax = docker/dockerfile-upstream:master-labs
 #-*-mode:dockerfile;indent-tabs-mode:nil;tab-width:2;coding:utf-8-*-
 # vi: ft=dockerfile tabstop=2 shiftwidth=2 softtabstop=2 expandtab:
-FROM --platform=$BUILDPLATFORM messense/cargo-zigbuild AS base
+FROM --platform=$BUILDPLATFORM messense/cargo-zigbuild:main AS base
 ARG TARGETARCH
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 FROM base AS builder-layer
