@@ -26,7 +26,7 @@ jobs:
               version: latest
             binary: convco.exe
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: install extra dependencies
         if: matrix.os.name == 'ubuntu'
         run: |
