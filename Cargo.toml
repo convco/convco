@@ -23,7 +23,7 @@ anyhow = { version = "1.0.79", features = ["backtrace"] }
 clap = { version = "4.5.2", features = ["derive", "env"] }
 ctrlc = "3.4.2"
 dialoguer = "0.11.0"
-git2 = { version = "0.18.1", default-features = false }
+git2 = { version = "0.18.2", default-features = false }
 handlebars = "5.1.0"
 regex = "1.10.2"
 semver = "1.0.21"
