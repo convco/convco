@@ -23,7 +23,7 @@ fn read_single_line(
         .with_prompt(prompt)
         .default(default.to_string())
         .allow_empty(true)
-        .interact()?)
+        .interact_text()?)
 }
 
 impl CommitCommand {
@@ -82,7 +82,7 @@ fn read_scope(
         })
         .default(default.to_string())
         .allow_empty(true)
-        .interact()?;
+        .interact_text()?;
     Ok(result)
 }
 
@@ -101,7 +101,7 @@ fn read_description(
         })
         .default(default)
         .allow_empty(false)
-        .interact()?;
+        .interact_text()?;
     Ok(result)
 }
 
@@ -278,7 +278,7 @@ impl Command for CommitCommand {
 
                     let input: String = dialoguer::Input::new()
                         .with_prompt("Do you want to (a)ccept/(e)dit/(r)eject?")
-                        .interact()
+                        .interact_text()
                         .unwrap();
                     match input.as_str() {
                         "a" | "accept" => {
