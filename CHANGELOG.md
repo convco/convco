@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.5.1 (2024-03-08)
+
+### Features
+
+* also support .convco instead of .versionrc (08802fc)
+* make increment for conventional type configurable (607c9b1), closes #164
+
+### Fixes
+
+* **commit:** use interact_text for text input (f35666f), closes #197
+* **commit:** reuse commit message for `GIT_EDITOR='convco commit' git commit
+--amend` (c381b1c)
+
 ## v0.5.0 (2023-12-08)
 
 ### ⚠ BREAKING CHANGE
