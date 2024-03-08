@@ -1,18 +1,20 @@
-name: "release-cargo"
+name: "release-crates.io"
 on:
   workflow_dispatch:
 jobs:
   release-cargo:
     environment: release
-    name: Release Cargo
+    name: Release to crates.io
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           fetch-tags: true
-      - name: Install stable toolchain and check style
+      - name: Release
         run: |
+          git config --global user.email "2261239+hdevalke@users.noreply.github.com"
+          git config --global user.name "convco-ci"
           rustup toolchain install --profile minimal stable
           cargo install --path .
           cargo install cargo-release
