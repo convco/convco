@@ -16,4 +16,4 @@ jobs:
           rustup toolchain install --profile minimal stable
           cargo install --path .
           cargo install cargo-release
-          cargo release "$(convco version --bump)" --execute
+          cargo release "$(convco version --bump)" --execute --no-confirm
