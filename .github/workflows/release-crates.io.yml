@@ -4,6 +4,8 @@ on:
 jobs:
   release-cargo:
     environment: release
+    env:
+      CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
     name: Release to crates.io
     runs-on: ubuntu-latest
     steps:
