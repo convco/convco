@@ -1,0 +1,18 @@
+name: "release-cargo"
+on:
+  workflow_dispatch:
+jobs:
+  release-cargo:
+    environment: release
+    name: Release Cargo
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Install stable toolchain and check style
+        run: |
+          rustup toolchain install --profile minimal stable
+          cargo install --path .
+          cargo install cargo-release
+          cargo release "$(convco version --bump)" --execute
