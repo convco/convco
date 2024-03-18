@@ -19,7 +19,7 @@ include = [
 rust-version = "1.60" # for `--features`
 
 [dependencies]
-anyhow = { version = "1.0.79", features = ["backtrace"] }
+anyhow = { version = "1.0.81", features = ["backtrace"] }
 clap = { version = "4.5.2", features = ["derive", "env"] }
 ctrlc = "3.4.2"
 dialoguer = "0.11.0"
