@@ -28,7 +28,7 @@ handlebars = "5.1.0"
 regex = "1.10.4"
 semver = "1.0.22"
 serde = { version = "1.0.197", features = ["derive"] }
-serde_yaml = "0.9.32"
+serde_yaml = "0.9.34"
 thiserror = "1.0.58"
 time = { version = "0.3.31", features = [ "serde-human-readable" ] }
 url = "2.5.0"
