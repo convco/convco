@@ -126,8 +126,8 @@ impl CommitParser {
                                 body.push_str(line);
                                 body.push('\n');
                             } else if let Some(footer) = footers.last_mut() {
-                                footer.value.push_str(line);
                                 footer.value.push('\n');
+                                footer.value.push_str(line);
                             }
                             for captures in self.regex_references.captures_iter(line) {
                                 let prefix = &captures[1];
@@ -370,6 +370,19 @@ mod tests {
                          BREAKING-CHANGE: `extends` key in config file is now used for extending other config files";
         let commit: Commit = parser().parse(msg).expect("valid");
         assert!(commit.is_breaking());
+    }
+
+    #[test]
+    fn test_with_breaking_footer_newline() {
+        let msg = "feat: allow provided config object to extend other configs\n\
+                         \n\
+                         BREAKING-CHANGE: `extends` key in config\nfile is now used for extending other config files";
+        let commit: Commit = parser().parse(msg).expect("valid");
+        assert!(commit.is_breaking());
+        assert_eq!(
+            commit.footers.first().unwrap().value,
+            "`extends` key in config\nfile is now used for extending other config files"
+        )
     }
 
     #[test]
