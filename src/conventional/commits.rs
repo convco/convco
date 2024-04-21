@@ -1,4 +1,4 @@
-use std::fmt;
+use std::fmt::{self, Display};
 
 use regex::Regex;
 use serde::Serialize;
@@ -6,8 +6,32 @@ use thiserror::Error;
 
 #[derive(Debug, PartialEq)]
 pub(crate) struct Footer {
-    pub(crate) key: String,
+    pub(crate) key: FooterKey,
     pub(crate) value: String,
+}
+
+#[derive(Debug, PartialEq)]
+pub(crate) enum FooterKey {
+    BreakingChange,
+    String(String),
+}
+
+impl From<&str> for FooterKey {
+    fn from(value: &str) -> Self {
+        match value {
+            "BREAKING CHANGE" | "BREAKING-CHANGE" => Self::BreakingChange,
+            _ => Self::String(value.to_owned()),
+        }
+    }
+}
+
+impl Display for FooterKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            FooterKey::BreakingChange => write!(f, "BREAKING CHANGE"),
+            FooterKey::String(s) => write!(f, "{}", s),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Serialize)]
@@ -34,7 +58,7 @@ impl Commit {
             || self
                 .footers
                 .iter()
-                .any(|f| f.key == "BREAKING CHANGE" || f.key == "BREAKING-CHANGE")
+                .any(|f| matches!(f.key, FooterKey::BreakingChange))
     }
 }
 
@@ -110,13 +134,13 @@ impl CommitParser {
                                 match (key, ref_key, value) {
                                     (Some(key), None, Some(value)) => {
                                         footers.push(Footer {
-                                            key: key.to_owned(),
+                                            key: key.into(),
                                             value: value.to_owned(),
                                         });
                                     }
                                     (None, Some(key), Some(value)) => {
                                         footers.push(Footer {
-                                            key: key.to_owned(),
+                                            key: key.into(),
                                             value: value.to_owned(),
                                         });
                                     }
@@ -132,7 +156,7 @@ impl CommitParser {
                             for captures in self.regex_references.captures_iter(line) {
                                 let prefix = &captures[1];
                                 let issue = &captures[2];
-                                let action = footers.last().map(|footer| footer.key.to_owned());
+                                let action = footers.last().map(|footer| footer.key.to_string());
                                 let reference = Reference {
                                     action,
                                     prefix: prefix.into(),
@@ -352,7 +376,7 @@ mod tests {
                 description: "allow provided config object to extend other configs".into(),
                 body: None,
                 footers: vec![Footer {
-                    key: "BREAKING CHANGE".to_string(),
+                    key: FooterKey::BreakingChange,
                     value:
                         "`extends` key in config file is now used for extending other config files"
                             .to_string()
@@ -406,11 +430,11 @@ mod tests {
                 body: Some("see the issue for details\n\non typos fixed.".into()),
                 footers: vec![
                     Footer {
-                        key: "Reviewed-by".to_string(),
+                        key: FooterKey::String("Reviewed-by".into()),
                         value: "Z".to_string()
                     },
                     Footer {
-                        key: "Refs".to_string(),
+                        key: "Refs".into(),
                         value: "133".to_string()
                     }
                 ],
