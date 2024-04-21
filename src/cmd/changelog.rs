@@ -13,7 +13,7 @@ use crate::{
             Note, NoteGroup, Reference,
         },
         config::Config,
-        CommitParser, Footer,
+        CommitParser, Footer, FooterKey,
     },
     git::{filter_merge_commits, GitHelper, VersionAndTag},
     semver::SemVer,
@@ -102,10 +102,10 @@ impl<'a> ChangeLogTransformer<'a> {
     fn make_notes(&self, footers: &'a [Footer], scope: Option<String>) -> Vec<(String, Note)> {
         footers
             .iter()
-            .filter(|footer| footer.key.starts_with("BREAKING"))
+            .filter(|footer| matches!(footer.key, FooterKey::BreakingChange))
             .map(|footer| {
                 (
-                    footer.key.clone(),
+                    footer.key.to_string(),
                     Note {
                         scope: scope.clone(),
                         text: footer.value.clone(),
