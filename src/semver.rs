@@ -49,9 +49,10 @@ impl SemVer {
         self.0.pre = Prerelease::EMPTY
     }
 
-    pub fn increment_prerelease(&mut self, prerelease: &Prerelease) {
+    pub fn increment_prerelease(&mut self, prerelease: &Prerelease, height: Option<usize>) {
         if self.0.pre.is_empty() {
-            self.0.pre = Prerelease::new(format!("{prerelease}.1").as_str()).unwrap();
+            let h = height.unwrap_or(1);
+            self.0.pre = Prerelease::new(format!("{prerelease}.{h}").as_str()).unwrap();
         } else {
             let next = self
                 .0
