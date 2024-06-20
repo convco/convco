@@ -38,6 +38,12 @@ impl Ord for VersionAndTag {
     }
 }
 
+#[derive(Clone, Debug)]
+pub(crate) struct VersionAndHeight {
+    pub(crate) version: VersionAndTag,
+    pub(crate) height: usize,
+}
+
 impl GitHelper {
     pub(crate) fn new(prefix: &str) -> Result<Self, Error> {
         let repo = Repository::open_from_env()?;
@@ -46,13 +52,12 @@ impl GitHelper {
         Ok(Self { repo, version_map })
     }
 
-    /// Get the last version (can be pre-release) for the given revision.
+    /// Get the last version (can be pre-release), and that height of that version, for the given revision.
     ///
     /// Arguments:
     ///
     /// - rev: A single commit rev spec
-    /// - prefix: The version prefix
-    pub(crate) fn find_last_version(&self, rev: &str) -> Result<Option<VersionAndTag>, Error> {
+    pub(crate) fn find_last_version(&self, rev: &str) -> Result<Option<VersionAndHeight>, Error> {
         let rev = self.repo.revparse_single(rev)?.peel_to_commit()?;
         let mut revwalk = self.repo.revwalk()?;
         revwalk.push(rev.id())?;
@@ -61,7 +66,21 @@ impl GitHelper {
             .filter_map(|oid| self.version_map.get(&oid))
             .collect();
         version.sort_by(|a, b| b.version.cmp(&a.version));
-        Ok(version.first().cloned().cloned())
+        let last_version = version.first().cloned().cloned();
+
+        let mut result: Option<VersionAndHeight> = None;
+        if let Some(last_version) = last_version.clone() {   
+            let mut revwalk_height = self.repo.revwalk()?;
+            revwalk_height.push_range(format!("{}..{}", last_version.commit_sha, rev.id()).as_str())?;
+            revwalk_height.simplify_first_parent()?;
+            let height = revwalk_height.flatten().count();
+            result = Some(VersionAndHeight {
+                version: last_version,
+                height: height,
+            });
+        }
+
+        Ok(result)
     }
 
     /// Returns a sorted vector with the lowest version at index `0`.

@@ -9,7 +9,7 @@ use crate::{
         config::{Config, Increment, Type},
         CommitParser,
     },
-    git::{GitHelper, VersionAndTag},
+    git::{GitHelper, VersionAndHeight, VersionAndTag},
     semver::SemVer,
     Error,
 };
@@ -41,7 +41,7 @@ impl fmt::Display for Label {
 
 impl VersionCommand {
     /// returns the versions under the given rev
-    fn find_last_version(&self) -> Result<Option<VersionAndTag>, Error> {
+    fn find_last_version(&self) -> Result<Option<VersionAndHeight>, Error> {
         let prefix = self.prefix.as_str();
         Ok(GitHelper::new(prefix)?.find_last_version(self.rev.as_str())?)
     }
@@ -61,6 +61,7 @@ impl VersionCommand {
         &self,
         last_v_tag: &str,
         mut last_version: SemVer,
+        height: usize,
         parser: &CommitParser,
         types: Vec<Type>,
     ) -> Result<(Version, Label, String), Error> {
@@ -128,7 +129,7 @@ impl VersionCommand {
             _ => Label::Release,
         };
         if !self.prerelease.is_empty() {
-            last_version.increment_prerelease(&self.prerelease);
+            last_version.increment_prerelease(&self.prerelease, Some(height));
         }
         Ok((last_version.0, label, commit_sha.unwrap_or_default()))
     }
@@ -139,10 +140,13 @@ impl VersionCommand {
         strip_regex: String,
         types: Vec<Type>,
     ) -> Result<(Version, Label, String), Error> {
-        if let Some(VersionAndTag {
-            tag,
-            mut version,
-            commit_sha,
+        if let Some(VersionAndHeight {
+            version: VersionAndTag {
+                tag,
+                mut version,
+                commit_sha,               
+            },
+            height,
         }) = self.find_last_version()?
         {
             let v = if self.major {
@@ -160,8 +164,11 @@ impl VersionCommand {
                         version.pre_clear();
                         version.build_clear();
                         (version.0, Label::Release, commit_sha)
+                    } else if self.auto_height {
+                        version.increment_prerelease(&self.prerelease, Some(height));
+                        (version.0, Label::Prerelease, commit_sha)
                     } else {
-                        version.increment_prerelease(&self.prerelease);
+                        version.increment_prerelease(&self.prerelease, None);
                         (version.0, Label::Prerelease, commit_sha)
                     }
                 } else {
@@ -169,7 +176,7 @@ impl VersionCommand {
                         .scope_regex(scope_regex)
                         .strip_regex(strip_regex)
                         .build();
-                    self.find_bump_version(tag.as_str(), version, &parser, types)?
+                    self.find_bump_version(tag.as_str(), version, height, &parser, types)?
                 }
             } else {
                 (version.0, Label::Release, commit_sha)

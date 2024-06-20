@@ -72,6 +72,9 @@ pub struct VersionCommand {
     /// Print the commit-sha of the version instead of the semantic version
     #[clap(long)]
     pub commit_sha: bool,
+    /// Use the height since the latest tag when creating pre-release labels
+    #[clap(long)]
+    pub auto_height: bool,
 }
 
 #[derive(Debug, Parser)]

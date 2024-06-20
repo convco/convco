@@ -310,6 +310,7 @@ impl ChangelogCommand {
         )?;
         match helper
             .find_last_version(rev)
+            .map(|vh| vh.map(|v| v.version))
             .with_context(|| format!("Could not find the last version for revision {rev}"))?
         {
             Some(last_version) => {
