@@ -141,11 +141,12 @@ impl VersionCommand {
         types: Vec<Type>,
     ) -> Result<(Version, Label, String), Error> {
         if let Some(VersionAndHeight {
-            version: VersionAndTag {
-                tag,
-                mut version,
-                commit_sha,               
-            },
+            version:
+                VersionAndTag {
+                    tag,
+                    mut version,
+                    commit_sha,
+                },
             height,
         }) = self.find_last_version()?
         {

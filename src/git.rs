@@ -69,14 +69,15 @@ impl GitHelper {
         let last_version = version.first().cloned().cloned();
 
         let mut result: Option<VersionAndHeight> = None;
-        if let Some(last_version) = last_version.clone() {   
+        if let Some(last_version) = last_version.clone() {
             let mut revwalk_height = self.repo.revwalk()?;
-            revwalk_height.push_range(format!("{}..{}", last_version.commit_sha, rev.id()).as_str())?;
+            revwalk_height
+                .push_range(format!("{}..{}", last_version.commit_sha, rev.id()).as_str())?;
             revwalk_height.simplify_first_parent()?;
             let height = revwalk_height.flatten().count();
             result = Some(VersionAndHeight {
                 version: last_version,
-                height: height,
+                height,
             });
         }
 
