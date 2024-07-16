@@ -23,5 +23,5 @@ pub(crate) mod changelog;
 mod commits;
 pub(crate) mod config;
 
-pub(crate) use commits::{CommitParser, Footer, ParseError};
+pub(crate) use commits::{CommitParser, Footer, FooterKey, ParseError};
 pub(crate) use config::Config;
