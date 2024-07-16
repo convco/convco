@@ -102,6 +102,31 @@ pub(crate) struct Config {
     /// Strip the commit message(s) by the given regex pattern
     #[serde(default = "default_strip_regex")]
     pub(crate) strip_regex: String,
+    #[serde(default)]
+    pub(crate) description: DescriptionConfig,
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
+pub(crate) struct DescriptionConfig {
+    pub(crate) length: DescriptionLengthConfig,
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+pub(crate) struct DescriptionLengthConfig {
+    /// Define the minimum length of the description when using convco commit
+    #[serde(default = "default_some_10")]
+    pub(crate) min: Option<usize>,
+    /// Define the maximum length of the description when using convco commit
+    pub(crate) max: Option<usize>,
+}
+
+impl Default for DescriptionLengthConfig {
+    fn default() -> Self {
+        Self {
+            min: Some(10),
+            max: None,
+        }
+    }
 }
 
 fn deserialize_type<'de, D>(deserializer: D) -> Result<Vec<Type>, D::Error>
@@ -145,6 +170,10 @@ const fn default_true() -> bool {
     true
 }
 
+const fn default_some_10() -> Option<usize> {
+    Some(10)
+}
+
 impl Default for Config {
     fn default() -> Self {
         Self {
@@ -170,6 +199,7 @@ impl Default for Config {
             first_parent: false,
             wrap_disabled: false,
             strip_regex: "".to_string(),
+            description: Default::default(),
         }
     }
 }
@@ -508,6 +538,7 @@ mod tests {
                 first_parent: false,
                 wrap_disabled: false,
                 strip_regex: "".to_string(),
+                description: DescriptionConfig { length: DescriptionLengthConfig { min: Some(10), max: None } }
             }
         )
     }

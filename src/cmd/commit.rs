@@ -89,12 +89,20 @@ fn read_scope(
 fn read_description(
     theme: &impl dialoguer::theme::Theme,
     default: String,
+    min_length: usize,
+    max_length: usize,
 ) -> Result<String, Error> {
     let result: String = dialoguer::Input::with_theme(theme)
         .with_prompt("description")
         .validate_with(|input: &String| {
-            if input.len() < 10 {
-                Err("Description needs a length of at least 10 characters")
+            if input.len() < min_length {
+                Err(format!(
+                    "Description needs a length of at least {min_length} characters"
+                ))
+            } else if input.len() > max_length {
+                Err(format!(
+                    "Description needs a length of at most {max_length} characters"
+                ))
             } else {
                 Ok(())
             }
@@ -220,7 +228,12 @@ impl Dialog {
             .unwrap();
             self.r#type = Self::select_type(theme, self.r#type.as_str(), types)?;
             self.scope = read_scope(theme, self.scope.as_str(), scope_regex)?;
-            self.description = read_description(theme, self.description.clone())?;
+            self.description = read_description(
+                theme,
+                self.description.clone(),
+                config.description.length.min.unwrap_or(0),
+                config.description.length.max.unwrap_or(usize::MAX),
+            )?;
             self.body = format!("{}\n{}", self.body, BODY_MSG);
             self.breaking_change = read_single_line(
                 theme,
