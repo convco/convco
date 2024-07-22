@@ -36,7 +36,7 @@ walkdir = "2.5.0"
 
 [build-dependencies]
 clap = { version = "4.5.7", features = ["derive", "env"] }
-clap_complete = "4.5.1"
+clap_complete = "4.5.8"
 semver = "1.0.22"
 
 [features]
