@@ -1,13 +1,26 @@
 # Changelog
 
-## v0.5.1 (2024-03-08)
+## v0.5.2 (2024-07-23)
 
 ### Features
+
+* **commit:** adds configuration options for the minumum and maximum length of
+the description (3e996ab), closes #227
+
+### Fixes
+
+* normalize footer `BREAKING CHANGE` and `BREAKING-CHANGE` to avoid duplicate
+header in changelog (7b60f34), closes #222
+* keep newline in multiline footers (1cb0e55), closes #221
+
+### v0.5.1 (2024-03-08)
+
+#### Features
 
 * also support .convco instead of .versionrc (08802fc)
 * make increment for conventional type configurable (607c9b1), closes #164
 
-### Fixes
+#### Fixes
 
 * **commit:** use interact_text for text input (f35666f), closes #197
 * **commit:** reuse commit message for `GIT_EDITOR='convco commit' git commit
@@ -68,8 +81,8 @@ unreleased version (011d2ad), closes #123
 
 ### ⚠ BREAKING CHANGE
 
-* when not run in a tty the flag is necessary to indicateit should read from stdin
-
+* when not run in a tty the flag is necessary to indicate
+it should read from stdin
 
 
 ### Features
