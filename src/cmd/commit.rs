@@ -183,7 +183,7 @@ impl Dialog {
         selected: &str,
         types: &[Type],
     ) -> Result<String, Error> {
-        let index = dialoguer::Select::with_theme(theme)
+        let index = dialoguer::FuzzySelect::with_theme(theme)
             .with_prompt("type")
             .items(types)
             .default(types.iter().position(|t| t.r#type == selected).unwrap_or(0))
