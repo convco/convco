@@ -309,7 +309,7 @@ impl ChangelogCommand {
             &self.prefix,
         )?;
         match helper
-            .find_last_version(rev)
+            .find_last_version(rev, self.ignore_prereleases)
             .with_context(|| format!("Could not find the last version for revision {rev}"))?
         {
             Some(last_version) => {

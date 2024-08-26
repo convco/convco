@@ -51,14 +51,22 @@ impl GitHelper {
     /// Arguments:
     ///
     /// - rev: A single commit rev spec
-    /// - prefix: The version prefix
-    pub(crate) fn find_last_version(&self, rev: &str) -> Result<Option<VersionAndTag>, Error> {
+    /// - ignore_prereleases: If true, ignore pre-release versions
+    pub(crate) fn find_last_version(
+        &self,
+        rev: &str,
+        ignore_prereleases: bool,
+    ) -> Result<Option<VersionAndTag>, Error> {
         let rev = self.repo.revparse_single(rev)?.peel_to_commit()?;
         let mut revwalk = self.repo.revwalk()?;
         revwalk.push(rev.id())?;
         let mut version: Vec<&VersionAndTag> = revwalk
             .flatten()
-            .filter_map(|oid| self.version_map.get(&oid))
+            .filter_map(|oid| {
+                self.version_map
+                    .get(&oid)
+                    .filter(|v| !ignore_prereleases || !v.version.is_prerelease())
+            })
             .collect();
         version.sort_by(|a, b| b.version.cmp(&a.version));
         Ok(version.first().cloned().cloned())
