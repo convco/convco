@@ -43,7 +43,10 @@ impl VersionCommand {
     /// returns the versions under the given rev
     fn find_last_version(&self) -> Result<Option<VersionAndTag>, Error> {
         let prefix = self.prefix.as_str();
-        Ok(GitHelper::new(prefix)?.find_last_version(self.rev.as_str())?)
+        Ok(
+            GitHelper::new(prefix)?
+                .find_last_version(self.rev.as_str(), self.ignore_prereleases)?,
+        )
     }
 
     /// Find the bump version based on the conventional commit types.

@@ -72,6 +72,9 @@ pub struct VersionCommand {
     /// Print the commit-sha of the version instead of the semantic version
     #[clap(long)]
     pub commit_sha: bool,
+    /// Ignore pre-release versions when finding the last version
+    #[clap(long, env = "CONVCO_IGNORE_PRERELEASES")]
+    pub ignore_prereleases: bool,
 }
 
 #[derive(Debug, Parser)]
@@ -121,6 +124,9 @@ pub struct ChangelogCommand {
     /// Only show this number of patch versions.
     #[clap(long, default_value_t=u64::MAX, hide_default_value=true, env = "CONVCO_MAX_PATCHES")]
     pub max_patches: u64,
+    /// Ignore pre-release versions when finding the last version
+    #[clap(long, env = "CONVCO_IGNORE_PRERELEASES")]
+    pub ignore_prereleases: bool,
     /// Do not generate links. Overrides linkReferences and linkCompare in the config.
     #[clap(short, long, env = "CONVCO_NO_LINKS")]
     pub no_links: bool,
