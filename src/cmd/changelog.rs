@@ -228,6 +228,14 @@ impl<'a> ChangeLogTransformer<'a> {
             .map(|(title, notes)| NoteGroup { title, notes })
             .collect();
 
+        let current_tag = if from_rev.0 == "HEAD" {
+            let id = self.git.ref_to_commit("HEAD")?.id();
+
+            id.to_string()
+        } else {
+            from_rev.0.to_owned()
+        };
+
         let context_base = ContextBase {
             version,
             date: Some(version_date),
@@ -235,7 +243,7 @@ impl<'a> ChangeLogTransformer<'a> {
             commit_groups,
             note_groups,
             previous_tag: to_rev.0,
-            current_tag: from_rev.0,
+            current_tag: current_tag.into(),
             host: host.to_owned(),
             owner: owner.to_owned(),
             repository: repository.to_owned(),
