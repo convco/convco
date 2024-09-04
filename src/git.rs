@@ -8,7 +8,7 @@ use crate::semver::SemVer;
 /// git helper for common operations
 pub(crate) struct GitHelper {
     pub(crate) repo: Repository,
-    version_map: HashMap<Oid, VersionAndTag>,
+    version_map: HashMap<Oid, Vec<VersionAndTag>>,
 }
 
 #[derive(Clone, Debug)]
@@ -51,14 +51,24 @@ impl GitHelper {
     /// Arguments:
     ///
     /// - rev: A single commit rev spec
-    /// - prefix: The version prefix
-    pub(crate) fn find_last_version(&self, rev: &str) -> Result<Option<VersionAndTag>, Error> {
+    /// - ignore_prereleases: If true, ignore pre-release versions
+    pub(crate) fn find_last_version(
+        &self,
+        rev: &str,
+        ignore_prereleases: bool,
+    ) -> Result<Option<VersionAndTag>, Error> {
         let rev = self.repo.revparse_single(rev)?.peel_to_commit()?;
         let mut revwalk = self.repo.revwalk()?;
         revwalk.push(rev.id())?;
         let mut version: Vec<&VersionAndTag> = revwalk
             .flatten()
-            .filter_map(|oid| self.version_map.get(&oid))
+            .filter_map(|oid| {
+                self.version_map.get(&oid).map(|v| {
+                    v.iter()
+                        .filter(|v| !ignore_prereleases || !v.version.is_prerelease())
+                })
+            })
+            .flatten()
             .collect();
         version.sort_by(|a, b| b.version.cmp(&a.version));
         Ok(version.first().cloned().cloned())
@@ -66,7 +76,7 @@ impl GitHelper {
 
     /// Returns a sorted vector with the lowest version at index `0`.
     pub(crate) fn versions_from(&self, version: &VersionAndTag) -> Vec<&VersionAndTag> {
-        let mut values: Vec<&VersionAndTag> = self.version_map.values().collect();
+        let mut values: Vec<&VersionAndTag> = self.version_map.values().flatten().collect();
         values.retain(|v| *v < version && !v.version.is_prerelease());
         values.sort();
         values
@@ -129,24 +139,21 @@ pub(crate) fn filter_revert_commits(commit: &git2::Commit, ignore_reverts: bool)
     true
 }
 
-/// Build a hashmap that contains Commit `Oid` as key and `Version` as value.
+/// Build a hashmap that contains Commit `Oid` as key and a vector of `Version` as value.
 /// Can be used to easily walk a graph and check if it is a version.
-fn make_oid_version_map(repo: &Repository, prefix: &str) -> HashMap<Oid, VersionAndTag> {
+fn make_oid_version_map(repo: &Repository, prefix: &str) -> HashMap<Oid, Vec<VersionAndTag>> {
     let tags = repo
         .tag_names(Some(format!("{}*.*.*", prefix).as_str()))
         .expect("some array");
-    let mut map = HashMap::new();
+    let mut map = HashMap::<_, Vec<_>>::new();
     for tag in tags.iter().flatten().filter(|tag| tag.starts_with(prefix)) {
         if let Ok(oid) = repo.revparse_single(tag).map(object_to_target_commit_id) {
             if let Ok(version) = Version::parse(tag.trim_start_matches(prefix)) {
-                map.insert(
-                    oid,
-                    VersionAndTag {
-                        tag: tag.to_owned(),
-                        version: SemVer(version),
-                        commit_sha: oid.to_string(),
-                    },
-                );
+                map.entry(oid).or_default().push(VersionAndTag {
+                    tag: tag.to_owned(),
+                    version: SemVer(version),
+                    commit_sha: oid.to_string(),
+                });
             }
         }
     }

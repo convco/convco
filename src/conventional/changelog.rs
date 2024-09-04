@@ -79,7 +79,7 @@ pub(crate) struct ContextBase<'a> {
     pub(crate) commit_groups: Vec<CommitGroup<'a>>,
     pub(crate) note_groups: Vec<NoteGroup>,
     pub(crate) previous_tag: &'a str,
-    pub(crate) current_tag: &'a str,
+    pub(crate) current_tag: Cow<'a, str>,
     pub(crate) host: Option<String>,
     pub(crate) owner: Option<String>,
     pub(crate) repository: Option<String>,

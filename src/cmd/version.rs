@@ -43,7 +43,10 @@ impl VersionCommand {
     /// returns the versions under the given rev
     fn find_last_version(&self) -> Result<Option<VersionAndTag>, Error> {
         let prefix = self.prefix.as_str();
-        Ok(GitHelper::new(prefix)?.find_last_version(self.rev.as_str())?)
+        Ok(
+            GitHelper::new(prefix)?
+                .find_last_version(self.rev.as_str(), self.ignore_prereleases)?,
+        )
     }
 
     /// Find the bump version based on the conventional commit types.
@@ -180,14 +183,26 @@ impl VersionCommand {
             let git = GitHelper::new(prefix)?;
             let commit_sha = git.ref_to_commit(&self.rev)?;
             let commit_sha = commit_sha.id().to_string();
-            if self.bump || self.minor {
-                Ok(("0.1.0".parse()?, Label::Minor, commit_sha))
-            } else if self.major {
-                Ok(("1.0.0".parse()?, Label::Major, commit_sha))
+            let mut version = Version::new(0, 0, 0);
+            if self.bump {
+                version.minor = 1;
+                if self.prerelease.is_empty() {
+                    Ok((version, Label::Minor, commit_sha))
+                } else {
+                    version.pre = self.prerelease.clone();
+                    Ok((version, Label::Prerelease, commit_sha))
+                }
             } else if self.patch {
-                Ok(("0.0.1".parse()?, Label::Patch, commit_sha))
+                version.patch = 1;
+                Ok((version, Label::Patch, commit_sha))
+            } else if self.minor {
+                version.minor = 1;
+                Ok((version, Label::Minor, commit_sha))
+            } else if self.major {
+                version.major = 1;
+                Ok((version, Label::Major, commit_sha))
             } else {
-                Ok(("0.0.0".parse()?, Label::Patch, commit_sha))
+                Ok((version, Label::Patch, commit_sha))
             }
         }
     }
