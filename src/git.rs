@@ -66,7 +66,6 @@ impl GitHelper {
                 self.version_map.get(&oid).map(|v| {
                     v.iter()
                         .filter(|v| !ignore_prereleases || !v.version.is_prerelease())
-                        .collect::<Vec<_>>()
                 })
             })
             .flatten()
