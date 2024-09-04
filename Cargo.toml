@@ -27,7 +27,7 @@ git2 = { version = "0.19.0", default-features = false }
 handlebars = "6.0.0"
 regex = "1.10.4"
 semver = "1.0.23"
-serde = { version = "1.0.197", features = ["derive"] }
+serde = { version = "1.0.209", features = ["derive"] }
 serde_yaml = "0.9.32"
 thiserror = "1.0.63"
 time = { version = "0.3.36", features = [ "serde-human-readable" ] }
