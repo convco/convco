@@ -1,13 +1,26 @@
 # Changelog
 
-## v0.5.2 (2024-07-23)
+## v0.6.0 (2024-09-04)
 
 ### Features
+
+* link to commit hash instead of HEAD in compareUrl (256e9d7)
+* allow to ignore prereleases when determining the last version (b7aad35)
+* **commit:** adds fuzzy type select (8808313)
+
+### Fixes
+
+* **version:** do not ignore prerelease flag if no versions exist (ba2256d)
+* correctly handle multiple tags on the same commit (56d1659), closes #249
+
+### v0.5.2 (2024-07-23)
+
+#### Features
 
 * **commit:** adds configuration options for the minumum and maximum length of
 the description (3e996ab), closes #227
 
-### Fixes
+#### Fixes
 
 * normalize footer `BREAKING CHANGE` and `BREAKING-CHANGE` to avoid duplicate
 header in changelog (7b60f34), closes #222
