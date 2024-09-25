@@ -123,6 +123,30 @@ impl GitHelper {
             .map(|diff| diff_updates_any_path(&diff, paths))
             .unwrap_or(false)
     }
+
+    pub(crate) fn find_last_prerelease(
+        &self,
+        last_version: &SemVer,
+        prerelease: &semver::Prerelease,
+    ) -> Option<semver::Prerelease> {
+        self.version_map
+            .values()
+            .flat_map(|vat| vat.iter())
+            .map(|vat| &vat.version.0)
+            .filter(|version| {
+                version.major == last_version.major()
+                    && version.minor == last_version.minor()
+                    && version.patch == last_version.patch()
+            })
+            .find(|version| {
+                version
+                    .pre
+                    .rsplit_once('.')
+                    .filter(|pre| prerelease.as_str() == pre.0)
+                    .is_some()
+            })
+            .map(|v| v.pre.clone())
+    }
 }
 
 pub(crate) fn filter_merge_commits(commit: &git2::Commit, merges: bool) -> bool {

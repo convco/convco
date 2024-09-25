@@ -131,6 +131,10 @@ impl VersionCommand {
             _ => Label::Release,
         };
         if !self.prerelease.is_empty() {
+            let prerelease = git.find_last_prerelease(&last_version, &self.prerelease);
+            if let Some(prerelease) = prerelease {
+                last_version.0.pre = prerelease;
+            }
             last_version.increment_prerelease(&self.prerelease);
         }
         Ok((last_version.0, label, commit_sha.unwrap_or_default()))
