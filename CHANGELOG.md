@@ -1,6 +1,14 @@
 # Changelog
 
-## v0.6.0 (2024-09-04)
+## v0.6.1 (2024-10-08)
+
+### Fixes
+
+* find last prerelease on unordered prerelease list (568f235)
+* **version:** after a rebase a prerelease version should still increment
+(14d001b), closes #264
+
+## v0.6.0 (2024-09-08)
 
 ### Features
 
