@@ -33,23 +33,32 @@ jobs:
           sudo apt install -y musl-tools
 
       - name: Install stable toolchain
+        if: ${{ !matrix.cross }}
         run: |
           rustup toolchain install --profile minimal stable
           rustup target add x86_64-unknown-linux-musl
+      - uses: taiki-e/setup-cross-toolchain-action@v1
+        if: matrix.cross
+        with:
+          target: ${{ matrix.target }}
+      - uses: taiki-e/install-action@cross
+        if: matrix.cross
       - name: Test on ${{ matrix.os.name }}
         run: cargo test
 
       - name: Build ${{ matrix.os.name }} binary
-        run: cargo build --release
+        run: |
+          cargo build --release
+          cargo install --root . --path .
 
       - name: Upload ${{ matrix.os.name }} binary
         uses: actions/upload-artifact@v4
         with:
-          name: convco-${{ matrix.os.name }}
-          path: target/release/${{ matrix.binary }}
+          name: convco-${{ matrix.os.name }}${{ matrix.suffix }}
+          path: bin/${{ matrix.binary }}
 
       - name: Upload shell completions
-        if: matrix.os.name == 'ubuntu'
+        if: ${{ !matrix.cross && matrix.os.name == 'ubuntu' }}
         uses: actions/upload-artifact@v4
         with:
           name: convco-shell-completions
@@ -59,11 +68,11 @@ jobs:
         if: matrix.os.name == 'ubuntu'
         run: |
           cargo install cargo-deb
-          cargo deb -- --target=x86_64-unknown-linux-musl
+          cargo deb -- --target=${{ matrix.target || 'x86_64-unknown-linux-musl' }}
 
       - name: Upload Debian package
         if: matrix.os.name == 'ubuntu'
         uses: actions/upload-artifact@v4
         with:
-          name: convco-deb
+          name: convco-deb${{ matrix.suffix }}
           path: target/debian
