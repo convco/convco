@@ -55,7 +55,7 @@ Check if commits follow the convention. \
 Calculate the next version based on the conventional commits."""
 assets = [
     # bin
-    ["target/x86_64-unknown-linux-musl/release/convco", "/usr/local/bin/", "755"],
+    ["bin/convco", "/usr/local/bin/", "755"],
     # completions
     ["target/completions/convco.bash", "/usr/share/bash-completion/completions/", "644"],
     ["target/completions/_convco", "/usr/share/zsh/vendor-completions/", "644"],
