@@ -18,6 +18,13 @@ jobs:
               version: latest
             binary: convco
           - os:
+              name: ubuntu
+              version: latest
+            binary: convco
+            cross: true
+            target: aarch64-unknown-linux-musl
+            suffix: -aarch64
+          - os:
               name: macos
               version: latest
             binary: convco
