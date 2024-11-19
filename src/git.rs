@@ -349,9 +349,9 @@ mod tests {
                 (
                     Oid::from_str("0003").unwrap(),
                     vec![VersionAndTag {
-                        tag: "v1.2.3-rc.3".to_string(),
-                        version: SemVer(Version::parse("1.2.3-rc.3").unwrap()),
-                        commit_sha: "0003".to_string(),
+                        tag: "v1.2.3-beta.1".to_string(),
+                        version: SemVer(Version::parse("1.2.3-beta.1").unwrap()),
+                        commit_sha: "0004".to_string(),
                     }],
                 ),
                 (
