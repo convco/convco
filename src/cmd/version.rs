@@ -130,14 +130,21 @@ impl VersionCommand {
             // TODO what should be the behaviour? always increment patch? or stay on same version?
             _ => Label::Release,
         };
+        let commit_sha = commit_sha.unwrap_or_default();
         if !self.prerelease.is_empty() {
-            let prerelease = git.find_last_prerelease(&last_version, &self.prerelease);
-            if let Some(prerelease) = prerelease {
+            if let Some(prerelease) =
+                git.find_matching_prerelease(&last_version, &self.prerelease, &commit_sha)
+            {
                 last_version.0.pre = prerelease;
+            } else {
+                let prerelease = git.find_last_prerelease(&last_version, &self.prerelease);
+                if let Some(prerelease) = prerelease {
+                    last_version.0.pre = prerelease;
+                }
+                last_version.increment_prerelease(&self.prerelease);
             }
-            last_version.increment_prerelease(&self.prerelease);
         }
-        Ok((last_version.0, label, commit_sha.unwrap_or_default()))
+        Ok((last_version.0, label, commit_sha))
     }
 
     fn get_version(
