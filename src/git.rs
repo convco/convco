@@ -124,6 +124,37 @@ impl GitHelper {
             .unwrap_or(false)
     }
 
+    pub(crate) fn find_matching_prerelease(
+        &self,
+        last_version: &SemVer,
+        prerelease: &semver::Prerelease,
+        commit_sha: &str,
+    ) -> Option<semver::Prerelease> {
+        let mut prereleases = self
+            .version_map
+            .values()
+            .flat_map(|vat| vat.iter())
+            .filter(|vat| {
+                vat.version.0.major == last_version.major()
+                    && vat.version.0.minor == last_version.minor()
+                    && vat.version.0.patch == last_version.patch()
+                    && vat.commit_sha == commit_sha
+                    && vat
+                        .version
+                        .0
+                        .pre
+                        .rsplit_once('.')
+                        .filter(|pre| prerelease.as_str() == pre.0)
+                        .is_some()
+            })
+            .map(|vat| vat.version.0.clone())
+            .collect::<Vec<_>>();
+        // sort by pre-release version
+        prereleases.sort();
+        // return the last pre-release version
+        prereleases.last().cloned().map(|version| version.pre)
+    }
+
     pub(crate) fn find_last_prerelease(
         &self,
         last_version: &SemVer,
@@ -257,6 +288,90 @@ mod tests {
                 &semver::Prerelease::new("rc").unwrap(),
             ),
             Some(semver::Prerelease::new("rc.3").unwrap())
+        );
+    }
+
+    #[test]
+    fn test_find_matching_prerelease() {
+        let git_helper = GitHelper {
+            repo: Repository::open(".").unwrap(),
+            version_map: HashMap::from([
+                (
+                    Oid::from_str("0001").unwrap(),
+                    vec![VersionAndTag {
+                        tag: "v1.2.3-rc.1".to_string(),
+                        version: SemVer(Version::parse("1.2.3-rc.1").unwrap()),
+                        commit_sha: "0001".to_string(),
+                    }],
+                ),
+                (
+                    Oid::from_str("0003").unwrap(),
+                    vec![VersionAndTag {
+                        tag: "v1.2.3-rc.3".to_string(),
+                        version: SemVer(Version::parse("1.2.3-rc.3").unwrap()),
+                        commit_sha: "0003".to_string(),
+                    }],
+                ),
+                (
+                    Oid::from_str("0002").unwrap(),
+                    vec![VersionAndTag {
+                        tag: "v1.2.3-rc.2".to_string(),
+                        version: SemVer(Version::parse("1.2.3-rc.2").unwrap()),
+                        commit_sha: "0002".to_string(),
+                    }],
+                ),
+            ]),
+        };
+
+        assert_eq!(
+            git_helper.find_matching_prerelease(
+                &SemVer(Version::new(1, 2, 3)),
+                &semver::Prerelease::new("rc").unwrap(),
+                "0001",
+            ),
+            Some(semver::Prerelease::new("rc.1").unwrap())
+        );
+    }
+
+    #[test]
+    fn test_find_matching_prerelease_without_matching_release() {
+        let git_helper = GitHelper {
+            repo: Repository::open(".").unwrap(),
+            version_map: HashMap::from([
+                (
+                    Oid::from_str("0001").unwrap(),
+                    vec![VersionAndTag {
+                        tag: "v1.2.3-rc.1".to_string(),
+                        version: SemVer(Version::parse("1.2.3-rc.1").unwrap()),
+                        commit_sha: "0001".to_string(),
+                    }],
+                ),
+                (
+                    Oid::from_str("0003").unwrap(),
+                    vec![VersionAndTag {
+                        tag: "v1.2.3-rc.3".to_string(),
+                        version: SemVer(Version::parse("1.2.3-rc.3").unwrap()),
+                        commit_sha: "0003".to_string(),
+                    }],
+                ),
+                (
+                    Oid::from_str("0002").unwrap(),
+                    vec![VersionAndTag {
+                        tag: "v1.2.3-rc.2".to_string(),
+                        version: SemVer(Version::parse("1.2.3-rc.2").unwrap()),
+                        commit_sha: "0002".to_string(),
+                    }],
+                ),
+            ]),
+        };
+
+        assert_eq!(
+            git_helper.find_matching_prerelease(
+                &SemVer(Version::new(1, 2, 3)),
+                &semver::Prerelease::new("rc").unwrap(),
+                "0004",
+            ),
+            None
         );
     }
 }
