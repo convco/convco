@@ -8,8 +8,8 @@ use std::{
 };
 
 use ::handlebars::Handlebars;
+use jiff::civil::Date;
 use serde::Serialize;
-use time::Date;
 use walkdir::WalkDir;
 
 use super::config::Config;

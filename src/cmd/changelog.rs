@@ -2,7 +2,11 @@ use std::{cmp::Ordering, collections::HashMap, io::Write, path::PathBuf, str::Fr
 
 use anyhow::Context as _;
 use git2::Time;
-use time::Date;
+use jiff::{
+    civil::Date,
+    tz::{Offset, TimeZone},
+    Timestamp,
+};
 
 use crate::{
     cli::ChangelogCommand,
@@ -47,8 +51,11 @@ struct ChangeLogTransformer<'a> {
 }
 
 fn date_from_time(time: &Time) -> Date {
-    time::OffsetDateTime::from_unix_timestamp(time.seconds())
+    Timestamp::from_second(time.seconds())
         .unwrap()
+        .to_zoned(TimeZone::fixed(
+            Offset::from_seconds(time.offset_minutes() * 60).unwrap(),
+        ))
         .date()
 }
 
@@ -169,9 +176,7 @@ impl<'a> ChangeLogTransformer<'a> {
                     });
 
                 let hash = commit.id().to_string();
-                let date = time::OffsetDateTime::from_unix_timestamp(commit.time().seconds())
-                    .unwrap()
-                    .date();
+                let date = date_from_time(&commit.time());
                 let scope = conv_commit.scope;
                 let subject = conv_commit.description;
                 let body = conv_commit.body;
