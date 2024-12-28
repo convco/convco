@@ -230,7 +230,7 @@ dependencies = [
  "semver",
  "serde",
  "serde_yaml",
- "thiserror 1.0.69",
+ "thiserror 2.0.9",
  "url",
  "walkdir",
 ]
