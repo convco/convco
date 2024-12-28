@@ -24,7 +24,7 @@ pub(crate) enum Error {
     #[error(transparent)]
     SemVer(#[from] semver::Error),
     #[error(transparent)]
-    Yaml(#[from] serde_yaml::Error),
+    Yaml(#[from] serde_norway::Error),
     #[error("check error")]
     Check,
     #[error("wrong type: {wrong_type}")]

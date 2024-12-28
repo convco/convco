@@ -4,7 +4,7 @@ use crate::{cli::ConfigCommand, cmd::Command, conventional::Config, error::Error
 
 impl ConfigCommand {
     fn write_yaml(&self, config: &Config, w: impl Write) -> Result<(), Error> {
-        Ok(serde_yaml::to_writer(w, config)?)
+        Ok(serde_norway::to_writer(w, config)?)
     }
 }
 
@@ -35,7 +35,7 @@ mod tests {
             .write_yaml(&config, &mut yaml_config_default)
             .unwrap();
         let yaml_config_default = String::from_utf8(yaml_config_default).unwrap();
-        let reparsed_config: Config = serde_yaml::from_str(&yaml_config_default).unwrap();
+        let reparsed_config: Config = serde_norway::from_str(&yaml_config_default).unwrap();
         assert_eq!(&reparsed_config, &config);
     }
 }

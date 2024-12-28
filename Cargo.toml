@@ -29,7 +29,7 @@ jiff = { version = "0.1.16", features = ["serde"] }
 regex = "1.11.1"
 semver = "1.0.24"
 serde = { version = "1.0.217", features = ["derive"] }
-serde_yaml = "0.9.32"
+serde_norway = "0.9.42"
 thiserror = "2.0.9"
 url = "2.5.4"
 walkdir = "2.5.0"
