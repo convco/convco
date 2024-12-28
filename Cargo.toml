@@ -25,12 +25,12 @@ ctrlc = "3.4.5"
 dialoguer = { version = "0.11.0", features = ["fuzzy-select"] }
 git2 = { version = "0.19.0", default-features = false }
 handlebars = "6.2.0"
+jiff = { version = "0.1.16", features = ["serde"] }
 regex = "1.11.1"
 semver = "1.0.23"
 serde = { version = "1.0.210", features = ["derive"] }
 serde_yaml = "0.9.32"
 thiserror = "1.0.64"
-time = { version = "0.3.36", features = [ "serde-human-readable" ] }
 url = "2.5.2"
 walkdir = "2.5.0"
 
