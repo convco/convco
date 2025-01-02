@@ -1,6 +1,8 @@
 use std::{path::PathBuf, str::FromStr};
 
 use clap::Parser;
+#[cfg(feature = "completions")]
+use clap_complete::aot::Shell as Shells;
 use semver::Prerelease;
 
 #[derive(Debug, Parser)]
@@ -21,6 +23,9 @@ pub enum Command {
     Config(ConfigCommand),
     /// Verifies if all commits are conventional
     Check(CheckCommand),
+    #[cfg(feature = "completions")]
+    /// Generates shell completions
+    Completions(CompletionsCommand),
     /// Writes out a changelog
     Changelog(ChangelogCommand),
     /// Show the current version
@@ -101,6 +106,13 @@ pub struct CheckCommand {
     /// This is similar to `git commit --cleanup=strip`
     #[clap(long, requires("from_stdin"))]
     pub strip: bool,
+}
+
+#[cfg(feature = "completions")]
+#[derive(Debug, Parser)]
+pub struct CompletionsCommand {
+    /// Shell to generate completions for
+    pub shell: Option<Shells>,
 }
 
 #[derive(Debug, Parser)]
