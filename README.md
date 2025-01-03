@@ -15,6 +15,7 @@ It provides the following commands:
 - `convco check`: Checks if a range of commits is following the convention.
 - `convco commit`: Helps to make conventional commits.
 - `convco version`: Finds out the current or next version.
+- `convco completions`: Generates tab completions for shells (exists only with the feature `completions` enabled).
 
 ## Installation
 
@@ -141,6 +142,30 @@ It is useful to use it with release tools, such as [`cargo-release`](https://cra
 ```sh
 cargo release $(convco version --bump)
 ```
+
+### Completions
+
+> [!NOTE]
+> This subcommand requires the feature `completions` to be enabled.
+
+Generates tab completion for the current shell
+
+```sh
+convco completions
+```
+
+If your shell cannot be detected (the `$SHELL` variable isn't present) you can specify the shell you want completions generated for.
+
+```sh
+convco completions bash
+```
+
+The tab completions will be outputed to the stdout so you may want to output them to a certain file to save them for future use. Here are some example files for given shells:
+
+- Bash: `/usr/share/bash-completion/completions/convco`
+- Zsh: `/usr/share/zsh/site-functions/_convco`
+- Fish: `/usr/share/fish/vendor_completions.d/convco.fish`
+- Elvish: `/usr/share/elvish/lib/convco.elv`
 
 [1]: https://www.conventionalcommits.org/
 [2]: https://github.com/conventional-changelog/conventional-changelog
