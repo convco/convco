@@ -37,6 +37,8 @@ fn main() -> anyhow::Result<()> {
     let res = match opt.cmd {
         cli::Command::Config(cmd) => cmd.exec(config),
         cli::Command::Check(cmd) => cmd.exec(config),
+        #[cfg(feature = "completions")]
+        cli::Command::Completions(cmd) => cmd.exec(config),
         cli::Command::Changelog(cmd) => cmd.exec(config),
         cli::Command::Version(cmd) => cmd.exec(config),
         cli::Command::Commit(cmd) => cmd.exec(config),

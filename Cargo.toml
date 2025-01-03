@@ -33,15 +33,17 @@ serde_norway = "0.9.42"
 thiserror = "2.0.9"
 url = "2.5.4"
 walkdir = "2.5.0"
+clap_complete = { version = "4.5.40", optional = true }
 
 [build-dependencies]
-clap = { version = "4.5.23", features = ["derive", "env"] }
 clap_complete = "4.5.40"
+clap = { version = "4.5.23", features = ["derive", "env"] }
 semver = "1.0.24"
 
 [features]
 default = ["zlib-ng-compat"]
 zlib-ng-compat = ["git2/zlib-ng-compat"]
+completions = ["dep:clap_complete"]
 
 [profile.release]
 strip = true
