@@ -25,7 +25,7 @@ ctrlc = "3.4.5"
 dialoguer = { version = "0.11.0", features = ["fuzzy-select"] }
 git2 = { version = "0.20.0", default-features = false }
 handlebars = "6.3.0"
-jiff = { version = "0.1.21", features = ["serde"] }
+jiff = { version = "0.1.22", features = ["serde"] }
 regex = "1.11.1"
 semver = "1.0.24"
 serde = { version = "1.0.217", features = ["derive"] }
