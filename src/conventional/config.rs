@@ -3,6 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use semver::Version;
 use serde::{Deserialize, Deserializer, Serialize};
 use url::Url;
 
@@ -104,6 +105,13 @@ pub(crate) struct Config {
     pub(crate) strip_regex: String,
     #[serde(default)]
     pub(crate) description: DescriptionConfig,
+    /// Initial version to use if no previous version is found
+    #[serde(default = "default_initial_bump_version")]
+    pub(crate) initial_bump_version: Version,
+}
+
+fn default_initial_bump_version() -> Version {
+    Version::new(0, 1, 0)
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
@@ -200,6 +208,7 @@ impl Default for Config {
             wrap_disabled: false,
             strip_regex: "".to_string(),
             description: Default::default(),
+            initial_bump_version: Version::new(0, 1, 0),
         }
     }
 }
@@ -538,7 +547,8 @@ mod tests {
                 first_parent: false,
                 wrap_disabled: false,
                 strip_regex: "".to_string(),
-                description: DescriptionConfig { length: DescriptionLengthConfig { min: Some(10), max: None } }
+                description: DescriptionConfig { length: DescriptionLengthConfig { min: Some(10), max: None } },
+                initial_bump_version: Version::new(0, 1, 0),
             }
         )
     }
