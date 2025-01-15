@@ -27,7 +27,7 @@ git2 = { version = "0.20.0", default-features = false }
 handlebars = "6.3.0"
 jiff = { version = "0.1.21", features = ["serde"] }
 regex = "1.11.1"
-semver = "1.0.24"
+semver = { version = "1.0.24", features = ["serde"] }
 serde = { version = "1.0.217", features = ["derive"] }
 serde_norway = "0.9.42"
 thiserror = "2.0.9"

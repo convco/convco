@@ -152,6 +152,7 @@ impl VersionCommand {
         scope_regex: String,
         strip_regex: String,
         types: Vec<Type>,
+        initial_bump_version: Version,
     ) -> Result<(Version, Label, String), Error> {
         if let Some(VersionAndTag {
             tag,
@@ -196,12 +197,21 @@ impl VersionCommand {
             let commit_sha = commit_sha.id().to_string();
             let mut version = Version::new(0, 0, 0);
             if self.bump {
-                version.minor = 1;
                 if self.prerelease.is_empty() {
-                    Ok((version, Label::Minor, commit_sha))
+                    let label = match (
+                        initial_bump_version.major,
+                        initial_bump_version.minor,
+                        initial_bump_version.patch,
+                    ) {
+                        (_, 0, 0) => Label::Major,
+                        (_, _, 0) => Label::Minor,
+                        _ => Label::Patch,
+                    };
+                    Ok((initial_bump_version, label, commit_sha))
                 } else {
-                    version.pre = self.prerelease.clone();
-                    Ok((version, Label::Prerelease, commit_sha))
+                    let mut initial_bump_version = initial_bump_version;
+                    initial_bump_version.pre = self.prerelease.clone();
+                    Ok((initial_bump_version, Label::Prerelease, commit_sha))
                 }
             } else if self.patch {
                 version.patch = 1;
@@ -221,8 +231,16 @@ impl VersionCommand {
 
 impl Command for VersionCommand {
     fn exec(&self, config: Config) -> anyhow::Result<()> {
-        let (version, label, commit_sha) =
-            self.get_version(config.scope_regex, config.strip_regex, config.types)?;
+        let initial_bump_version = self
+            .initial_bump_version
+            .clone()
+            .unwrap_or(config.initial_bump_version);
+        let (version, label, commit_sha) = self.get_version(
+            config.scope_regex,
+            config.strip_regex,
+            config.types,
+            initial_bump_version,
+        )?;
         if self.label {
             println!("{label}");
         } else if self.commit_sha {
