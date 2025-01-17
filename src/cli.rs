@@ -3,7 +3,7 @@ use std::{path::PathBuf, str::FromStr};
 use clap::Parser;
 #[cfg(feature = "completions")]
 use clap_complete::aot::Shell as Shells;
-use semver::Prerelease;
+use semver::{Prerelease, Version};
 
 #[derive(Debug, Parser)]
 #[clap(name = "convco", about = "Conventional commit tools", version)]
@@ -80,6 +80,9 @@ pub struct VersionCommand {
     /// Ignore pre-release versions when finding the last version
     #[clap(long, env = "CONVCO_IGNORE_PRERELEASES")]
     pub ignore_prereleases: bool,
+    /// If no version is found use this version for the first bump
+    #[clap(long, env = "CONVCO_INITIAL_BUMP_VERSION")]
+    pub initial_bump_version: Option<Version>,
 }
 
 #[derive(Debug, Parser)]
