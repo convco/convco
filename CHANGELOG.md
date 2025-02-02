@@ -1,8 +1,20 @@
 # Changelog
 
-## v0.6.1 (2024-10-08)
+## v0.6.2 (2025-02-01)
+
+### Features
+
+* **version:** allow setting the initial version (11b9e4f), closes #290
+* Add 'completions' command (4d10318), closes #229
+* Find matching prerelease before bumping a new one (a83ae2d)
 
 ### Fixes
+
+* Always search from last release on bump (cb0b8e6)
+
+### v0.6.1 (2024-10-08)
+
+#### Fixes
 
 * find last prerelease on unordered prerelease list (568f235)
 * **version:** after a rebase a prerelease version should still increment
