@@ -59,13 +59,13 @@ pub struct VersionCommand {
     #[clap(short, long, conflicts_with_all(&["major", "minor", "patch"]))]
     pub label: bool,
     /// Bump to a major release version, regardless of the conventional commits
-    #[clap(long)]
+    #[clap(long, env = "CONVCO_FORCE_MAJOR_BUMP")]
     pub major: bool,
     /// Bump to a minor release version, regardless of the conventional commits
-    #[clap(long)]
+    #[clap(long, env = "CONVCO_FORCE_MINOR_BUMP")]
     pub minor: bool,
     /// Bump to a patch release version, regardless of the conventional commits
-    #[clap(long)]
+    #[clap(long, env = "CONVCO_FORCE_PATCH_BUMP")]
     pub patch: bool,
     /// Suffix with a prerelease version. Requires --bump.
     #[clap(long, requires = "bump", default_value_t = Prerelease::new("").unwrap())]
