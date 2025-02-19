@@ -1,6 +1,6 @@
 use std::fmt;
 
-use semver::Version;
+use semver::{Prerelease, Version};
 
 use crate::{
     cli::VersionCommand,
@@ -132,19 +132,28 @@ impl VersionCommand {
         };
         let commit_sha = commit_sha.unwrap_or_default();
         if !self.prerelease.is_empty() {
-            if let Some(prerelease) =
-                git.find_matching_prerelease(&last_version, &self.prerelease, &commit_sha)
-            {
-                last_version.0.pre = prerelease;
-            } else {
-                let prerelease = git.find_last_prerelease(&last_version, &self.prerelease);
-                if let Some(prerelease) = prerelease {
-                    last_version.0.pre = prerelease;
-                }
-                last_version.increment_prerelease(&self.prerelease);
-            }
+            self.calc_prerelease(&mut last_version, &self.prerelease, &git, &commit_sha);
         }
         Ok((last_version.0, label, commit_sha))
+    }
+
+    fn calc_prerelease(
+        &self,
+        last_version: &mut SemVer,
+        prerelease: &Prerelease,
+        git: &GitHelper,
+        commit_sha: &String,
+    ) {
+        if let Some(prerelease) =
+            git.find_matching_prerelease(&*last_version, &prerelease, commit_sha)
+        {
+            last_version.0.pre = prerelease;
+        } else {
+            if let Some(prerelease) = git.find_last_prerelease(&*last_version, &prerelease) {
+                last_version.0.pre = prerelease;
+            }
+            last_version.increment_prerelease(&prerelease);
+        }
     }
 
     fn get_version(
@@ -209,9 +218,14 @@ impl VersionCommand {
                     };
                     Ok((initial_bump_version, label, commit_sha))
                 } else {
-                    let mut initial_bump_version = initial_bump_version;
-                    initial_bump_version.pre = self.prerelease.clone();
-                    Ok((initial_bump_version, Label::Prerelease, commit_sha))
+                    let mut initial_bump_version = SemVer(initial_bump_version);
+                    self.calc_prerelease(
+                        &mut initial_bump_version,
+                        &self.prerelease,
+                        &git,
+                        &commit_sha,
+                    );
+                    Ok((initial_bump_version.0, Label::Prerelease, commit_sha))
                 }
             } else if self.patch {
                 version.patch = 1;
