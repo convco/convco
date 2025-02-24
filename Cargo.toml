@@ -33,10 +33,10 @@ serde_norway = "0.9.42"
 thiserror = "2.0.11"
 url = "2.5.4"
 walkdir = "2.5.0"
-clap_complete = { version = "4.5.43", optional = true }
+clap_complete = { version = "4.5.46", optional = true }
 
 [build-dependencies]
-clap_complete = "4.5.43"
+clap_complete = "4.5.46"
 clap = { version = "4.5.27", features = ["derive", "env"] }
 semver = "1.0.25"
 
