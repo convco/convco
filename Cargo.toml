@@ -28,7 +28,7 @@ handlebars = "6.3.0"
 jiff = { version = "0.2.8", features = ["serde"] }
 regex = "1.11.1"
 semver = { version = "1.0.25", features = ["serde"] }
-serde = { version = "1.0.217", features = ["derive"] }
+serde = { version = "1.0.219", features = ["derive"] }
 serde_norway = "0.9.42"
 thiserror = "2.0.11"
 url = "2.5.4"
