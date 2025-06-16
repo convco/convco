@@ -23,7 +23,7 @@ anyhow = { version = "1.0.98", features = ["backtrace"] }
 clap = { version = "4.5.36", features = ["derive", "env"] }
 ctrlc = "3.4.7"
 dialoguer = { version = "0.11.0", features = ["fuzzy-select"] }
-git2 = { version = "0.20.0", default-features = false }
+git2 = { version = "0.20.2", default-features = false }
 handlebars = "6.3.2"
 jiff = { version = "0.2.14", features = ["serde"] }
 regex = "1.11.1"
