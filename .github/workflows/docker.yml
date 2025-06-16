@@ -9,7 +9,7 @@ on:
 jobs:
   bake:
     name: "build and pushing convco docker image"
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - name: Check out the repo
         uses: actions/checkout@v4
