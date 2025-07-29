@@ -1,4 +1,8 @@
-use std::io::{stdin, Read};
+use std::{
+    cmp::Ordering,
+    fmt::{self, Display, Formatter},
+    io::{stdin, Read},
+};
 
 use conventional::Config;
 use git2::Repository;
@@ -12,7 +16,7 @@ use crate::{
     Error,
 };
 
-fn print_fail(msg: &str, short_id: &str, e: Error) -> bool {
+fn print_fail(msg: &str, short_id: &str, e: impl Display) -> bool {
     let first_line = msg.lines().next().unwrap_or("");
     let short_msg: String = first_line.chars().take(40).collect();
     if first_line.len() > 40 {
@@ -23,12 +27,43 @@ fn print_fail(msg: &str, short_id: &str, e: Error) -> bool {
     false
 }
 
-fn print_wrong_type(msg: &str, short_id: &str, commit_type: String) -> bool {
+struct TypeErrorWithSimilaritySuggestions<'a, 'b> {
+    valid_types: &'a [String],
+    wrong_type: &'b str,
+}
+
+impl Display for TypeErrorWithSimilaritySuggestions<'_, '_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        let Self {
+            valid_types,
+            wrong_type,
+        } = self;
+
+        f.write_fmt(format_args!("wrong type: {wrong_type}"))?;
+        if let Some((suggestion, _)) = valid_types
+            .iter()
+            .map(|s| (s, strsim::jaro_winkler(wrong_type, s)))
+            .min_by(|(_, a), (_, b)| b.partial_cmp(a).unwrap_or(Ordering::Equal))
+        {
+            f.write_fmt(format_args!(", did you mean `{suggestion}`"))?;
+        }
+
+        Ok(())
+    }
+}
+
+fn print_wrong_type(
+    msg: &str,
+    short_id: &str,
+    commit_type: String,
+    valid_types: &[String],
+) -> bool {
     print_fail(
         msg,
         short_id,
-        Error::Type {
-            wrong_type: commit_type.to_string(),
+        TypeErrorWithSimilaritySuggestions {
+            wrong_type: &commit_type,
+            valid_types,
         },
     )
 }
@@ -42,9 +77,9 @@ fn print_check(
     let msg_parsed = parser.parse(msg);
 
     match msg_parsed {
-        Err(e) => print_fail(msg, short_id, e.into()),
+        Err(e) => print_fail(msg, short_id, Error::from(e)),
         Ok(commit) if !types.contains(&commit.r#type) => {
-            print_wrong_type(msg, short_id, commit.r#type)
+            print_wrong_type(msg, short_id, commit.r#type, types)
         }
         _ => true,
     }
@@ -130,5 +165,22 @@ impl Command for CheckCommand {
             println!("\n{}/{} failed", fail, total);
             Err(Error::Check)?
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_suggestions() {
+        let output = super::TypeErrorWithSimilaritySuggestions {
+            wrong_type: "tests",
+            valid_types: &[
+                "feat", "fix", "build", "chore", "ci", "docs", "style", "refactor", "perf", "test",
+            ]
+            .map(|s| s.to_string()),
+        }
+        .to_string();
+
+        assert_eq!(output, "wrong type: tests, did you mean `test`");
     }
 }
