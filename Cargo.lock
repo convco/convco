@@ -230,6 +230,7 @@ dependencies = [
  "semver",
  "serde",
  "serde_norway",
+ "strsim",
  "thiserror 2.0.12",
  "url",
  "walkdir",
