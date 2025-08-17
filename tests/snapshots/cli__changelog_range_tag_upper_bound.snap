@@ -1,0 +1,20 @@
+---
+source: tests/cli.rs
+expression: sanitized
+---
+stdout:
+# Changelog
+
+## [v2.0.0](///compare/v2.0.0...2.0.0) (<DATE>)
+
+### Features
+
+* second feature (<OID>)
+
+## [v1.0.0](///compare/v1.0.0...1.0.0) (<DATE>)
+
+### Features
+
+* initial feature (<OID>)
+---
+stderr:

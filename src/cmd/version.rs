@@ -1,18 +1,12 @@
 use std::fmt;
 
-use semver::{Prerelease, Version};
-
-use crate::{
-    cli::VersionCommand,
-    cmd::Command,
-    conventional::{
-        config::{Config, Increment, Type},
-        CommitParser,
-    },
-    git::{GitHelper, VersionAndTag},
-    semver::SemVer,
-    Error,
+use convco::{
+    open_repo, CommitParser, CommitTrait, Config, ConvcoError, Increment, Repo, RevWalkOptions,
+    Type,
 };
+use semver::Version;
+
+use crate::{cli::VersionCommand, cmd::Command};
 
 enum Label {
     /// Bump major version (0.1.0 -> 1.0.0)
@@ -40,60 +34,123 @@ impl fmt::Display for Label {
 }
 
 impl VersionCommand {
-    /// returns the versions under the given rev
-    fn find_last_version(&self) -> Result<Option<VersionAndTag>, Error> {
+    fn get_version(
+        &self,
+        scope_regex: String,
+        strip_regex: String,
+        types: Vec<convco::Type>,
+        mut initial_bump_version: Version,
+    ) -> Result<(Version, Label, String), ConvcoError> {
+        let repo = open_repo()?;
         let prefix = self.prefix.as_str();
-        let ignore_prereleases = // When bumping always ignore prereleases
-            self.bump ||
-            self.ignore_prereleases;
-        Ok(GitHelper::new(prefix)?.find_last_version(self.rev.as_str(), ignore_prereleases)?)
+        let ignore_prereleases = self.ignore_prereleases; // FIXME add?: || (self.bump && self.prerelease.is_empty());
+        let semvers = repo.semver_tags(prefix)?;
+        let rev = Repo::revparse_single(&repo, &self.rev)?;
+        let last_version = repo.find_last_version(&rev, ignore_prereleases, &semvers)?;
+        match last_version {
+            None => {
+                let commit_sha = Repo::revparse_single(&repo, &self.rev)?;
+                let commit_sha = CommitTrait::short_id(&commit_sha);
+                let mut version = Version::new(0, 0, 0);
+                if self.bump {
+                    if self.prerelease.is_empty() {
+                        let label = match (
+                            initial_bump_version.major,
+                            initial_bump_version.minor,
+                            initial_bump_version.patch,
+                        ) {
+                            (_, 0, 0) => Label::Major,
+                            (_, _, 0) => Label::Minor,
+                            _ => Label::Patch,
+                        };
+                        Ok((initial_bump_version, label, commit_sha))
+                    } else {
+                        initial_bump_version.increment_prerelease(&self.prerelease);
+                        Ok((initial_bump_version, Label::Prerelease, commit_sha))
+                    }
+                } else if self.patch {
+                    version.patch = 1;
+                    Ok((version, Label::Patch, commit_sha))
+                } else if self.minor {
+                    version.minor = 1;
+                    Ok((version, Label::Minor, commit_sha))
+                } else if self.major {
+                    version.major = 1;
+                    Ok((version, Label::Major, commit_sha))
+                } else {
+                    Ok((version, Label::Patch, commit_sha))
+                }
+            }
+            Some((mut version, commit)) => {
+                let v = if self.major {
+                    version.increment_major();
+                    (version, Label::Major, CommitTrait::short_id(&commit))
+                } else if self.minor {
+                    version.increment_minor();
+                    (version, Label::Minor, CommitTrait::short_id(&commit))
+                } else if self.patch {
+                    version.increment_patch();
+                    (version, Label::Patch, CommitTrait::short_id(&commit))
+                } else if self.bump {
+                    if version.is_prerelease() {
+                        if self.prerelease.is_empty() {
+                            version.pre_clear();
+                            version.build_clear();
+                            (version, Label::Release, CommitTrait::short_id(&commit))
+                        } else {
+                            version.increment_prerelease(&self.prerelease);
+                            (version, Label::Prerelease, CommitTrait::short_id(&commit))
+                        }
+                    } else {
+                        let parser = CommitParser::builder()
+                            .scope_regex(scope_regex)
+                            .strip_regex(strip_regex)
+                            .build();
+                        self.find_bump_version(&repo, commit, version, &parser, &types)?
+                    }
+                } else {
+                    (version, Label::Release, CommitTrait::short_id(&commit))
+                };
+                Ok(v)
+            }
+        }
     }
 
-    /// Find the bump version based on the conventional commit types.
-    ///
-    /// - `fix` type commits are translated to PATCH releases.
-    /// - `feat` type commits are translated to MINOR releases.
-    /// - Commits with `BREAKING CHANGE` in the commits, regardless of type, are translated to MAJOR releases.
-    ///
-    /// If the project is in major version zero (0.y.z) the rules are:
-    ///
-    /// - `fix` type commits are translated to PATCH releases.
-    /// - `feat` type commits are translated to PATCH releases.
-    /// - Commits with `BREAKING CHANGE` in the commits, regardless of type, are translated to MINOR releases.
-    fn find_bump_version(
+    fn find_bump_version<'a, R, C>(
         &self,
-        last_v_tag: &str,
-        mut last_version: SemVer,
-        parser: &CommitParser,
-        types: Vec<Type>,
-    ) -> Result<(Version, Label, String), Error> {
-        let prefix = self.prefix.as_str();
-        let git = GitHelper::new(prefix)?;
-        let mut revwalk = git.revwalk()?;
-        revwalk.push_range(format!("{}..{}", last_v_tag, self.rev).as_str())?;
-        let i = revwalk
-            .flatten()
-            .filter_map(|oid| git.find_commit(oid).ok())
-            .filter(|commit| git.commit_updates_any_path(commit, &self.paths))
-            .filter_map(|commit| {
-                let commit_sha = commit.id().to_string();
-
-                commit
-                    .message()
-                    .and_then(|msg| parser.parse(msg).map(|c| (commit_sha, c)).ok())
-            });
-
+        repo: &'a R,
+        commit: C,
+        last_version: semver::Version,
+        parser: &'a CommitParser,
+        types: &[Type],
+    ) -> Result<(Version, Label, String), ConvcoError>
+    where
+        R: Repo<'a, CommitTrait = C>,
+        C: CommitTrait,
+    {
+        let mut last_version = last_version;
+        let to_rev = repo.revparse_single(&self.rev)?;
+        let options = RevWalkOptions {
+            from_rev: vec![commit],
+            to_rev,
+            first_parent: false,
+            no_merge_commits: false,
+            no_revert_commits: false,
+            paths: self.paths.clone(),
+            parser,
+        };
+        let revwalk = repo.revwalk(options)?;
         let mut major = false;
         let mut minor = false;
         let mut patch = false;
 
-        let major_version_zero = last_version.major() == 0;
+        let major_version_zero = last_version.major == 0;
         let mut commit_sha = None;
-        for (sha, commit) in i {
+        for commit in revwalk.flatten() {
             if commit_sha.is_none() {
-                commit_sha = Some(sha);
+                commit_sha = Some(commit.commit.short_id());
             }
-            if commit.is_breaking() {
+            if commit.conventional_commit.is_breaking() {
                 if major_version_zero {
                     minor = true;
                 } else {
@@ -102,7 +159,9 @@ impl VersionCommand {
                 break;
             }
 
-            let option_commit_type = types.iter().find(|x| x.to_string() == commit.r#type);
+            let option_commit_type = types
+                .iter()
+                .find(|x| x.r#type == commit.conventional_commit.r#type);
 
             if let Some(some_commit_type) = option_commit_type {
                 match (&some_commit_type.increment, major_version_zero) {
@@ -132,114 +191,9 @@ impl VersionCommand {
         };
         let commit_sha = commit_sha.unwrap_or_default();
         if !self.prerelease.is_empty() {
-            self.calc_prerelease(&mut last_version, &self.prerelease, &git, &commit_sha);
+            last_version.increment_prerelease(&self.prerelease);
         }
-        Ok((last_version.0, label, commit_sha))
-    }
-
-    fn calc_prerelease(
-        &self,
-        last_version: &mut SemVer,
-        prerelease: &Prerelease,
-        git: &GitHelper,
-        commit_sha: &String,
-    ) {
-        if let Some(prerelease) =
-            git.find_matching_prerelease(&*last_version, &prerelease, commit_sha)
-        {
-            last_version.0.pre = prerelease;
-        } else {
-            if let Some(prerelease) = git.find_last_prerelease(&*last_version, &prerelease) {
-                last_version.0.pre = prerelease;
-            }
-            last_version.increment_prerelease(&prerelease);
-        }
-    }
-
-    fn get_version(
-        &self,
-        scope_regex: String,
-        strip_regex: String,
-        types: Vec<Type>,
-        initial_bump_version: Version,
-    ) -> Result<(Version, Label, String), Error> {
-        if let Some(VersionAndTag {
-            tag,
-            mut version,
-            commit_sha,
-        }) = self.find_last_version()?
-        {
-            let v = if self.major {
-                version.increment_major();
-                (version.0, Label::Major, commit_sha)
-            } else if self.minor {
-                version.increment_minor();
-                (version.0, Label::Minor, commit_sha)
-            } else if self.patch {
-                version.increment_patch();
-                (version.0, Label::Patch, commit_sha)
-            } else if self.bump {
-                if version.is_prerelease() {
-                    if self.prerelease.is_empty() {
-                        version.pre_clear();
-                        version.build_clear();
-                        (version.0, Label::Release, commit_sha)
-                    } else {
-                        version.increment_prerelease(&self.prerelease);
-                        (version.0, Label::Prerelease, commit_sha)
-                    }
-                } else {
-                    let parser = CommitParser::builder()
-                        .scope_regex(scope_regex)
-                        .strip_regex(strip_regex)
-                        .build();
-                    self.find_bump_version(tag.as_str(), version, &parser, types)?
-                }
-            } else {
-                (version.0, Label::Release, commit_sha)
-            };
-            Ok(v)
-        } else {
-            let prefix = self.prefix.as_str();
-            let git = GitHelper::new(prefix)?;
-            let commit_sha = git.ref_to_commit(&self.rev)?;
-            let commit_sha = commit_sha.id().to_string();
-            let mut version = Version::new(0, 0, 0);
-            if self.bump {
-                if self.prerelease.is_empty() {
-                    let label = match (
-                        initial_bump_version.major,
-                        initial_bump_version.minor,
-                        initial_bump_version.patch,
-                    ) {
-                        (_, 0, 0) => Label::Major,
-                        (_, _, 0) => Label::Minor,
-                        _ => Label::Patch,
-                    };
-                    Ok((initial_bump_version, label, commit_sha))
-                } else {
-                    let mut initial_bump_version = SemVer(initial_bump_version);
-                    self.calc_prerelease(
-                        &mut initial_bump_version,
-                        &self.prerelease,
-                        &git,
-                        &commit_sha,
-                    );
-                    Ok((initial_bump_version.0, Label::Prerelease, commit_sha))
-                }
-            } else if self.patch {
-                version.patch = 1;
-                Ok((version, Label::Patch, commit_sha))
-            } else if self.minor {
-                version.minor = 1;
-                Ok((version, Label::Minor, commit_sha))
-            } else if self.major {
-                version.major = 1;
-                Ok((version, Label::Major, commit_sha))
-            } else {
-                Ok((version, Label::Patch, commit_sha))
-            }
-        }
+        Ok((last_version, label, commit_sha))
     }
 }
 
@@ -265,5 +219,64 @@ impl Command for VersionCommand {
             println!("{version}");
         }
         Ok(())
+    }
+}
+
+trait VersionExt {
+    fn increment_major(&mut self);
+    fn increment_minor(&mut self);
+    fn increment_patch(&mut self);
+    fn increment_prerelease(&mut self, prerelease: &semver::Prerelease);
+    fn pre_clear(&mut self);
+    fn build_clear(&mut self);
+
+    fn is_prerelease(&self) -> bool;
+}
+impl VersionExt for Version {
+    fn increment_major(&mut self) {
+        self.major += 1;
+        self.minor = 0;
+        self.patch = 0;
+        self.pre = semver::Prerelease::EMPTY;
+        self.build = semver::BuildMetadata::EMPTY;
+    }
+
+    fn increment_minor(&mut self) {
+        self.minor += 1;
+        self.patch = 0;
+        self.pre = semver::Prerelease::EMPTY;
+        self.build = semver::BuildMetadata::EMPTY;
+    }
+
+    fn increment_patch(&mut self) {
+        self.patch += 1;
+        self.pre = semver::Prerelease::EMPTY;
+        self.build = semver::BuildMetadata::EMPTY;
+    }
+
+    fn increment_prerelease(&mut self, prerelease: &semver::Prerelease) {
+        if self.pre.is_empty() {
+            self.pre = semver::Prerelease::new(format!("{prerelease}.1").as_str()).unwrap();
+        } else {
+            let next = self
+                .pre
+                .split_once('.')
+                .and_then(|(_, number)| number.parse::<u64>().ok())
+                .unwrap_or_default()
+                + 1;
+            self.pre = semver::Prerelease::new(format!("{prerelease}.{next}").as_str()).unwrap();
+        }
+    }
+
+    fn build_clear(&mut self) {
+        self.build = semver::BuildMetadata::EMPTY;
+    }
+
+    fn pre_clear(&mut self) {
+        self.pre = semver::Prerelease::EMPTY
+    }
+
+    fn is_prerelease(&self) -> bool {
+        !self.pre.is_empty()
     }
 }

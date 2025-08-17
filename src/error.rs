@@ -6,11 +6,39 @@ use thiserror::Error;
 use crate::conventional;
 
 #[derive(Debug, Error)]
-pub(crate) enum Error {
+pub enum ConvcoError {
     #[error(transparent)]
     Dialoguer(#[from] dialoguer::Error),
+    #[cfg(feature = "git2")]
     #[error(transparent)]
     Git(#[from] git2::Error),
+    #[cfg(feature = "gix")]
+    #[error(transparent)]
+    GixRemoteFindExistingError(#[from] gix::remote::find::existing::Error),
+    #[error(transparent)]
+    #[cfg(feature = "gix")]
+    GixOpenError(#[from] gix::open::Error),
+    #[cfg(feature = "gix")]
+    #[error(transparent)]
+    GixReferenceIter(#[from] gix::reference::iter::Error),
+    #[cfg(feature = "gix")]
+    #[error(transparent)]
+    GixReferenceIterInet(#[from] gix::reference::iter::init::Error),
+    #[cfg(feature = "gix")]
+    #[error(transparent)]
+    GixRevisionSpecParseSingle(#[from] gix::revision::spec::parse::single::Error),
+    #[cfg(feature = "gix")]
+    #[error(transparent)]
+    GixRevisionWalkError(#[from] gix::revision::walk::Error),
+    #[cfg(feature = "gix")]
+    #[error(transparent)]
+    GixObjectFindExistingError(#[from] gix::object::find::existing::Error),
+    #[cfg(feature = "gix")]
+    #[error(transparent)]
+    Gix(#[from] gix::object::peel::to_kind::Error),
+    #[cfg(feature = "gix")]
+    #[error(transparent)]
+    GixCommitError(#[from] gix::object::commit::Error),
     #[error(transparent)]
     Io(#[from] io::Error),
     #[error(transparent)]
@@ -25,6 +53,10 @@ pub(crate) enum Error {
     SemVer(#[from] semver::Error),
     #[error(transparent)]
     Yaml(#[from] serde_norway::Error),
+    #[error(transparent)]
+    Utf8(#[from] bstr::Utf8Error),
+    #[error(transparent)]
+    Jiff(#[from] jiff::Error),
     #[error("check error")]
     Check,
     #[error("wrong type: {wrong_type}")]

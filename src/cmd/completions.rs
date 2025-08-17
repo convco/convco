@@ -5,7 +5,7 @@ use clap_complete::aot::{generate, Shell};
 use crate::{
     cli::{CompletionsCommand, Opt},
     cmd::Command,
-    conventional::Config,
+    Config,
 };
 
 impl Command for CompletionsCommand {

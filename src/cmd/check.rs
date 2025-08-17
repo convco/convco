@@ -1,22 +1,19 @@
 use std::{
+    borrow::Cow,
     cmp::Ordering,
-    fmt::{self, Display, Formatter},
+    fmt,
     io::{stdin, Read},
 };
 
-use conventional::Config;
-use git2::Repository;
-
-use crate::{
-    cli::CheckCommand,
-    cmd::Command,
-    conventional,
-    git::{filter_merge_commits, filter_revert_commits},
-    strip::Strip,
-    Error,
+use convco::{
+    open_repo, strip::Strip, Commit, CommitParser, CommitTrait, Config, ConvcoError, Repo,
+    RevWalkOptions,
 };
+use jiff::Zoned;
 
-fn print_fail(msg: &str, short_id: &str, e: impl Display) -> bool {
+use crate::{cli::CheckCommand, cmd::Command};
+
+fn print_fail(msg: Cow<str>, short_id: &str, e: impl fmt::Display) -> bool {
     let first_line = msg.lines().next().unwrap_or("");
     let short_msg: String = first_line.chars().take(40).collect();
     if first_line.len() > 40 {
@@ -32,8 +29,8 @@ struct TypeErrorWithSimilaritySuggestions<'a, 'b> {
     wrong_type: &'b str,
 }
 
-impl Display for TypeErrorWithSimilaritySuggestions<'_, '_> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+impl fmt::Display for TypeErrorWithSimilaritySuggestions<'_, '_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let Self {
             valid_types,
             wrong_type,
@@ -53,7 +50,7 @@ impl Display for TypeErrorWithSimilaritySuggestions<'_, '_> {
 }
 
 fn print_wrong_type(
-    msg: &str,
+    msg: Cow<str>,
     short_id: &str,
     commit_type: String,
     valid_types: &[String],
@@ -68,19 +65,21 @@ fn print_wrong_type(
     )
 }
 
-fn print_check(
-    msg: &str,
-    short_id: &str,
-    parser: &conventional::CommitParser,
+fn print_check<O: CommitTrait>(
+    commit: Result<Commit<O>, (ConvcoError, O)>,
     types: &[String],
 ) -> bool {
-    let msg_parsed = parser.parse(msg);
-
-    match msg_parsed {
-        Err(e) => print_fail(msg, short_id, Error::from(e)),
-        Ok(commit) if !types.contains(&commit.r#type) => {
-            print_wrong_type(msg, short_id, commit.r#type, types)
-        }
+    match commit {
+        Err((e, o)) => print_fail(o.commit_message().unwrap(), &o.short_id(), e),
+        Ok(Commit {
+            conventional_commit,
+            commit: oid,
+        }) if !types.contains(&conventional_commit.r#type) => print_wrong_type(
+            conventional_commit.description.into(),
+            &oid.short_id(),
+            conventional_commit.r#type,
+            types,
+        ),
         _ => true,
     }
 }
@@ -97,7 +96,7 @@ impl Command for CheckCommand {
         let mut total = 0;
         let mut fail = 0;
 
-        let parser = conventional::CommitParser::builder()
+        let parser = CommitParser::builder()
             .scope_regex(config.scope_regex)
             .strip_regex(config.strip_regex)
             .build();
@@ -108,51 +107,93 @@ impl Command for CheckCommand {
             .map(String::from)
             .collect();
 
-        let Config { merges, .. } = config;
-
         if self.from_stdin {
+            #[derive(Debug, Clone)]
+            struct CommitDummy(String);
+            impl convco::CommitTrait for CommitDummy {
+                type ObjectId = String;
+
+                fn short_id(&self) -> String {
+                    "-".to_owned()
+                }
+
+                fn commit_message(&self) -> Result<Cow<'_, str>, ConvcoError> {
+                    Ok(Cow::Borrowed(&self.0))
+                }
+
+                fn id(&self) -> String {
+                    self.short_id()
+                }
+
+                fn oid(&self) -> Self::ObjectId {
+                    self.short_id()
+                }
+
+                fn commit_time(&self) -> Result<jiff::Zoned, ConvcoError> {
+                    Ok(Zoned::now())
+                }
+            }
             let mut stdin = stdin().lock();
             let mut commit_msg = String::new();
             stdin.read_to_string(&mut commit_msg)?;
             if self.strip {
                 commit_msg = commit_msg.strip();
             }
-            let is_conventional = print_check(commit_msg.as_str(), "-", &parser, &types);
+            let commit = CommitDummy(commit_msg);
+            let result = match parser.parse(&commit.0) {
+                Ok(conventional_commit) => Ok(Commit {
+                    conventional_commit,
+                    commit,
+                }),
+                Err(e) => Err((e.into(), commit)),
+            };
+
+            let is_conventional = print_check(result, &types);
             match is_conventional {
                 true => return Ok(()),
-                false => return Err(Error::Check)?,
+                false => return Err(ConvcoError::Check)?,
             }
         }
 
-        let repo = Repository::open_from_env()?;
-        let mut revwalk = repo.revwalk()?;
-        if config.first_parent {
-            revwalk.simplify_first_parent()?;
-        }
-        let rev = match self.rev.as_ref() {
-            Some(rev) if !rev.is_empty() => rev.as_str(),
-            _ => "HEAD",
+        let repo = open_repo()?;
+        let (to_rev, from_rev) = match self.rev.as_ref() {
+            Some(rev) => match rev.split_once("..") {
+                None => {
+                    let rev = Repo::revparse_single(&repo, rev)?;
+                    (rev, None)
+                }
+                Some(("", rev)) => {
+                    let rev = Repo::revparse_single(&repo, rev)?;
+                    (rev, None)
+                }
+                Some((rev_stop, "")) => {
+                    let rev = Repo::revparse_single(&repo, "HEAD")?;
+                    let rev_stop = Repo::revparse_single(&repo, rev_stop)?;
+                    (rev, Some(rev_stop))
+                }
+                Some((rev, rev_stop)) => {
+                    let rev = Repo::revparse_single(&repo, rev)?;
+                    let rev_stop = Repo::revparse_single(&repo, rev_stop)?;
+                    (rev, Some(rev_stop))
+                }
+            },
+
+            None => (Repo::revparse_single(&repo, "HEAD")?, None),
         };
+        let options = RevWalkOptions {
+            from_rev: from_rev.into_iter().collect(),
+            to_rev,
+            first_parent: config.first_parent,
+            no_merge_commits: !config.merges,
+            no_revert_commits: self.ignore_reverts,
+            paths: vec![],
+            parser: &parser,
+        };
+        let revwalk = Repo::revwalk(&repo, options)?;
 
-        if rev.contains("..") {
-            revwalk.push_range(rev)?;
-        } else {
-            let oid = repo.revparse_single(rev)?.id();
-            revwalk.push(oid)?;
-        }
-
-        for commit in revwalk
-            .flatten()
-            .flat_map(|oid| repo.find_commit(oid).ok())
-            .filter(|commit| filter_merge_commits(commit, merges))
-            .filter(|commit| filter_revert_commits(commit, self.ignore_reverts))
-            .take(self.number.unwrap_or(std::usize::MAX))
-        {
+        for commit in revwalk.take(self.number.unwrap_or(usize::MAX)) {
             total += 1;
-            let msg = std::str::from_utf8(commit.message_bytes()).expect("valid utf-8 message");
-            let short_id = commit.as_object().short_id().unwrap();
-            let short_id = short_id.as_str().expect("short id");
-            fail += u32::from(!print_check(msg, short_id, &parser, &types));
+            fail += u32::from(!print_check(commit, &types));
         }
         if fail == 0 {
             match total {
@@ -163,7 +204,7 @@ impl Command for CheckCommand {
             Ok(())
         } else {
             println!("\n{}/{} failed", fail, total);
-            Err(Error::Check)?
+            Err(ConvcoError::Check)?
         }
     }
 }
