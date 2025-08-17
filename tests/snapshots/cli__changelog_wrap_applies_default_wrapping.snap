@@ -1,0 +1,15 @@
+---
+source: tests/cli.rs
+expression: sanitized
+---
+stdout:
+# Changelog
+
+## Unreleased (<DATE>)
+
+### Features
+
+* a very long subject that should exceed the default wrapping limit to verify
+behavior (<OID>)
+---
+stderr:

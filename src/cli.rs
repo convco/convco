@@ -73,7 +73,7 @@ pub struct VersionCommand {
     /// Only commits that update those <paths> will be taken into account. It is useful to support monorepos.
     /// Each path should be relative to the root of the repository.
     #[clap(short = 'P', long, env = "CONVCO_PATHS", value_delimiter = ',')]
-    pub paths: Vec<PathBuf>,
+    pub paths: Vec<String>,
     /// Print the commit-sha of the version instead of the semantic version
     #[clap(long)]
     pub commit_sha: bool,
@@ -302,7 +302,64 @@ impl FromStr for Footer {
 
 #[cfg(test)]
 mod tests {
+    use clap::Parser;
+
     use super::*;
+
+    #[test]
+    fn version_accepts_prerelease_with_ignore_prereleases() {
+        let opt = Opt::try_parse_from([
+            "convco",
+            "version",
+            "--bump",
+            "--prerelease",
+            "rc",
+            "--ignore-prereleases",
+        ])
+        .unwrap();
+
+        let Command::Version(command) = opt.cmd else {
+            panic!("expected version command");
+        };
+
+        assert_eq!(command.prerelease.as_str(), "rc");
+        assert!(command.ignore_prereleases);
+    }
+
+    #[test]
+    fn comma_delimited_vec_options_parse_multiple_values() {
+        let opt =
+            Opt::try_parse_from(["convco", "version", "--paths", "packages/app,packages/lib"])
+                .unwrap();
+        let Command::Version(command) = opt.cmd else {
+            panic!("expected version command");
+        };
+        assert_eq!(command.paths, ["packages/app", "packages/lib"]);
+
+        let opt = Opt::try_parse_from([
+            "convco",
+            "changelog",
+            "--paths",
+            "packages/app,packages/lib",
+        ])
+        .unwrap();
+        let Command::Changelog(command) = opt.cmd else {
+            panic!("expected changelog command");
+        };
+        assert_eq!(
+            command.paths,
+            [PathBuf::from("packages/app"), PathBuf::from("packages/lib")]
+        );
+
+        let opt = Opt::try_parse_from(["convco", "commit", "-N", "one.txt,two.txt"]).unwrap();
+        let Command::Commit(command) = opt.cmd else {
+            panic!("expected commit command");
+        };
+        assert_eq!(
+            command.intent_to_add,
+            [PathBuf::from("one.txt"), PathBuf::from("two.txt")]
+        );
+    }
 
     #[test]
     fn test_footer() {

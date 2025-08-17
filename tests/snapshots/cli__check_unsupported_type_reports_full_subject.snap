@@ -1,0 +1,10 @@
+---
+source: tests/cli.rs
+expression: sanitized
+---
+stdout:
+FAIL  <OID>  wrong type: wip, did you mean `ci`  wip: still deciding
+
+1/1 failed
+---
+stderr:

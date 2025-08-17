@@ -1,0 +1,10 @@
+---
+source: tests/cli.rs
+expression: sanitized
+---
+stdout:
+FAIL  <OID>  first line doesn't match `<type>[optional scope]: <description>`  Revert "feat: change"
+
+1/3 failed
+---
+stderr:

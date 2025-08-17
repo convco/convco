@@ -16,6 +16,16 @@ jobs:
   check:
     name: Check
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: default
+            test-command: cargo test --features integration-tests
+          - name: git2
+            test-command: cargo test --no-default-features --features git2,integration-tests
+          - name: gix
+            test-command: cargo test --no-default-features --features gix,integration-tests
     steps:
       - uses: actions/checkout@v4
         with:
@@ -30,5 +40,5 @@ jobs:
           rm convco
       - name: Install stable toolchain
         run: rustup toolchain install --profile minimal stable
-      - name: Run tests
-        run: cargo test
+      - name: Run tests (${{ matrix.name }})
+        run: ${{ matrix.test-command }}

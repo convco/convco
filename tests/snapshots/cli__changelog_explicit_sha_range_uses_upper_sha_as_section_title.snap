@@ -1,0 +1,15 @@
+---
+source: tests/cli.rs
+expression: sanitized
+---
+stdout:
+# Changelog
+
+## [<OID>](https://github.com/acme/demo/compare/<OID>...<OID>) (<DATE>)
+
+### Fixes
+
+* second
+([<OID>](https://github.com/acme/demo/commit/<OID>))
+---
+stderr:

@@ -1,0 +1,10 @@
+---
+source: tests/cli.rs
+expression: sanitized
+---
+stdout:
+FAIL  <OID>  first line doesn't match `<type>[optional scope]: <description>`  this is not conventional
+
+1/1 failed
+---
+stderr:

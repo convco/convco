@@ -1,0 +1,15 @@
+---
+source: tests/cli.rs
+assertion_line: 165
+expression: sanitized
+---
+stdout:
+# Changelog
+
+## v4.0.0 (<DATE>)
+
+### Features
+
+* unreleased feature (<OID>)
+---
+stderr:

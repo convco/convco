@@ -1,0 +1,8 @@
+---
+source: tests/cli.rs
+expression: sanitized
+---
+stdout:
+no commits checked
+---
+stderr:
