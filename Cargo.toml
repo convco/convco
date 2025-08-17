@@ -16,25 +16,27 @@ include = [
     "README.md",
     "LICENSE"
 ]
-rust-version = "1.60" # for `--features`
+rust-version = "1.70"
 
 [dependencies]
 anyhow = { version = "1.0.98", features = ["backtrace"] }
-clap = { version = "4.5.36", features = ["derive", "env"] }
+bstr = "1.12.0"
+clap = { version = "4.5.41", features = ["derive", "env"] }
+clap_complete = { version = "4.5.55", optional = true }
 ctrlc = "3.4.7"
 dialoguer = { version = "0.11.0", features = ["fuzzy-select"] }
-git2 = { version = "0.20.0", default-features = false }
-handlebars = "6.3.2"
-jiff = { version = "0.2.14", features = ["serde"] }
-regex = "1.11.1"
+git2 = { version = "0.20.2", default-features = false, optional = true }
+gix = { version = "0.73.0", default-features = false, features = ["revision", "blob-diff"], optional = true }
+handlebars = { version = "6.3.2", features = ["dir_source"] }
+jiff = { version = "0.2.15", features = ["serde"] }
+regex = { version = "1.11.1", default-features = false }
 semver = { version = "1.0.26", features = ["serde"] }
-serde = { version = "1.0.219", features = ["derive"] }
+serde = { version = "1.0.219", default-features = false, features = ["derive", "std"] }
 serde_norway = "0.9.42"
+strsim = "0.11.1"
 thiserror = "2.0.12"
 url = "2.5.4"
 walkdir = "2.5.0"
-clap_complete = { version = "4.5.47", optional = true }
-strsim = "0.11.1"
 
 [build-dependencies]
 clap_complete = "4.5.47"
@@ -42,7 +44,9 @@ clap = { version = "4.5.36", features = ["derive", "env"] }
 semver = "1.0.26"
 
 [features]
-default = ["zlib-ng-compat"]
+default = ["git2", "zlib-ng-compat"]
+git2 = ["zlib-ng-compat", "dep:git2"]
+gix = ["dep:gix"]
 zlib-ng-compat = ["git2/zlib-ng-compat"]
 completions = ["dep:clap_complete"]
 

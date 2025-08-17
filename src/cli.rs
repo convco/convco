@@ -59,26 +59,26 @@ pub struct VersionCommand {
     #[clap(short, long, conflicts_with_all(&["major", "minor", "patch"]))]
     pub label: bool,
     /// Bump to a major release version, regardless of the conventional commits
-    #[clap(long, env = "CONVCO_FORCE_MAJOR_BUMP")]
+    #[clap(long)]
     pub major: bool,
     /// Bump to a minor release version, regardless of the conventional commits
-    #[clap(long, env = "CONVCO_FORCE_MINOR_BUMP")]
+    #[clap(long)]
     pub minor: bool,
     /// Bump to a patch release version, regardless of the conventional commits
-    #[clap(long, env = "CONVCO_FORCE_PATCH_BUMP")]
+    #[clap(long)]
     pub patch: bool,
     /// Suffix with a prerelease version. Requires --bump.
-    #[clap(long, requires = "bump", default_value_t = Prerelease::new("").unwrap())]
+    #[clap(long, requires = "bump", conflicts_with = "ignore_prereleases", default_value_t = Prerelease::new("").unwrap())]
     pub prerelease: Prerelease,
     /// Only commits that update those <paths> will be taken into account. It is useful to support monorepos.
     /// Each path should be relative to the root of the repository.
     #[clap(short = 'P', long, env = "CONVCO_PATHS")]
-    pub paths: Vec<PathBuf>,
+    pub paths: Vec<String>,
     /// Print the commit-sha of the version instead of the semantic version
     #[clap(long)]
     pub commit_sha: bool,
     /// Ignore pre-release versions when finding the last version
-    #[clap(long, env = "CONVCO_IGNORE_PRERELEASES")]
+    #[clap(long, conflicts_with = "prerelease", env = "CONVCO_IGNORE_PRERELEASES")]
     pub ignore_prereleases: bool,
     /// If no version is found use this version for the first bump
     #[clap(long, env = "CONVCO_INITIAL_BUMP_VERSION")]
