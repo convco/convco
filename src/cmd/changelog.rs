@@ -1,73 +1,46 @@
-use std::{cmp::Ordering, collections::HashMap, io::Write, path::PathBuf, str::FromStr};
+use std::{borrow::Cow, cmp::Ordering, collections::HashMap, io::Write};
 
 use anyhow::Context as _;
-use git2::Time;
-use jiff::{
-    civil::Date,
-    tz::{Offset, TimeZone},
-    Timestamp,
-};
-
-use crate::{
-    cli::ChangelogCommand,
-    cmd::Command,
-    conventional::{
-        changelog::{
-            ChangelogWriter, CommitContext, CommitGroup, Context, ContextBase, ContextBuilder,
-            Note, NoteGroup, Reference,
-        },
-        config::Config,
-        CommitParser, Footer, FooterKey,
+use convco::{
+    changelog::{
+        ChangelogWriter, CommitContext, CommitGroup, Context, ContextBase, ContextBuilder, Note,
+        NoteGroup, Reference,
     },
-    git::{filter_merge_commits, GitHelper, VersionAndTag},
-    semver::SemVer,
-    Error,
+    open_repo, CommitParser, CommitTrait, Config, ConvcoError, Footer, FooterKey, MaxMajorsIterExt,
+    MaxMinorsIterExt, MaxPatchesIterExt, Repo, RevWalkOptions,
 };
+use semver::Version;
 
-#[derive(Debug)]
-struct Rev<'a>(&'a str, Option<&'a SemVer>);
+use crate::{cli::ChangelogCommand, Command};
 
-impl<'a> From<&'a VersionAndTag> for Rev<'a> {
-    fn from(tav: &'a VersionAndTag) -> Self {
-        Rev(tav.tag.as_str(), Some(&tav.version))
-    }
-}
+#[derive(Debug, Clone)]
+struct Rev<C>(Option<C>, Option<Version>);
 
 struct Unreleased {
     str: String,
-    version: Option<SemVer>,
+    version: Option<Version>,
 }
 
 /// Transforms a range of commits to pass them to the changelog writer.
-struct ChangeLogTransformer<'a> {
+struct ChangeLogTransformer<'a, R: Repo<'a>> {
     group_types: HashMap<&'a str, &'a str>,
     config: &'a Config,
+    revwalk_options: RevWalkOptions<'a, R::CommitTrait>,
     unreleased: Unreleased,
-    git: &'a GitHelper,
+    repo: &'a R,
     context_builder: ContextBuilder<'a>,
-    commit_parser: CommitParser,
-    paths: &'a [PathBuf],
     prefix: &'a str,
 }
 
-fn date_from_time(time: &Time) -> Date {
-    Timestamp::from_second(time.seconds())
-        .unwrap()
-        .to_zoned(TimeZone::fixed(
-            Offset::from_seconds(time.offset_minutes() * 60).unwrap(),
-        ))
-        .date()
-}
-
-impl<'a> ChangeLogTransformer<'a> {
+impl<'a, R: Repo<'a>> ChangeLogTransformer<'a, R> {
     fn new(
         config: &'a Config,
         include_hidden_sections: bool,
-        git: &'a GitHelper,
-        paths: &'a [PathBuf],
+        repo: &'a R,
+        revwalk_options: RevWalkOptions<'a, R::CommitTrait>,
         unreleased: String,
         prefix: &'a str,
-    ) -> Result<Self, Error> {
+    ) -> Result<Self, ConvcoError> {
         let group_types = config
             .types
             .iter()
@@ -76,14 +49,9 @@ impl<'a> ChangeLogTransformer<'a> {
                 acc.insert(ty.r#type.as_str(), ty.section.as_str());
                 acc
             });
-        let commit_parser = CommitParser::builder()
-            .scope_regex(config.scope_regex.clone())
-            .strip_regex(config.strip_regex.clone())
-            .references_regex(format!("({})([0-9]+)", config.issue_prefixes.join("|")))
-            .build();
 
         let context_builder = ContextBuilder::new(config)?;
-        let unreleased = match unreleased.parse::<SemVer>() {
+        let unreleased = match unreleased.parse::<Version>() {
             Ok(version) => Unreleased {
                 str: unreleased,
                 version: Some(version),
@@ -97,16 +65,15 @@ impl<'a> ChangeLogTransformer<'a> {
         Ok(Self {
             config,
             group_types,
-            git,
+            repo,
+            revwalk_options,
             context_builder,
-            commit_parser,
-            paths,
             unreleased,
             prefix,
         })
     }
 
-    fn make_notes(&self, footers: &'a [Footer], scope: Option<String>) -> Vec<(String, Note)> {
+    fn make_notes(&self, footers: &'_ [Footer], scope: Option<String>) -> Vec<(String, Note)> {
         footers
             .iter()
             .filter(|footer| matches!(footer.key, FooterKey::BreakingChange))
@@ -122,106 +89,93 @@ impl<'a> ChangeLogTransformer<'a> {
             .collect()
     }
 
-    fn find_version_date(&self, spec: &str) -> Result<Date, Error> {
-        let obj = self.git.repo.revparse_single(spec)?;
-        Ok(
-            if let Some(date) = obj
-                .as_tag()
-                .and_then(|tag| tag.tagger())
-                .map(|tagger| tagger.when())
-                .map(|time| date_from_time(&time))
-            {
-                date
-            } else {
-                let commit = obj.peel_to_commit()?;
-                date_from_time(&commit.time())
+    fn transform(
+        &self,
+        to_rev: Rev<R::CommitTrait>,
+        from_rev: Rev<R::CommitTrait>,
+    ) -> Result<Context<'_>, ConvcoError> {
+        let revwalk_options = RevWalkOptions {
+            from_rev: {
+                let mut rev = self.revwalk_options.from_rev.clone();
+                if let Some(from_rev) = from_rev.0.as_ref() {
+                    rev.push(from_rev.clone());
+                }
+                rev
             },
-        )
-    }
+            to_rev: to_rev.0.as_ref().unwrap().clone(),
+            ..self.revwalk_options.clone()
+        };
 
-    fn transform(&'a self, from_rev: &Rev<'a>, to_rev: &Rev<'a>) -> Result<Context<'a>, Error> {
-        let mut revwalk = self.git.revwalk()?;
-        if self.config.first_parent {
-            revwalk.simplify_first_parent()?;
-        }
-        if to_rev.0.is_empty() {
-            let to_commit = self.git.ref_to_commit(from_rev.0)?;
-            revwalk.push(to_commit.id())?;
-        } else {
-            // reverse from and to as
-            revwalk.push_range(format!("{}..{}", to_rev.0, from_rev.0).as_str())?;
-        }
+        let revwalk = self.repo.revwalk(revwalk_options)?;
         let mut commits: HashMap<&str, Vec<CommitContext>> = HashMap::new();
         let mut notes: HashMap<String, Vec<Note>> = HashMap::new();
-        let version_date = self.find_version_date(from_rev.0)?;
+        let version_date = to_rev
+            .0
+            .as_ref()
+            .and_then(|c| c.commit_time().ok())
+            .unwrap()
+            .date();
         let Config {
             host,
             owner,
             repository,
-            merges,
             ..
         } = self.config;
-        for commit in revwalk
-            .flatten()
-            .flat_map(|oid| self.git.find_commit(oid).ok())
-            .filter(|commit| self.git.commit_updates_any_path(commit, self.paths))
-            .filter(|commit| filter_merge_commits(commit, *merges))
-        {
-            if let Some(Ok(conv_commit)) = commit.message().map(|msg| self.commit_parser.parse(msg))
-            {
-                self.make_notes(&conv_commit.footers, conv_commit.scope.clone())
-                    .into_iter()
-                    .for_each(|(key, note)| {
-                        notes.entry(key).or_default().push(note);
-                    });
+        for commit in revwalk.flatten() {
+            let conv_commit = commit.conventional_commit;
+            let footers = conv_commit.footers;
+            self.make_notes(&footers, conv_commit.scope.clone())
+                .into_iter()
+                .for_each(|(key, note)| {
+                    notes.entry(key).or_default().push(note);
+                });
 
-                let hash = commit.id().to_string();
-                let date = date_from_time(&commit.time());
-                let scope = conv_commit.scope;
-                let subject = conv_commit.description;
-                let body = conv_commit.body;
-                let short_hash = hash[..7].into();
-                let references = conv_commit
-                    .references
-                    .into_iter()
-                    .map(|r| Reference {
-                        action: r.action,
-                        owner: owner.as_deref().unwrap_or_default(),
-                        repository: repository.as_deref().unwrap_or_default(),
-                        prefix: r.prefix,
-                        issue: r.issue,
-                    })
-                    .collect();
-                let commit_context = CommitContext {
-                    hash,
-                    date,
-                    scope,
-                    subject,
-                    body,
-                    short_hash,
-                    references,
-                };
-                if let Some(section) = self.group_types.get(conv_commit.r#type.as_str()) {
-                    commits.entry(section).or_default().push(commit_context)
-                }
+            let hash = commit.commit.id();
+            let date = commit.commit.commit_time()?.date();
+            let scope = conv_commit.scope;
+            let subject = conv_commit.description;
+            let body = conv_commit.body;
+            let short_hash = hash[..7].into();
+            let references = conv_commit
+                .references
+                .into_iter()
+                .map(|r| Reference {
+                    action: r.action,
+                    owner: owner.as_deref().unwrap_or_default(),
+                    repository: repository.as_deref().unwrap_or_default(),
+                    prefix: r.prefix,
+                    issue: r.issue,
+                })
+                .collect();
+            let commit_context = CommitContext {
+                hash,
+                date,
+                scope,
+                subject,
+                body,
+                short_hash,
+                references,
+            };
+            if let Some(section) = self.group_types.get(conv_commit.r#type.as_str()) {
+                commits.entry(section).or_default().push(commit_context)
             }
         }
 
-        let version = if from_rev.0 == "HEAD" {
+        let version: Cow<str> = if to_rev.1.is_none() {
             match &self.unreleased.version {
-                Some(v) => format!("{}{}", self.prefix, v.0).into(),
+                Some(v) => format!("{}{}", self.prefix, v).into(),
                 None => self.unreleased.str.as_str().into(),
             }
         } else {
-            from_rev.0.into()
+            format!("{}{}", self.prefix, to_rev.1.as_ref().unwrap()).into()
         };
-        let is_patch = from_rev.1.map(|i| i.patch() != 0).unwrap_or(false)
+        let is_patch = from_rev.1.as_ref().map(|i| i.patch != 0).unwrap_or(false)
             || (self.unreleased.str == version
                 && self
                     .unreleased
                     .version
                     .as_ref()
-                    .map(|i| i.patch() != 0)
+                    .map(|i| i.patch != 0)
                     .unwrap_or(false));
         let mut commit_groups: Vec<CommitGroup<'_>> = commits
             .into_iter()
@@ -233,22 +187,23 @@ impl<'a> ChangeLogTransformer<'a> {
             .map(|(title, notes)| NoteGroup { title, notes })
             .collect();
 
-        let current_tag = if from_rev.0 == "HEAD" {
-            let id = self.git.ref_to_commit("HEAD")?.id();
-
-            id.to_string()
-        } else {
-            from_rev.0.to_owned()
+        let current_tag = to_rev
+            .1
+            .as_ref()
+            .map(|v| v.to_string().into())
+            .unwrap_or("".into());
+        let previous_tag = match to_rev.1.as_ref() {
+            Some(version) => format!("{}{}", self.prefix, version),
+            None => "".into(),
         };
-
         let context_base = ContextBase {
             version,
             date: Some(version_date),
             is_patch,
             commit_groups,
             note_groups,
-            previous_tag: to_rev.0,
-            current_tag: current_tag.into(),
+            previous_tag,
+            current_tag,
             host: host.to_owned(),
             owner: owner.to_owned(),
             repository: repository.to_owned(),
@@ -261,7 +216,10 @@ impl<'a> ChangeLogTransformer<'a> {
     /// Sort commit groups based on how the configuration file contains them.
     /// The index of the first section matching the commit group title will be used as ranking.
     fn sort_commit_groups(&self, a: &CommitGroup<'_>, b: &CommitGroup<'_>) -> Ordering {
-        fn find_pos(this: &ChangeLogTransformer<'_>, title: &str) -> Option<usize> {
+        fn find_pos<'a, R: Repo<'a>>(
+            this: &ChangeLogTransformer<'a, R>,
+            title: &str,
+        ) -> Option<usize> {
             this.config
                 .types
                 .iter()
@@ -293,106 +251,123 @@ impl ChangelogCommand {
         if self.no_wrap {
             config.wrap_disabled = true;
         }
+        let repo = open_repo()?;
 
-        let helper = GitHelper::new(self.prefix.as_str())?;
         let rev = self.rev.as_str();
-        let (rev, rev_stop) = if rev.contains("..") {
-            let mut split = rev.split("..");
-            let low = split.next().unwrap_or("");
-            let hi = split
-                .next()
-                .map(|s| if s.is_empty() { "HEAD" } else { s })
-                .unwrap_or("HEAD");
-            // FIXME hi and low are supposed to be a version tag.
-            (hi, low)
-        } else {
-            (rev, "")
+        let (rev, rev_stop) = match rev.split_once("..") {
+            None => {
+                let rev = Repo::revparse_single(&repo, rev)?;
+                (rev, None)
+            }
+            Some(("", rev)) => {
+                let rev = Repo::revparse_single(&repo, rev)?;
+                (rev, None)
+            }
+            Some((rev_stop, "")) => {
+                let rev = Repo::revparse_single(&repo, "HEAD")?;
+                let rev_stop = Repo::revparse_single(&repo, rev_stop)?;
+                (rev, Some(rev_stop))
+            }
+            Some((rev, rev_stop)) => {
+                let rev = Repo::revparse_single(&repo, rev)?;
+                let rev_stop = Repo::revparse_single(&repo, rev_stop)?;
+                (rev, Some(rev_stop))
+            }
         };
-
         let template = config.template.as_deref();
         let mut writer = ChangelogWriter::new(template, &config, stdout)?;
         writer.write_header(config.header.as_str())?;
-
+        let commit_parser = CommitParser::builder()
+            .scope_regex(config.scope_regex.clone())
+            .strip_regex(config.strip_regex.clone())
+            .references_regex(format!("({})([0-9]+)", config.issue_prefixes.join("|")))
+            .build();
+        let revwalk_options = RevWalkOptions {
+            from_rev: rev_stop.iter().cloned().collect(),
+            to_rev: rev.clone(),
+            first_parent: config.first_parent,
+            no_merge_commits: !config.merges,
+            no_revert_commits: false, // FIXME no_revert_commits,
+            paths: self
+                .paths
+                .iter()
+                .map(|p| p.to_string_lossy().to_string())
+                .collect(),
+            parser: &commit_parser,
+        };
         let transformer = ChangeLogTransformer::new(
             &config,
             self.include_hidden_sections,
-            &helper,
-            &self.paths,
+            &repo,
+            revwalk_options,
             self.unreleased.clone(),
             &self.prefix,
         )?;
-        match helper
-            .find_last_version(rev, self.ignore_prereleases)
-            .with_context(|| format!("Could not find the last version for revision {rev}"))?
-        {
+        let semvers = repo.semver_tags(&self.prefix)?;
+        match repo
+            .find_last_version(&rev.clone(), self.ignore_prereleases, &semvers)
+            .with_context(|| {
+                format!("Could not find the last version for revision {}", &self.rev)
+            })? {
             Some(last_version) => {
-                let semver = SemVer::from_str(rev.trim_start_matches(&self.prefix));
-                let from_rev = if let Ok(ref semver) = &semver {
-                    if helper.same_commit(rev, last_version.tag.as_str()) {
-                        Rev(last_version.tag.as_str(), Some(semver))
-                    } else {
-                        Rev(rev, Some(semver))
+                let semver = Version::parse(self.rev.trim_start_matches(self.prefix.as_str()));
+                let from_rev = if let Ok(semver) = semver {
+                    Rev(Some(rev), Some(semver))
+                } else if rev.id() == last_version.1.id() {
+                    Rev(Some(last_version.1), Some(last_version.0))
+                } else {
+                    Rev(Some(last_version.1), None)
+                };
+
+                let mut sem_ver_iter: Box<dyn Iterator<Item = (semver::Version, _)>> =
+                    Box::new(semvers.into_iter());
+                if self.max_majors != u64::MAX {
+                    sem_ver_iter = Box::new(sem_ver_iter.max_majors_iter(self.max_majors));
+                }
+                if self.max_minors != u64::MAX {
+                    sem_ver_iter = Box::new(sem_ver_iter.max_minors_iter(self.max_minors));
+                }
+                if self.max_patches != u64::MAX {
+                    sem_ver_iter = Box::new(sem_ver_iter.max_patches_iter(self.max_patches));
+                }
+                // First, collect the versions and their commit objects, generating the short IDs
+                // and storing them as owned Strings. This is the "arena" for our commit IDs.
+                // This ensures the string data for the short IDs lives long enough to be borrowed.
+                let semver_data: Vec<(_, _)> = sem_ver_iter.collect::<Vec<_>>();
+
+                // Now, create the `Rev` structs which borrow from `semver_data`'s elements.
+                // The references inside `Rev` will be valid as long as `semver_data` is in scope.
+                let semvers: Vec<Rev<_>> = semver_data
+                    .into_iter()
+                    .map(|(v, id)| Rev(Some(id), Some(v)))
+                    .collect::<Vec<_>>();
+
+                let mut revs = Vec::with_capacity(semvers.len() + 2);
+
+                if !semvers.is_empty() {
+                    let first = semvers.first().unwrap().0.as_ref().map(|c| c.oid())
+                        != from_rev.0.as_ref().map(CommitTrait::oid);
+                    let last = semvers.last().unwrap().0.as_ref().map(CommitTrait::oid)
+                        != rev_stop.as_ref().map(|o| o.oid());
+                    if first {
+                        // This is the first version, but it's not the first commit in the revwalk.
+                        revs.push(from_rev);
                     }
-                } else if helper.same_commit(rev, last_version.tag.as_str()) {
-                    Rev(last_version.tag.as_str(), Some(&last_version.version))
-                } else {
-                    Rev(rev, None)
-                };
-                // TODO refactor this logic a bit to be less complicated.
-                //  if we have HEAD!=version tag - version tag - ...
-                //  or HEAD==version tag - version tag - ...
-                //  we have to use different logic here, or in the `GitHelper::versions_from` method.
-                let is_head = from_rev.0 == "HEAD";
-                let iter = Some(from_rev).into_iter();
-                let iter = if is_head {
-                    iter.chain(Some(Rev(
-                        last_version.tag.as_str(),
-                        Some(&last_version.version),
-                    )))
-                } else {
-                    iter.chain(None)
-                };
-
-                let stop_at_major =
-                    (last_version.version.0.major + 1).saturating_sub(self.max_majors);
-                let stop_at_minor =
-                    (last_version.version.0.minor + 1).saturating_sub(self.max_minors);
-                let stop_at_patch =
-                    (last_version.version.0.patch + 1).saturating_sub(self.max_patches);
-
-                let iter = iter
-                    .chain(
-                        helper
-                            .versions_from(&last_version)
-                            .into_iter()
-                            .rev()
-                            .take_while(|v| v.tag != rev_stop)
-                            .map(|v| v.into()),
-                    )
-                    .chain(Some(Rev(rev_stop, None)))
-                    .take(self.max_versions.map(|x| x + 1).unwrap_or(std::usize::MAX));
-                let iter: Vec<Rev<'_>> = iter.collect();
-                for w in iter.windows(2) {
-                    let from = match &w[0] {
-                        Rev(_, Some(v))
-                            if v.major() < stop_at_major
-                                || v.minor() < stop_at_minor
-                                || v.patch() < stop_at_patch =>
-                        {
-                            break
-                        }
-                        _ => &w[0],
-                    };
-                    let to = &w[1];
-
-                    let context = transformer.transform(from, to)?;
+                    revs.extend(semvers);
+                    if last && rev_stop.is_some() {
+                        revs.push(Rev(rev_stop.clone(), None));
+                    }
+                }
+                for w in revs.windows(2).map(|w| (w[0].clone(), w[1].clone())) {
+                    let context = transformer.transform(w.0, w.1)?;
                     if !self.skip_empty || !context.context.commit_groups.is_empty() {
                         writer.write_template(&context)?;
                     }
                 }
             }
             None => {
-                let context = transformer.transform(&Rev("HEAD", None), &Rev("", None))?;
+                let head = Repo::revparse_single(&repo, "HEAD")?;
+                let context = transformer.transform(Rev(None, None), Rev(Some(head), None))?;
                 if !self.skip_empty || !context.context.commit_groups.is_empty() {
                     writer.write_template(&context)?;
                 }

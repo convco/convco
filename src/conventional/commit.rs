@@ -5,13 +5,13 @@ use serde::Serialize;
 use thiserror::Error;
 
 #[derive(Debug, PartialEq)]
-pub(crate) struct Footer {
-    pub(crate) key: FooterKey,
-    pub(crate) value: String,
+pub struct Footer {
+    pub key: FooterKey,
+    pub value: String,
 }
 
 #[derive(Debug, PartialEq)]
-pub(crate) enum FooterKey {
+pub enum FooterKey {
     BreakingChange,
     String(String),
 }
@@ -35,24 +35,24 @@ impl Display for FooterKey {
 }
 
 #[derive(Debug, PartialEq, Serialize)]
-pub(crate) struct Reference {
-    pub(crate) action: Option<String>,
-    pub(crate) prefix: String,
-    pub(crate) issue: String,
+pub struct Reference {
+    pub action: Option<String>,
+    pub prefix: String,
+    pub issue: String,
 }
 
 #[derive(Debug, PartialEq)]
-pub struct Commit {
-    pub(crate) r#type: String,
-    pub(crate) scope: Option<String>,
-    pub(crate) breaking: bool,
-    pub(crate) description: String,
-    pub(crate) body: Option<String>,
-    pub(crate) footers: Vec<Footer>,
-    pub(crate) references: Vec<Reference>,
+pub struct ConventionalCommit {
+    pub r#type: String,
+    pub scope: Option<String>,
+    pub breaking: bool,
+    pub description: String,
+    pub body: Option<String>,
+    pub footers: Vec<Footer>,
+    pub references: Vec<Reference>,
 }
 
-impl Commit {
+impl ConventionalCommit {
     pub fn is_breaking(&self) -> bool {
         self.breaking
             || self
@@ -62,7 +62,7 @@ impl Commit {
     }
 }
 
-impl fmt::Display for Commit {
+impl fmt::Display for ConventionalCommit {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.r#type)
     }
@@ -74,14 +74,15 @@ pub enum ParseError {
     NoType,
     #[error("missing description")]
     NoDescription,
-    #[error("empty commit message")]
-    EmptyCommitMessage,
+    #[error("empty ConventionalCommit message")]
+    EmptyConventionalCommitMessage,
     #[error("first line doesn't match `<type>[optional scope]: <description>`")]
     InvalidFirstLine,
     #[error("scope does not match regex: {0}")]
     InvalidScope(String),
 }
 
+#[derive(Debug)]
 pub struct CommitParser {
     regex_first_line: Regex,
     regex_scope: Regex,
@@ -95,7 +96,7 @@ impl CommitParser {
         CommitParserBuilder::new()
     }
 
-    pub fn parse(&self, msg: &str) -> Result<Commit, ParseError> {
+    pub fn parse(&self, msg: &str) -> Result<ConventionalCommit, ParseError> {
         let s = self.regex_strip.replace(msg, "");
         let mut lines = s.lines();
         if let Some(first) = lines.next() {
@@ -170,7 +171,7 @@ impl CommitParser {
                         } else {
                             Some(body.trim().to_owned())
                         };
-                        Ok(Commit {
+                        Ok(ConventionalCommit {
                             r#type,
                             scope,
                             breaking,
@@ -187,7 +188,7 @@ impl CommitParser {
                 Err(ParseError::InvalidFirstLine)
             }
         } else {
-            Err(ParseError::EmptyCommitMessage)
+            Err(ParseError::EmptyConventionalCommitMessage)
         }
     }
 }
@@ -196,6 +197,12 @@ pub struct CommitParserBuilder {
     scope_regex: String,
     references_regex: String,
     strip_regex: String,
+}
+
+impl Default for CommitParserBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl CommitParserBuilder {
@@ -278,10 +285,10 @@ mod tests {
     #[test]
     fn test_simple() {
         let msg = "docs: correct spelling of CHANGELOG";
-        let commit: Commit = parser().parse(msg).expect("valid");
+        let conventional_commit: ConventionalCommit = parser().parse(msg).expect("valid");
         assert_eq!(
-            commit,
-            Commit {
+            conventional_commit,
+            ConventionalCommit {
                 r#type: "docs".into(),
                 scope: None,
                 breaking: false,
@@ -291,16 +298,16 @@ mod tests {
                 references: Vec::new(),
             }
         );
-        assert!(!commit.is_breaking());
+        assert!(!conventional_commit.is_breaking());
     }
 
     #[test]
     fn test_with_scope() {
         let msg = "feat(lang): add polish language";
-        let commit: Commit = parser().parse(msg).expect("valid");
+        let conventional_commit: ConventionalCommit = parser().parse(msg).expect("valid");
         assert_eq!(
-            commit,
-            Commit {
+            conventional_commit,
+            ConventionalCommit {
                 r#type: "feat".into(),
                 scope: Some("lang".into()),
                 breaking: false,
@@ -310,16 +317,16 @@ mod tests {
                 references: Vec::new(),
             }
         );
-        assert!(!commit.is_breaking());
+        assert!(!conventional_commit.is_breaking());
     }
 
     #[test]
     fn test_with_complex_scope() {
         let msg = "feat(bar2/a_b-C4): add a foo to new bar";
-        let commit: Commit = parser().parse(msg).expect("valid");
+        let conventional_commit: ConventionalCommit = parser().parse(msg).expect("valid");
         assert_eq!(
-            commit,
-            Commit {
+            conventional_commit,
+            ConventionalCommit {
                 r#type: "feat".into(),
                 scope: Some("bar2/a_b-C4".into()),
                 breaking: false,
@@ -329,7 +336,7 @@ mod tests {
                 references: Vec::new(),
             }
         );
-        assert!(!commit.is_breaking());
+        assert!(!conventional_commit.is_breaking());
     }
 
     #[test]
@@ -345,10 +352,10 @@ mod tests {
     #[test]
     fn test_with_breaking() {
         let msg = "refactor!: drop support for Node 6";
-        let commit: Commit = parser().parse(msg).expect("valid");
+        let conventional_commit: ConventionalCommit = parser().parse(msg).expect("valid");
         assert_eq!(
-            commit,
-            Commit {
+            conventional_commit,
+            ConventionalCommit {
                 r#type: "refactor".into(),
                 scope: None,
                 breaking: true,
@@ -358,7 +365,7 @@ mod tests {
                 references: Vec::new(),
             }
         );
-        assert!(commit.is_breaking());
+        assert!(conventional_commit.is_breaking());
     }
 
     #[test]
@@ -366,10 +373,10 @@ mod tests {
         let msg = "feat: allow provided config object to extend other configs\n\
                          \n\
                          BREAKING CHANGE: `extends` key in config file is now used for extending other config files";
-        let commit: Commit = parser().parse(msg).expect("valid");
+        let conventional_commit: ConventionalCommit = parser().parse(msg).expect("valid");
         assert_eq!(
-            commit,
-            Commit {
+            conventional_commit,
+            ConventionalCommit {
                 r#type: "feat".into(),
                 scope: None,
                 breaking: false,
@@ -384,7 +391,7 @@ mod tests {
                 references: Vec::new(),
             }
         );
-        assert!(commit.is_breaking());
+        assert!(conventional_commit.is_breaking());
     }
 
     #[test]
@@ -392,8 +399,8 @@ mod tests {
         let msg = "feat: allow provided config object to extend other configs\n\
                          \n\
                          BREAKING-CHANGE: `extends` key in config file is now used for extending other config files";
-        let commit: Commit = parser().parse(msg).expect("valid");
-        assert!(commit.is_breaking());
+        let conventional_commit: ConventionalCommit = parser().parse(msg).expect("valid");
+        assert!(conventional_commit.is_breaking());
     }
 
     #[test]
@@ -401,10 +408,10 @@ mod tests {
         let msg = "feat: allow provided config object to extend other configs\n\
                          \n\
                          BREAKING-CHANGE: `extends` key in config\nfile is now used for extending other config files";
-        let commit: Commit = parser().parse(msg).expect("valid");
-        assert!(commit.is_breaking());
+        let conventional_commit: ConventionalCommit = parser().parse(msg).expect("valid");
+        assert!(conventional_commit.is_breaking());
         assert_eq!(
-            commit.footers.first().unwrap().value,
+            conventional_commit.footers.first().unwrap().value,
             "`extends` key in config\nfile is now used for extending other config files"
         )
     }
@@ -419,10 +426,10 @@ mod tests {
                    \n\
                    Reviewed-by: Z\n\
                    Refs #133";
-        let commit: Commit = parser().parse(msg).expect("valid");
+        let conventional_commit: ConventionalCommit = parser().parse(msg).expect("valid");
         assert_eq!(
-            commit,
-            Commit {
+            conventional_commit,
+            ConventionalCommit {
                 r#type: "fix".into(),
                 scope: None,
                 breaking: false,
@@ -445,7 +452,7 @@ mod tests {
                 }],
             }
         );
-        assert!(!commit.is_breaking());
+        assert!(!conventional_commit.is_breaking());
     }
 
     #[test]
@@ -453,10 +460,10 @@ mod tests {
         let msg = "revert: let us never again speak of the noodle incident #1\n\
         \n\
         Closes: #2, #42";
-        let commit: Commit = parser().parse(msg).expect("valid");
+        let conventional_commit: ConventionalCommit = parser().parse(msg).expect("valid");
         assert_eq!(
-            commit,
-            Commit {
+            conventional_commit,
+            ConventionalCommit {
                 r#type: "revert".into(),
                 scope: None,
                 breaking: false,
@@ -485,20 +492,20 @@ mod tests {
                 ],
             }
         );
-        assert!(!commit.is_breaking());
+        assert!(!conventional_commit.is_breaking());
     }
 
     #[test]
     fn test_with_strip_prefix() {
         let msg = "Merge PR 14: docs: correct spelling of CHANGELOG";
-        let commit: Commit = CommitParser::builder()
+        let conventional_commit: ConventionalCommit = CommitParser::builder()
             .strip_regex("^(?:Merge PR [0-9]+: )?".to_string())
             .build()
             .parse(msg)
             .expect("valid");
         assert_eq!(
-            commit,
-            Commit {
+            conventional_commit,
+            ConventionalCommit {
                 r#type: "docs".into(),
                 scope: None,
                 breaking: false,
@@ -508,6 +515,6 @@ mod tests {
                 references: Vec::new(),
             }
         );
-        assert!(!commit.is_breaking());
+        assert!(!conventional_commit.is_breaking());
     }
 }
