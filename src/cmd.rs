@@ -1,4 +1,4 @@
-use crate::conventional::Config;
+use convco::Config;
 
 mod changelog;
 mod check;

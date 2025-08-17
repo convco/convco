@@ -1,0 +1,15 @@
+---
+source: tests/cli.rs
+expression: sanitized
+---
+stdout:
+# Changelog
+
+## Unreleased (2025-10-01)
+
+### Features
+
+* **lib:** include lib change (<OID>)
+* **app:** include app change (<OID>)
+---
+stderr:

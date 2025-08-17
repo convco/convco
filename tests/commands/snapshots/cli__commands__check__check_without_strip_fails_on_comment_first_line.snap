@@ -1,0 +1,8 @@
+---
+source: tests/commands/check.rs
+expression: snapshot
+---
+stdout:
+FAIL  -  first line doesn't match `<type>[optional scope]: <description>`  # comment
+---
+stderr:

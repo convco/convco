@@ -1,9 +1,11 @@
 use std::io::{stdout, Write};
 
-use crate::{cli::ConfigCommand, cmd::Command, conventional::Config, error::Error};
+use convco::{Config, ConvcoError};
+
+use crate::{cli::ConfigCommand, cmd::Command};
 
 impl ConfigCommand {
-    fn write_yaml(&self, config: &Config, w: impl Write) -> Result<(), Error> {
+    fn write_yaml(&self, config: &Config, w: impl Write) -> Result<(), ConvcoError> {
         Ok(serde_norway::to_writer(w, config)?)
     }
 }
