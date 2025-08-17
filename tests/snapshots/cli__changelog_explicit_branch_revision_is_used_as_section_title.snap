@@ -1,0 +1,20 @@
+---
+source: tests/cli.rs
+expression: sanitized
+---
+stdout:
+# Changelog
+
+## release-next (<DATE>)
+
+### Fixes
+
+* branch patch (<OID>)
+
+## v1.0.0 (<DATE>)
+
+### Features
+
+* base (<OID>)
+---
+stderr:

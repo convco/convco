@@ -1,0 +1,7 @@
+---
+source: tests/commands/check.rs
+expression: snapshot
+---
+stdout:
+---
+stderr:

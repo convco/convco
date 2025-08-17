@@ -1,0 +1,16 @@
+---
+source: tests/cli.rs
+expression: sanitized
+---
+stdout:
+# Changelog
+
+## Unreleased (<DATE>)
+
+### Features
+
+* base closes #123
+([<OID>](https://github.com/acme/demo/commit/<OID>)),
+closes [#123](https://github.com/acme/demo/issues/123)
+---
+stderr:

@@ -1,0 +1,10 @@
+---
+source: tests/cli.rs
+expression: sanitized
+---
+stdout:
+FAIL  <OID>  first line doesn't match `<type>[optional scope]: <description>`  Merge branch 'feature'
+
+1/4 failed
+---
+stderr:

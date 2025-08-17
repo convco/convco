@@ -1,0 +1,11 @@
+---
+source: tests/cli.rs
+expression: sanitized
+---
+stdout:
+---
+stderr:
+regex parse error:
+    [
+    ^
+error: unclosed character class

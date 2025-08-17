@@ -1,0 +1,14 @@
+---
+source: tests/cli.rs
+expression: sanitized
+---
+stdout:
+# Changelog
+
+## Unreleased (<DATE>)
+
+### Features
+
+* **app:** include app change (<OID>)
+---
+stderr:

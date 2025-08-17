@@ -1,52 +1,61 @@
-mod cli;
-mod cmd;
-mod conventional;
-mod error;
-mod git;
-mod semver;
-mod strip;
-
 use std::{path::PathBuf, process::exit};
 
 use clap::Parser;
-use conventional::config::make_cl_config;
-use git::GitHelper;
-
-pub(crate) use crate::{cmd::Command, error::Error};
+use cmd::Command;
+use convco::{open_repo, Config, ConvcoError};
+mod cli;
+mod cmd;
 
 fn main() -> anyhow::Result<()> {
-    let opt: cli::Opt = cli::Opt::parse();
-    if let Some(path) = opt.path {
+    let cli::Opt {
+        path, config, cmd, ..
+    } = cli::Opt::parse();
+    // cli::Opt::parse_from(["convco", "-C", "../convco", "changelog"]);
+
+    if let Some(path) = path {
         std::env::set_current_dir(path)?;
     }
-    let git = GitHelper::new("v").map_err(|e|
-        if e.message().contains("config value 'safe.directory' was not found") {
-            eprintln!("Could not open the git repository.\nIf run from docker set the right user id and group id.\nE.g. `docker run -u \"$(id -u):$(id -g)\" -v \"$PWD:/tmp\" --workdir /tmp --rm convco/convco`")
-        } else {
-            eprintln!("{e}")
+
+    let config_path = config.unwrap_or_else(|| match PathBuf::from(".convco") {
+        p if p.is_file() => p,
+        _ => ".versionrc".into(),
+    });
+
+    let res = match cmd {
+        cli::Command::Config(command) => {
+            let config = if command.default {
+                Config::default()
+            } else {
+                match open_repo() {
+                    Ok(repo) => Config::from_repo(&repo, &config_path)?,
+                    Err(_) => Config::from_path(&config_path),
+                }
+            };
+            command.exec(config)
         }
-    ).ok();
-    let config = make_cl_config(
-        git,
-        opt.config
-            .unwrap_or_else(|| match PathBuf::from(".convco") {
-                p if p.is_file() => p,
-                _ => ".versionrc".into(),
-            }),
-    );
-    let res = match opt.cmd {
-        cli::Command::Config(cmd) => cmd.exec(config),
-        cli::Command::Check(cmd) => cmd.exec(config),
+        cli::Command::Check(command) => {
+            let repo = open_repo()?;
+            command.exec(Config::from_repo(&repo, config_path)?)
+        }
+        cli::Command::Changelog(command) => {
+            let repo = open_repo()?;
+            command.exec(Config::from_repo(&repo, config_path)?)
+        }
+        cli::Command::Version(command) => {
+            let repo = open_repo()?;
+            command.exec(Config::from_repo(&repo, config_path)?)
+        }
+        cli::Command::Commit(command) => {
+            let repo = open_repo()?;
+            command.exec(Config::from_repo(&repo, config_path)?)
+        }
         #[cfg(feature = "completions")]
-        cli::Command::Completions(cmd) => cmd.exec(config),
-        cli::Command::Changelog(cmd) => cmd.exec(config),
-        cli::Command::Version(cmd) => cmd.exec(config),
-        cli::Command::Commit(cmd) => cmd.exec(config),
+        cli::Command::Completions(command) => command.exec(Config::default()),
     };
     match res {
         Err(e) => {
-            match e.downcast_ref::<Error>() {
-                Some(Error::Check) => (),
+            match e.downcast_ref::<ConvcoError>() {
+                Some(ConvcoError::Check) => (),
                 _ => {
                     eprintln!("{:?}", e);
                 }

@@ -1,0 +1,26 @@
+---
+source: tests/cli.rs
+expression: sanitized
+---
+stdout:
+# Changelog
+
+## [Unreleased](///compare/v3.0.0...<OID>) (<DATE>)
+
+### Features
+
+* unreleased feature (<OID>)
+
+## [v3.0.0](///compare/v2.0.0...v3.0.0) (<DATE>)
+
+### Features
+
+* third feature (<OID>)
+
+## [v2.0.0](///compare/v1.0.0...v2.0.0) (<DATE>)
+
+### Features
+
+* second feature (<OID>)
+---
+stderr:

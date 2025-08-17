@@ -19,9 +19,9 @@
 //! 15. The units of information that make up conventional commits MUST NOT be treated as case sensitive by implementors, with the exception of BREAKING CHANGE which MUST be uppercase.
 //! 16. BREAKING-CHANGE MUST be synonymous with BREAKING CHANGE, when used as a token in a footer.
 
-pub(crate) mod changelog;
-mod commits;
+pub mod changelog;
+pub(crate) mod commit;
 pub(crate) mod config;
 
-pub(crate) use commits::{CommitParser, Footer, FooterKey, ParseError};
-pub(crate) use config::Config;
+pub use commit::{CommitParser, ParseError};
+pub use config::Config;

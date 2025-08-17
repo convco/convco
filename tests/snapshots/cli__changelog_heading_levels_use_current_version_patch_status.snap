@@ -1,0 +1,27 @@
+---
+source: tests/cli.rs
+assertion_line: 165
+expression: sanitized
+---
+stdout:
+# Changelog
+
+## Unreleased (<DATE>)
+
+### Features
+
+* unreleased feature (<OID>)
+
+## v2.0.0 (<DATE>)
+
+### Features
+
+* major release (<OID>)
+
+### v1.0.1 (<DATE>)
+
+#### Fixes
+
+* patch release (<OID>)
+---
+stderr:
