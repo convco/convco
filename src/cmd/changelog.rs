@@ -161,10 +161,12 @@ impl<'a> ChangeLogTransformer<'a> {
             merges,
             ..
         } = self.config;
+        let mut diff_options = crate::git::diff_options_from_paths(self.paths);
+
         for commit in revwalk
             .flatten()
             .flat_map(|oid| self.git.find_commit(oid).ok())
-            .filter(|commit| self.git.commit_updates_any_path(commit, self.paths))
+            .filter(|commit| self.git.commit_updates_any_path(commit, &mut diff_options))
             .filter(|commit| filter_merge_commits(commit, *merges))
         {
             if let Some(Ok(conv_commit)) = commit.message().map(|msg| self.commit_parser.parse(msg))

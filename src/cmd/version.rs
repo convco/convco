@@ -71,10 +71,11 @@ impl VersionCommand {
         let git = GitHelper::new(prefix)?;
         let mut revwalk = git.revwalk()?;
         revwalk.push_range(format!("{}..{}", last_v_tag, self.rev).as_str())?;
+        let mut diff_options = crate::git::diff_options_from_paths(&self.paths);
         let i = revwalk
             .flatten()
             .filter_map(|oid| git.find_commit(oid).ok())
-            .filter(|commit| git.commit_updates_any_path(commit, &self.paths))
+            .filter(|commit| git.commit_updates_any_path(commit, &mut diff_options))
             .filter_map(|commit| {
                 let commit_sha = commit.id().to_string();
 
