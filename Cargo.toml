@@ -30,7 +30,7 @@ regex = "1.11.1"
 semver = { version = "1.0.26", features = ["serde"] }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_norway = "0.9.42"
-thiserror = "2.0.12"
+thiserror = "2.0.17"
 url = "2.5.4"
 walkdir = "2.5.0"
 clap_complete = { version = "4.5.57", optional = true }
