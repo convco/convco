@@ -1,0 +1,14 @@
+---
+source: tests/cli.rs
+expression: sanitized
+---
+stdout:
+# Changelog
+
+## Unreleased (2025-10-01)
+
+### Features
+
+* initial conventional commit (<OID>)
+---
+stderr:

@@ -1,0 +1,19 @@
+---
+source: tests/cli.rs
+expression: sanitized
+---
+stdout:
+# Changelog
+
+## Unreleased (2025-10-01)
+
+### Features
+
+* subject with
+multiple words to
+test configurable
+line length
+wrapping behavior
+(<OID>)
+---
+stderr:

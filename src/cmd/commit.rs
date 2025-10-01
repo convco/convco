@@ -3,22 +3,19 @@ use std::{
     process::{self, ExitStatus},
 };
 
+use convco::{open_repo, strip::Strip, CommitParser, Config, ConvcoError, ParseError, Type};
 use handlebars::{no_escape, Handlebars};
 use regex::Regex;
 use serde::Serialize;
 
-use crate::{
-    cli::CommitCommand,
-    conventional::{config::Type, CommitParser, Config, ParseError},
-    strip::Strip,
-    Command, Error,
-};
+use super::Command;
+use crate::cli::CommitCommand;
 
 fn read_single_line(
     theme: &impl dialoguer::theme::Theme,
     prompt: &str,
     default: &str,
-) -> Result<String, Error> {
+) -> Result<String, ConvcoError> {
     Ok(dialoguer::Input::with_theme(theme)
         .with_prompt(prompt)
         .default(default.to_string())
@@ -27,7 +24,7 @@ fn read_single_line(
 }
 
 impl CommitCommand {
-    fn commit(&self, msg: &str) -> Result<ExitStatus, Error> {
+    fn commit(&self, msg: &str) -> Result<ExitStatus, ConvcoError> {
         // build the command
         let mut cmd = process::Command::new("git");
         cmd.args(["commit", "-m", msg]);
@@ -38,12 +35,12 @@ impl CommitCommand {
         Ok(cmd.status()?)
     }
 
-    fn intend_to_add(&self, paths: &[PathBuf]) -> Result<ExitStatus, Error> {
+    fn intend_to_add(&self, paths: &[PathBuf]) -> Result<ExitStatus, ConvcoError> {
         let mut cmd = process::Command::new("git");
         Ok(cmd.args(["add", "-N"]).args(paths).status()?)
     }
 
-    fn patch(&self) -> Result<ExitStatus, Error> {
+    fn patch(&self) -> Result<ExitStatus, ConvcoError> {
         let mut cmd = process::Command::new("git");
         Ok(cmd.args(["add", "-p"]).status()?)
     }
@@ -57,7 +54,7 @@ impl CommitCommand {
         if exit_status.success() {
             std::fs::remove_file(commit_editmsg)?;
         } else {
-            Err(Error::GitCommitFailed(exit_status))?;
+            Err(ConvcoError::GitCommitFailed(exit_status))?;
         };
         Ok(())
     }
@@ -67,7 +64,7 @@ fn read_scope(
     theme: &impl dialoguer::theme::Theme,
     default: &str,
     scope_regex: Regex,
-) -> Result<String, Error> {
+) -> Result<String, ConvcoError> {
     let result: String = dialoguer::Input::with_theme(theme)
         .with_prompt("scope")
         .validate_with(move |input: &String| match scope_regex.is_match(input) {
@@ -91,7 +88,7 @@ fn read_description(
     default: String,
     min_length: usize,
     max_length: usize,
-) -> Result<String, Error> {
+) -> Result<String, ConvcoError> {
     let result: String = dialoguer::Input::with_theme(theme)
         .with_prompt("description")
         .validate_with(|input: &String| {
@@ -113,7 +110,7 @@ fn read_description(
     Ok(result)
 }
 
-fn edit_message(msg: &str) -> Result<String, Error> {
+fn edit_message(msg: &str) -> Result<String, ConvcoError> {
     Ok(dialoguer::Editor::new()
         .require_save(false)
         .edit(msg)?
@@ -121,7 +118,7 @@ fn edit_message(msg: &str) -> Result<String, Error> {
         .strip())
 }
 
-fn edit_loop(msg: &str, parser: &CommitParser, types: &[String]) -> Result<String, Error> {
+fn edit_loop(msg: &str, parser: &CommitParser, types: &[String]) -> Result<String, ConvcoError> {
     let mut edit_msg = msg.to_owned();
     loop {
         edit_msg = edit_message(&edit_msg)?;
@@ -130,7 +127,7 @@ fn edit_loop(msg: &str, parser: &CommitParser, types: &[String]) -> Result<Strin
                 if !types.contains(&commit.r#type) {
                     eprintln!(
                         "ParseError: {}",
-                        Error::Type {
+                        ConvcoError::Type {
                             wrong_type: commit.r#type.to_string(),
                         }
                     );
@@ -138,20 +135,22 @@ fn edit_loop(msg: &str, parser: &CommitParser, types: &[String]) -> Result<Strin
                         .with_prompt("Continue?")
                         .interact()?
                     {
-                        break Err(Error::CancelledByUser);
+                        break Err(ConvcoError::CancelledByUser);
                     }
                 } else {
                     break Ok(edit_msg);
                 }
             }
-            Err(ParseError::EmptyCommitMessage) => break Err(Error::CancelledByUser),
+            Err(ParseError::EmptyConventionalCommitMessage) => {
+                break Err(ConvcoError::CancelledByUser);
+            }
             Err(e) => {
                 eprintln!("ParseError: {}", e);
                 if !dialoguer::Confirm::new()
                     .with_prompt("Continue?")
                     .interact()?
                 {
-                    break Err(Error::CancelledByUser);
+                    break Err(ConvcoError::CancelledByUser);
                 }
             }
         }
@@ -182,7 +181,7 @@ impl Dialog {
         theme: &impl dialoguer::theme::Theme,
         selected: &str,
         types: &[Type],
-    ) -> Result<String, Error> {
+    ) -> Result<String, ConvcoError> {
         let index = dialoguer::FuzzySelect::with_theme(theme)
             .with_prompt("type")
             .items(types)
@@ -196,7 +195,7 @@ impl Dialog {
         config: &Config,
         parser: CommitParser,
         interactive: bool,
-    ) -> Result<String, Error> {
+    ) -> Result<String, ConvcoError> {
         let mut handlebars = Handlebars::new();
         handlebars.set_strict_mode(true);
         handlebars.register_escape_fn(no_escape);
@@ -214,7 +213,7 @@ impl Dialog {
             parser
                 .parse(msg.as_str())
                 .map(|_| msg)
-                .map_err(Error::Parser)
+                .map_err(ConvcoError::Parser)
         } else {
             let theme = &dialoguer::theme::ColorfulTheme::default();
             let types = config.types.as_slice();
@@ -246,7 +245,7 @@ impl Dialog {
                 "issues (e.g. #2, #8)",
                 self.issues.join(", ").as_str(),
             )?
-            .split(|c| c == ' ' || c == ',')
+            .split([' ', ','])
             .filter(|s| !s.is_empty())
             .map(|s| s.to_owned())
             .collect();
@@ -397,7 +396,7 @@ fn config_types_to_conventional(types: &[Type]) -> Vec<String> {
         .collect()
 }
 
-fn get_default_commit_msg_path() -> Result<PathBuf, Error> {
-    let repo = git2::Repository::open_from_env()?;
+fn get_default_commit_msg_path() -> Result<PathBuf, ConvcoError> {
+    let repo = open_repo()?;
     Ok(repo.path().join("CONVCO_MSG"))
 }

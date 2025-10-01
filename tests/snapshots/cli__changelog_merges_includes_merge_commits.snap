@@ -1,0 +1,17 @@
+---
+source: tests/cli.rs
+expression: sanitized
+---
+stdout:
+# Changelog
+
+## Unreleased (2025-10-01)
+
+### Features
+
+* merge feature (<OID>)
+* main work (<OID>)
+* branch change (<OID>)
+* base (<OID>)
+---
+stderr:
