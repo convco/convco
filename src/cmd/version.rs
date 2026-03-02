@@ -66,6 +66,7 @@ impl VersionCommand {
         mut last_version: SemVer,
         parser: &CommitParser,
         types: Vec<Type>,
+        ignore_paths: &[std::path::PathBuf],
     ) -> Result<(Version, Label, String), Error> {
         let prefix = self.prefix.as_str();
         let git = GitHelper::new(prefix)?;
@@ -74,7 +75,7 @@ impl VersionCommand {
         let i = revwalk
             .flatten()
             .filter_map(|oid| git.find_commit(oid).ok())
-            .filter(|commit| git.commit_updates_any_path(commit, &self.paths))
+            .filter(|commit| git.commit_updates_relevant_paths(commit, &self.paths, ignore_paths))
             .filter_map(|commit| {
                 let commit_sha = commit.id().to_string();
 
@@ -162,6 +163,7 @@ impl VersionCommand {
         strip_regex: String,
         types: Vec<Type>,
         initial_bump_version: Version,
+        ignore_paths: &[std::path::PathBuf],
     ) -> Result<(Version, Label, String), Error> {
         if let Some(VersionAndTag {
             tag,
@@ -193,7 +195,7 @@ impl VersionCommand {
                         .scope_regex(scope_regex)
                         .strip_regex(strip_regex)
                         .build();
-                    self.find_bump_version(tag.as_str(), version, &parser, types)?
+                    self.find_bump_version(tag.as_str(), version, &parser, types, ignore_paths)?
                 }
             } else {
                 (version.0, Label::Release, commit_sha)
@@ -245,6 +247,11 @@ impl VersionCommand {
 
 impl Command for VersionCommand {
     fn exec(&self, config: Config) -> anyhow::Result<()> {
+        let ignore_paths = if self.ignore_paths.is_empty() {
+            config.ignore_paths.clone()
+        } else {
+            self.ignore_paths.clone()
+        };
         let initial_bump_version = self
             .initial_bump_version
             .clone()
@@ -254,6 +261,7 @@ impl Command for VersionCommand {
             config.strip_regex,
             config.types,
             initial_bump_version,
+            &ignore_paths,
         )?;
         if self.label {
             println!("{label}");

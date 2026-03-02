@@ -74,6 +74,10 @@ pub struct VersionCommand {
     /// Each path should be relative to the root of the repository.
     #[clap(short = 'P', long, env = "CONVCO_PATHS")]
     pub paths: Vec<PathBuf>,
+    /// Ignore commits that update only those <paths> when calculating the bumped version.
+    /// Each path should be relative to the root of the repository.
+    #[clap(long = "ignore-path", visible_alias = "ignore-paths", env = "CONVCO_IGNORE_PATHS")]
+    pub ignore_paths: Vec<PathBuf>,
     /// Print the commit-sha of the version instead of the semantic version
     #[clap(long)]
     pub commit_sha: bool,
@@ -155,6 +159,10 @@ pub struct ChangelogCommand {
     /// Each path should be relative to the root of the repository.
     #[clap(short = 'P', long, env = "CONVCO_PATHS")]
     pub paths: Vec<PathBuf>,
+    /// Ignore commits that update only those <paths>.
+    /// Each path should be relative to the root of the repository.
+    #[clap(long = "ignore-path", visible_alias = "ignore-paths", env = "CONVCO_IGNORE_PATHS")]
+    pub ignore_paths: Vec<PathBuf>,
     /// Follow only the first parent of merge commits. Commits from the merged branche(s) will be discarded.
     #[clap(long, env = "CONVCO_FIRST_PARENT")]
     pub first_parent: bool,
