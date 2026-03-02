@@ -1,14 +1,29 @@
 # Changelog
 
-## v0.6.2 (2025-02-01)
+## v0.6.3 (2026-03-02)
 
 ### Features
+
+* add `did you mean` fuzzy error for `convco check` (7ba6321)
+* **version:** add env variables for --major, --minor and --patch options
+(99932b3)
+
+### Fixes
+
+* **commit:** add an empty line between the description and body (9cfdd1a),
+closes #367
+* align bump prerelease behaviour for a repo with only pre-release tags
+(f9ed852), closes #323
+
+### v0.6.2 (2025-02-02)
+
+#### Features
 
 * **version:** allow setting the initial version (11b9e4f), closes #290
 * Add 'completions' command (4d10318), closes #229
 * Find matching prerelease before bumping a new one (a83ae2d)
 
-### Fixes
+#### Fixes
 
 * Always search from last release on bump (cb0b8e6)
 
