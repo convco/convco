@@ -72,7 +72,7 @@ pub struct VersionCommand {
     pub prerelease: Prerelease,
     /// Only commits that update those <paths> will be taken into account. It is useful to support monorepos.
     /// Each path should be relative to the root of the repository.
-    #[clap(short = 'P', long, env = "CONVCO_PATHS")]
+    #[clap(short = 'P', long, env = "CONVCO_PATHS", value_delimiter = ',')]
     pub paths: Vec<PathBuf>,
     /// Print the commit-sha of the version instead of the semantic version
     #[clap(long)]
@@ -153,7 +153,7 @@ pub struct ChangelogCommand {
     pub include_hidden_sections: bool,
     /// Only commits that update those <paths> will be taken into account. It is useful to support monorepos.
     /// Each path should be relative to the root of the repository.
-    #[clap(short = 'P', long, env = "CONVCO_PATHS")]
+    #[clap(short = 'P', long, env = "CONVCO_PATHS", value_delimiter = ',')]
     pub paths: Vec<PathBuf>,
     /// Follow only the first parent of merge commits. Commits from the merged branche(s) will be discarded.
     #[clap(long, env = "CONVCO_FIRST_PARENT")]
@@ -255,7 +255,7 @@ pub struct CommitCommand {
     /// Runs `git add -N <PATH>`.
     /// An entry for the path is placed in the index with no content.
     /// This is useful in combination with --patch.
-    #[clap(short = 'N', long, env = "CONVCO_INTENT_TO_ADD")]
+    #[clap(short = 'N', long, env = "CONVCO_INTENT_TO_ADD", value_delimiter = ',')]
     pub intent_to_add: Vec<PathBuf>,
     /// Runs `git add -p`.
     /// Interactively choose hunks of patch between the index and the work tree.
