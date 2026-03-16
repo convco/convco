@@ -20,7 +20,7 @@ rust-version = "1.87"
 
 [dependencies]
 anyhow = { version = "1.0.102", features = ["backtrace"] }
-clap = { version = "4.5.60", features = ["derive", "env"] }
+clap = { version = "4.6.0", features = ["derive", "env"] }
 ctrlc = "3.5.2"
 dialoguer = { version = "0.12.0", features = ["fuzzy-select"] }
 git2 = { version = "0.20.4", default-features = false }
@@ -38,7 +38,7 @@ strsim = "0.11.1"
 
 [build-dependencies]
 clap_complete = "4.5.66"
-clap = { version = "4.5.60", features = ["derive", "env"] }
+clap = { version = "4.6.0", features = ["derive", "env"] }
 semver = "1.0.27"
 
 [features]
