@@ -88,6 +88,12 @@ It is inspired by [conventional changelog][2] and the [configuration file](#conf
 convco changelog > CHANGELOG.md
 ```
 
+To ignore commits that only touch certain paths, use `--ignore-path` (repeatable):
+
+```sh
+convco changelog --ignore-path docs --ignore-path .github > CHANGELOG.md
+```
+
 ### Check
 
 Check a range of revisions for compliance.
@@ -136,6 +142,14 @@ If needed one can provide `--major`, `--minor` or `--patch` to overrule the conv
 ```sh
 convco version --bump
 ```
+
+You can ignore commits that only touch certain paths (e.g. docs or CI config):
+
+```sh
+convco version --bump --ignore-path docs --ignore-path .github
+```
+
+The equivalent configuration key is `ignore_paths`.
 
 It is useful to use it with release tools, such as [`cargo-release`](https://crates.io/crates/cargo-release):
 

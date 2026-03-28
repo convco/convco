@@ -108,6 +108,10 @@ pub(crate) struct Config {
     /// Initial version to use if no previous version is found
     #[serde(default = "default_initial_bump_version")]
     pub(crate) initial_bump_version: Version,
+    /// Ignore commits that update only those paths when calculating bumped versions.
+    /// Each path should be relative to the root of the repository.
+    #[serde(default, alias = "ignore_paths", alias = "ignore-paths")]
+    pub(crate) ignore_paths: Vec<PathBuf>,
 }
 
 fn default_initial_bump_version() -> Version {
@@ -209,6 +213,7 @@ impl Default for Config {
             strip_regex: "".to_string(),
             description: Default::default(),
             initial_bump_version: Version::new(0, 1, 0),
+            ignore_paths: Vec::new(),
         }
     }
 }
@@ -549,6 +554,7 @@ mod tests {
                 strip_regex: "".to_string(),
                 description: DescriptionConfig { length: DescriptionLengthConfig { min: Some(10), max: None } },
                 initial_bump_version: Version::new(0, 1, 0),
+                ignore_paths: Vec::new(),
             }
         )
     }

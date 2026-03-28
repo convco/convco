@@ -47,6 +47,7 @@ struct ChangeLogTransformer<'a> {
     context_builder: ContextBuilder<'a>,
     commit_parser: CommitParser,
     paths: &'a [PathBuf],
+    ignore_paths: &'a [PathBuf],
     prefix: &'a str,
 }
 
@@ -65,6 +66,7 @@ impl<'a> ChangeLogTransformer<'a> {
         include_hidden_sections: bool,
         git: &'a GitHelper,
         paths: &'a [PathBuf],
+        ignore_paths: &'a [PathBuf],
         unreleased: String,
         prefix: &'a str,
     ) -> Result<Self, Error> {
@@ -101,6 +103,7 @@ impl<'a> ChangeLogTransformer<'a> {
             context_builder,
             commit_parser,
             paths,
+            ignore_paths,
             unreleased,
             prefix,
         })
@@ -164,7 +167,10 @@ impl<'a> ChangeLogTransformer<'a> {
         for commit in revwalk
             .flatten()
             .flat_map(|oid| self.git.find_commit(oid).ok())
-            .filter(|commit| self.git.commit_updates_any_path(commit, self.paths))
+            .filter(|commit| {
+                self.git
+                    .commit_updates_relevant_paths(commit, self.paths, self.ignore_paths)
+            })
             .filter(|commit| filter_merge_commits(commit, *merges))
         {
             if let Some(Ok(conv_commit)) = commit.message().map(|msg| self.commit_parser.parse(msg))
@@ -277,6 +283,11 @@ impl<'a> ChangeLogTransformer<'a> {
 
 impl ChangelogCommand {
     pub(crate) fn write(&self, mut config: Config, stdout: impl Write) -> anyhow::Result<()> {
+        let ignore_paths = if self.ignore_paths.is_empty() {
+            config.ignore_paths.clone()
+        } else {
+            self.ignore_paths.clone()
+        };
         if self.no_links {
             config.link_references = false;
             config.link_compare = false;
@@ -318,6 +329,7 @@ impl ChangelogCommand {
             self.include_hidden_sections,
             &helper,
             &self.paths,
+            &ignore_paths,
             self.unreleased.clone(),
             &self.prefix,
         )?;
