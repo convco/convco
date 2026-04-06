@@ -27,7 +27,7 @@ git2 = { version = "0.20.4", default-features = false }
 handlebars = "6.4.1"
 jiff = { version = "0.2.22", features = ["serde"] }
 regex = "1.12.3"
-semver = { version = "1.0.27", features = ["serde"] }
+semver = { version = "1.0.28", features = ["serde"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_norway = "0.9.42"
 thiserror = "2.0.18"
@@ -39,7 +39,7 @@ strsim = "0.11.1"
 [build-dependencies]
 clap_complete = "4.6.5"
 clap = { version = "4.5.60", features = ["derive", "env"] }
-semver = "1.0.27"
+semver = "1.0.28"
 
 [features]
 default = ["zlib-ng-compat"]
