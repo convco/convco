@@ -6,12 +6,13 @@ use std::{
 
 use conventional::Config;
 use git2::Repository;
+use regex::RegexSet;
 
 use crate::{
     cli::CheckCommand,
     cmd::Command,
     conventional,
-    git::{filter_merge_commits, filter_revert_commits},
+    git::{filter_merge_commits, filter_message_pattern, filter_revert_commits},
     strip::Strip,
     Error,
 };
@@ -110,6 +111,14 @@ impl Command for CheckCommand {
 
         let Config { merges, .. } = config;
 
+        // Use CLI patterns if provided, otherwise use config patterns
+        let ignore_patterns = if self.ignore_message_pattern.is_empty() {
+            &config.ignore_message_pattern
+        } else {
+            &self.ignore_message_pattern
+        };
+        let ignore_patterns = RegexSet::new(ignore_patterns).map_err(Error::from)?;
+
         if self.from_stdin {
             let mut stdin = stdin().lock();
             let mut commit_msg = String::new();
@@ -146,6 +155,7 @@ impl Command for CheckCommand {
             .flat_map(|oid| repo.find_commit(oid).ok())
             .filter(|commit| filter_merge_commits(commit, merges))
             .filter(|commit| filter_revert_commits(commit, self.ignore_reverts))
+            .filter(|commit| filter_message_pattern(commit, &ignore_patterns))
             .take(self.number.unwrap_or(std::usize::MAX))
         {
             total += 1;
