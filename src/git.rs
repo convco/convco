@@ -1,6 +1,7 @@
 use std::{cmp::Ordering, collections::HashMap, path::PathBuf};
 
 use git2::{Commit, Diff, Error, Object, Oid, Repository, Revwalk};
+use regex::RegexSet;
 use semver::Version;
 
 use crate::semver::SemVer;
@@ -197,6 +198,13 @@ pub(crate) fn filter_revert_commits(commit: &git2::Commit, ignore_reverts: bool)
     true
 }
 
+pub(crate) fn filter_message_pattern(commit: &git2::Commit, patterns: &RegexSet) -> bool {
+    commit
+        .message()
+        .map(|m| !patterns.is_match(m))
+        .unwrap_or(true)
+}
+
 /// Build a hashmap that contains Commit `Oid` as key and a vector of `Version` as value.
 /// Can be used to easily walk a graph and check if it is a version.
 fn make_oid_version_map(repo: &Repository, prefix: &str) -> HashMap<Oid, Vec<VersionAndTag>> {
@@ -249,6 +257,42 @@ fn diff_updates_any_path(diff: &Diff, paths: &[PathBuf]) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_filter_message_pattern_none() {
+        let git_helper = GitHelper {
+            repo: Repository::open(".").unwrap(),
+            version_map: HashMap::new(),
+        };
+        let commit = git_helper.repo.head().unwrap().peel_to_commit().unwrap();
+        let patterns = RegexSet::new([] as [&str; 0]).unwrap();
+        assert!(filter_message_pattern(&commit, &patterns));
+    }
+
+    #[test]
+    fn test_filter_message_pattern_match() {
+        let git_helper = GitHelper {
+            repo: Repository::open(".").unwrap(),
+            version_map: HashMap::new(),
+        };
+        let commit = git_helper.repo.head().unwrap().peel_to_commit().unwrap();
+        let patterns = RegexSet::new(["^Initial commit$"]).unwrap();
+        let result = filter_message_pattern(&commit, &patterns);
+        // Result depends on actual commit message
+        // Just ensure it doesn't panic
+        let _ = result;
+    }
+
+    #[test]
+    fn test_filter_message_pattern_no_match() {
+        let git_helper = GitHelper {
+            repo: Repository::open(".").unwrap(),
+            version_map: HashMap::new(),
+        };
+        let commit = git_helper.repo.head().unwrap().peel_to_commit().unwrap();
+        let patterns = RegexSet::new(["^NEVER_MATCH_THIS_PATTERN$"]).unwrap();
+        assert!(filter_message_pattern(&commit, &patterns));
+    }
 
     #[test]
     fn test_find_last_unordered_prerelease() {

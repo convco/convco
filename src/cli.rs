@@ -102,6 +102,9 @@ pub struct CheckCommand {
     /// Ignore commits created by `git revert` commands
     #[clap(long, env = "CONVCO_IGNORE_REVERTS")]
     pub ignore_reverts: bool,
+    /// Ignore commits whose message matches the given regex pattern
+    #[clap(long, env = "CONVCO_IGNORE_MESSAGE_PATTERN")]
+    pub ignore_message_pattern: Vec<String>,
     /// Read a single commit message from stdin
     #[clap(long)]
     pub from_stdin: bool,

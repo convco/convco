@@ -108,6 +108,9 @@ pub(crate) struct Config {
     /// Initial version to use if no previous version is found
     #[serde(default = "default_initial_bump_version")]
     pub(crate) initial_bump_version: Version,
+    /// Ignore commits whose message matches any of the given regex patterns
+    #[serde(default)]
+    pub(crate) ignore_message_pattern: Vec<String>,
 }
 
 fn default_initial_bump_version() -> Version {
@@ -209,6 +212,7 @@ impl Default for Config {
             strip_regex: "".to_string(),
             description: Default::default(),
             initial_bump_version: Version::new(0, 1, 0),
+            ignore_message_pattern: vec![],
         }
     }
 }
@@ -549,6 +553,7 @@ mod tests {
                 strip_regex: "".to_string(),
                 description: DescriptionConfig { length: DescriptionLengthConfig { min: Some(10), max: None } },
                 initial_bump_version: Version::new(0, 1, 0),
+                ignore_message_pattern: vec![],
             }
         )
     }
