@@ -1,14 +1,22 @@
 # Changelog
 
-## v0.6.3 (2026-03-02)
+## v0.6.4 (2026-05-24)
 
 ### Features
+
+* **check:** add ignore_message_pattern to filter commits by regexes
+(6ad245a), closes #397
+* use value_delimiter `,` for vec options (21b80bf), closes #392
+
+### v0.6.3 (2026-03-02)
+
+#### Features
 
 * add `did you mean` fuzzy error for `convco check` (7ba6321)
 * **version:** add env variables for --major, --minor and --patch options
 (99932b3)
 
-### Fixes
+#### Fixes
 
 * **commit:** add an empty line between the description and body (9cfdd1a),
 closes #367
