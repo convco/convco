@@ -150,14 +150,19 @@ impl Command for CheckCommand {
             revwalk.push(oid)?;
         }
 
-        for commit in revwalk
+        let commits = revwalk
             .flatten()
             .flat_map(|oid| repo.find_commit(oid).ok())
             .filter(|commit| filter_merge_commits(commit, merges))
-            .filter(|commit| filter_revert_commits(commit, self.ignore_reverts))
-            .filter(|commit| filter_message_pattern(commit, &ignore_patterns))
-            .take(self.number.unwrap_or(std::usize::MAX))
-        {
+            .filter(|commit| filter_revert_commits(commit, self.ignore_reverts));
+
+        let commits: Box<dyn Iterator<Item = git2::Commit<'_>>> = if ignore_patterns.is_empty() {
+            Box::new(commits)
+        } else {
+            Box::new(commits.filter(|commit| filter_message_pattern(commit, &ignore_patterns)))
+        };
+
+        for commit in commits.take(self.number.unwrap_or(std::usize::MAX)) {
             total += 1;
             let msg = std::str::from_utf8(commit.message_bytes()).expect("valid utf-8 message");
             let short_id = commit.as_object().short_id().unwrap();
