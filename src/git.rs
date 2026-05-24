@@ -105,11 +105,10 @@ impl GitHelper {
 
     /// return the host of the repo
     pub(crate) fn url(&self) -> Result<Option<String>, Error> {
-        Ok(self
-            .repo
+        self.repo
             .find_remote("origin")?
             .url()
-            .map(|s| s.to_string()))
+            .map(|url| Some(url.to_string()))
     }
 
     pub(crate) fn commit_updates_any_path(&self, commit: &Commit, paths: &[PathBuf]) -> bool {
@@ -192,6 +191,7 @@ pub(crate) fn filter_revert_commits(commit: &git2::Commit, ignore_reverts: bool)
     if ignore_reverts {
         return commit
             .message()
+            .ok()
             .map(|m| !m.starts_with("Revert \""))
             .unwrap_or(true);
     }
@@ -201,6 +201,7 @@ pub(crate) fn filter_revert_commits(commit: &git2::Commit, ignore_reverts: bool)
 pub(crate) fn filter_message_pattern(commit: &git2::Commit, patterns: &RegexSet) -> bool {
     commit
         .message()
+        .ok()
         .map(|m| !patterns.is_match(m))
         .unwrap_or(true)
 }
@@ -212,7 +213,11 @@ fn make_oid_version_map(repo: &Repository, prefix: &str) -> HashMap<Oid, Vec<Ver
         .tag_names(Some(format!("{}*.*.*", prefix).as_str()))
         .expect("some array");
     let mut map = HashMap::<_, Vec<_>>::new();
-    for tag in tags.iter().flatten().filter(|tag| tag.starts_with(prefix)) {
+    for tag in tags
+        .iter()
+        .filter_map(|tag| tag.ok().flatten())
+        .filter(|tag| tag.starts_with(prefix))
+    {
         if let Ok(oid) = repo.revparse_single(tag).map(object_to_target_commit_id) {
             if let Ok(version) = Version::parse(tag.trim_start_matches(prefix)) {
                 map.entry(oid).or_default().push(VersionAndTag {

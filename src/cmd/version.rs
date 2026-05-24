@@ -80,6 +80,7 @@ impl VersionCommand {
 
                 commit
                     .message()
+                    .ok()
                     .and_then(|msg| parser.parse(msg).map(|c| (commit_sha, c)).ok())
             });
 

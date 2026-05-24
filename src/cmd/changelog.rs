@@ -167,8 +167,7 @@ impl<'a> ChangeLogTransformer<'a> {
             .filter(|commit| self.git.commit_updates_any_path(commit, self.paths))
             .filter(|commit| filter_merge_commits(commit, *merges))
         {
-            if let Some(Ok(conv_commit)) = commit.message().map(|msg| self.commit_parser.parse(msg))
-            {
+            if let Ok(Ok(conv_commit)) = commit.message().map(|msg| self.commit_parser.parse(msg)) {
                 self.make_notes(&conv_commit.footers, conv_commit.scope.clone())
                     .into_iter()
                     .for_each(|(key, note)| {
