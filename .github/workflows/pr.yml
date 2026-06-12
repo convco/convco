@@ -7,7 +7,7 @@ jobs:
     name: Style
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 1
       - name: Install stable toolchain and check style
@@ -27,7 +27,7 @@ jobs:
           - name: gix
             test-command: cargo test --no-default-features --features gix,integration-tests
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           # A PR should not contain too many commits
           fetch-depth: 10
