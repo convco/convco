@@ -48,6 +48,7 @@ RUN \
   cargo zigbuild \
     --release \
     --no-default-features \
+    --features git2 \
     --jobs "$(nproc)" \
     --target "$target_arch-unknown-linux-musl" \
   && if [[ ! -z $(readelf -d "/workspace/target/$target_arch-unknown-linux-musl/release/convco" | grep NEED) ]]; then \
