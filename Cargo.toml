@@ -46,7 +46,7 @@ semver = "1.0.28"
 
 [features]
 default = ["git2", "zlib-ng-compat"]
-git2 = ["zlib-ng-compat", "dep:git2"]
+git2 = ["dep:git2"]
 gix = ["dep:gix", "dep:gix-hash"]
 zlib-ng-compat = ["git2/zlib-ng-compat"]
 completions = ["dep:clap_complete"]
