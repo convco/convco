@@ -4,8 +4,22 @@ on:
   push:
     branches:
       - main
-    tags:
-      - 'v*.*.*'
+  workflow_call:
+    inputs:
+      ref:
+        description: "Git ref to check out"
+        required: true
+        type: string
+      docker_tag:
+        description: "Docker tag to publish"
+        required: false
+        default: ""
+        type: string
+      also_latest:
+        description: "Also publish the latest Docker tag"
+        required: false
+        default: false
+        type: boolean
 jobs:
   bake:
     name: "build and pushing convco docker image"
@@ -13,6 +27,8 @@ jobs:
     steps:
       - name: Check out the repo
         uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref || github.ref }}
       - name: Install multiarch/qemu-user-static
         run: |
           docker run --rm --privileged multiarch/qemu-user-static --reset -p yes -c yes
@@ -28,9 +44,11 @@ jobs:
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
       - name: "build docker image"
         shell: bash
+        env:
+          TAG: ${{ inputs.docker_tag || '' }}
+          LATEST: ${{ inputs.also_latest || (github.event_name != 'workflow_call' && github.ref == 'refs/heads/main') }}
         run: |
-          set -ex ;
-          export TAG=$(echo ${{ github.ref }} | rev | cut -d/ -f1 | rev | tr -d 'v' | sed 's/main/latest/') ;
+          set -ex
           docker buildx use "convco" \
-          || docker buildx create --use --name "convco" --driver docker-container ;
-          ARM64=true AMD64=true docker buildx bake --builder convco ;
+          || docker buildx create --use --name "convco" --driver docker-container
+          ARM64=true AMD64=true docker buildx bake --builder convco
