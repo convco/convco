@@ -12,6 +12,7 @@ variable "LOCAL" {default=false}
 variable "ARM64" {default=true}
 variable "AMD64" {default=true}
 variable "TAG" {default=""}
+variable "LATEST" {default=false}
 variable "IMAGE_NAME" {default="convco/convco"}
 group "default" {
   targets = [
@@ -25,7 +26,7 @@ target "convco" {
   context="."
   dockerfile = "Dockerfile"
   tags = [
-    "${IMAGE_NAME}:latest",
+    equal(LATEST,true) ? "${IMAGE_NAME}:latest": "",
     notequal("",TAG) ? "${IMAGE_NAME}:${TAG}": "",
   ]
   platforms = [

@@ -32,9 +32,16 @@ jobs:
           # A PR should not contain too many commits
           fetch-depth: 10
       - name: Validate commit messages
+        shell: bash
         run: |
+          set -euo pipefail
           git show-ref
-          curl -sSfL https://github.com/convco/convco/releases/latest/download/convco-ubuntu.zip | zcat > convco
+          target="x86_64-unknown-linux-musl"
+          if curl -sSfL "https://github.com/convco/convco/releases/latest/download/convco-${target}.tar.gz" | tar -xz --strip-components=1 "convco-${target}/convco"; then
+            :
+          else
+            curl -sSfL https://github.com/convco/convco/releases/latest/download/convco-ubuntu.zip | zcat > convco
+          fi
           chmod +x convco
           ./convco check ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}
           rm convco

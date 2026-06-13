@@ -1,86 +1,271 @@
-name: Build binary
-# This workflow is triggered on pushes to the repository.
+name: Release
+
 on:
   workflow_dispatch:
-  push:
-    tags:
-      - v*
+    inputs:
+      bump:
+        description: "Version bump to calculate with convco"
+        required: true
+        default: auto
+        type: choice
+        options:
+          - auto
+          - major
+          - minor
+          - patch
+      prerelease:
+        description: "Optional prerelease label, for example rc, beta, or alpha"
+        required: false
+        default: ""
+        type: string
+      version:
+        description: "Optional exact SemVer version, for example 1.0.0 or 1.0.0-rc.1"
+        required: false
+        default: ""
+        type: string
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
 
 jobs:
-  build:
-    name: Build
-    runs-on: ${{ matrix.os.name }}-${{ matrix.os.version }}
+  verify:
+    name: Verify (${{ matrix.name }})
+    runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         include:
-          - os:
-              name: ubuntu
-              version: latest
+          - name: default
+            test-command: cargo test --locked --features integration-tests
+          - name: git2
+            test-command: cargo test --locked --no-default-features --features git2,integration-tests
+          - name: gix
+            test-command: cargo test --locked --no-default-features --features gix,integration-tests
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - name: Install nightly rustfmt
+        run: rustup toolchain install --profile minimal nightly --component rustfmt
+      - name: Check formatting
+        run: cargo +nightly fmt -- --check
+      - name: Install stable toolchain
+        run: rustup toolchain install --profile minimal stable
+      - name: Run tests
+        run: ${{ matrix.test-command }}
+
+  prepare:
+    name: Prepare release
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - name: Configure git identity
+        run: |
+          git config --global user.email "2261239+hdevalke@users.noreply.github.com"
+          git config --global user.name "convco-ci"
+      - name: Install stable toolchain
+        run: rustup toolchain install --profile minimal stable
+      - name: Install convco
+        run: cargo install --path .
+      - name: Install cargo-release
+        run: cargo install cargo-release
+      - name: Calculate release version
+        id: version
+        shell: bash
+        env:
+          BUMP: ${{ inputs.bump }}
+          PRERELEASE: ${{ inputs.prerelease }}
+          VERSION_OVERRIDE: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          if [ -n "${VERSION_OVERRIDE}" ]; then
+            if [[ ! "${VERSION_OVERRIDE}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?(\+[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]; then
+              echo "Invalid SemVer version: ${VERSION_OVERRIDE}" >&2
+              exit 1
+            fi
+            VERSION="${VERSION_OVERRIDE}"
+          else
+            version_args=(version --bump)
+            case "${BUMP}" in
+              auto) ;;
+              major|minor|patch) version_args+=("--${BUMP}") ;;
+              *)
+                echo "Invalid bump input: ${BUMP}" >&2
+                exit 1
+                ;;
+            esac
+            if [ -n "${PRERELEASE}" ]; then
+              version_args+=(--prerelease "${PRERELEASE}")
+            fi
+            VERSION="$(convco "${version_args[@]}")"
+          fi
+          TAG="v${VERSION}"
+          if git rev-parse --verify --quiet "refs/tags/${TAG}"; then
+            echo "Tag ${TAG} already exists" >&2
+            exit 1
+          fi
+          echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
+          echo "tag=${TAG}" >> "${GITHUB_OUTPUT}"
+      - name: Create release commit and tag
+        run: cargo release "${{ steps.version.outputs.version }}" --execute --no-confirm --no-publish
+
+  build-binaries:
+    name: Build ${{ matrix.name }}
+    needs: prepare
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            name: x86_64-unknown-linux-musl
             binary: convco
             target: x86_64-unknown-linux-musl
-          - os:
-              name: ubuntu
-              version: latest
+          - os: ubuntu-latest
+            name: aarch64-unknown-linux-musl
             binary: convco
-            cross: true
             target: aarch64-unknown-linux-musl
-            suffix: -aarch64
-          - os:
-              name: macos
-              version: latest
+            cross: true
+          - os: macos-latest
+            name: macos
             binary: convco
-          - os:
-              name: windows
-              version: latest
+          - os: windows-latest
+            name: windows
             binary: convco.exe
     steps:
       - uses: actions/checkout@v6
-      - name: install extra dependencies
-        if: matrix.os.name == 'ubuntu'
-        run: |
-          sudo apt install -y musl-tools
-
+        with:
+          ref: ${{ needs.prepare.outputs.tag }}
+      - name: Install extra dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt install -y musl-tools
       - name: Install stable toolchain
         if: ${{ !matrix.cross }}
-        run: |
-          rustup toolchain install --profile minimal stable
-          rustup target add x86_64-unknown-linux-musl
+        run: rustup toolchain install --profile minimal stable
+      - name: Add Rust target
+        if: ${{ matrix.target && !matrix.cross }}
+        run: rustup target add ${{ matrix.target }}
       - uses: taiki-e/setup-cross-toolchain-action@v1
         if: matrix.cross
         with:
           target: ${{ matrix.target }}
       - uses: taiki-e/install-action@cross
         if: matrix.cross
-      - name: Test on ${{ matrix.os.name }}
-        run: cargo test
-
-      - name: Build ${{ matrix.os.name }} binary
+      - name: Build binary
+        run: cargo build --release --locked ${{ matrix.target && format('--target {0}', matrix.target) || '' }}
+      - name: Package archive
+        id: package
+        shell: bash
         run: |
-          cargo build --release ${{ matrix.target && format('--target {0}', matrix.target) || '' }}
-          cargo install --root . --path . ${{ matrix.target && format('--target {0}', matrix.target) || '' }}
+          set -euo pipefail
+          VERSION="${{ needs.prepare.outputs.version }}"
+          TARGET="${{ matrix.target || '' }}"
+          if [ -z "${TARGET}" ]; then
+            TARGET="$(rustc -vV | sed -n 's/^host: //p')"
+          fi
+          ARCHIVE="convco-v${VERSION}-${TARGET}"
+          mkdir -p "dist/${ARCHIVE}"
 
-      - name: Upload ${{ matrix.os.name }} binary
+          if [ -n "${{ matrix.target || '' }}" ]; then
+            BIN_PATH="target/${{ matrix.target }}/release/${{ matrix.binary }}"
+          else
+            BIN_PATH="target/release/${{ matrix.binary }}"
+          fi
+
+          cp "${BIN_PATH}" "dist/${ARCHIVE}/"
+          cp README.md "dist/${ARCHIVE}/"
+          cp LICENSE "dist/${ARCHIVE}/"
+          tar -czf "dist/${ARCHIVE}.tar.gz" -C dist "${ARCHIVE}"
+          ALIAS="convco-${TARGET}"
+          cp -R "dist/${ARCHIVE}" "dist/${ALIAS}"
+          tar -czf "dist/${ALIAS}.tar.gz" -C dist "${ALIAS}"
+
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum "dist/${ARCHIVE}.tar.gz" > "dist/${ARCHIVE}.tar.gz.sha256"
+            sha256sum "dist/${ALIAS}.tar.gz" > "dist/${ALIAS}.tar.gz.sha256"
+          else
+            shasum -a 256 "dist/${ARCHIVE}.tar.gz" > "dist/${ARCHIVE}.tar.gz.sha256"
+            shasum -a 256 "dist/${ALIAS}.tar.gz" > "dist/${ALIAS}.tar.gz.sha256"
+          fi
+          echo "archive=${ARCHIVE}" >> "${GITHUB_OUTPUT}"
+      - name: Upload release artifact
         uses: actions/upload-artifact@v4
         with:
-          name: convco-${{ matrix.os.name }}${{ matrix.suffix }}
-          path: bin/${{ matrix.binary }}
+          name: ${{ steps.package.outputs.archive }}
+          path: |
+            dist/*.tar.gz
+            dist/*.sha256
 
-      - name: Upload shell completions
-        if: ${{ !matrix.cross && matrix.os.name == 'ubuntu' }}
-        uses: actions/upload-artifact@v4
+  publish-crates:
+    name: Publish crates.io
+    needs:
+      - prepare
+      - build-binaries
+    runs-on: ubuntu-latest
+    environment: release
+    env:
+      CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+    steps:
+      - uses: actions/checkout@v6
         with:
-          name: convco-shell-completions
-          path: target/completions
+          ref: ${{ needs.prepare.outputs.tag }}
+          fetch-depth: 0
+          fetch-tags: true
+      - name: Install stable toolchain
+        run: rustup toolchain install --profile minimal stable
+      - name: Install cargo-release
+        run: cargo install cargo-release
+      - name: Publish to crates.io
+        run: cargo release publish --execute --no-confirm --allow-branch '*'
 
-      - name: Debian package
-        if: matrix.os.name == 'ubuntu'
+  publish-docker:
+    name: Publish Docker images
+    needs:
+      - prepare
+      - build-binaries
+    uses: ./.github/workflows/docker.yml
+    with:
+      ref: ${{ needs.prepare.outputs.tag }}
+      docker_tag: ${{ needs.prepare.outputs.version }}
+      also_latest: true
+    secrets: inherit
+
+  github-release:
+    name: Create GitHub Release
+    needs:
+      - prepare
+      - build-binaries
+      - publish-crates
+      - publish-docker
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: convco-*
+          path: dist
+          merge-multiple: true
+      - name: Create GitHub Release
+        shell: bash
         run: |
-          cargo install cargo-deb
-          cargo deb -- --target=${{ matrix.target || 'x86_64-unknown-linux-musl' }}
-
-      - name: Upload Debian package
-        if: matrix.os.name == 'ubuntu'
-        uses: actions/upload-artifact@v4
-        with:
-          name: convco-deb${{ matrix.suffix }}
-          path: target/debian
+          set -euo pipefail
+          gh release create "${{ needs.prepare.outputs.tag }}" dist/* \
+            --title "${{ needs.prepare.outputs.tag }}"
