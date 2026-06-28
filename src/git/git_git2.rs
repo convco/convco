@@ -1,7 +1,7 @@
 use std::{borrow::Cow, collections::HashSet};
 
 use bstr::ByteSlice;
-use git2::DiffOptions;
+use git2::{Delta, Pathspec, PathspecFlags};
 use jiff::{
     tz::{Offset, TimeZone},
     Timestamp,
@@ -97,10 +97,12 @@ impl<'repo> Repo<'repo> for git2::Repository {
             revwalk = Box::new(revwalk.filter(move |commit| commit.parent_count() <= 1));
         }
         if !options.paths.is_empty() {
-            revwalk =
-                Box::new(revwalk.filter(move |commit| {
-                    self.commit_changes_path(commit, options.paths.as_slice())
-                }));
+            let pathspec_filter = Git2PathspecFilter::new(options.paths.as_slice());
+            revwalk = Box::new(revwalk.filter(move |commit| {
+                pathspec_filter
+                    .as_ref()
+                    .is_some_and(|filter| self.commit_changes_path(commit, filter))
+            }));
         }
         let revwalk: Box<dyn Iterator<Item = _>> = Box::new(revwalk.filter_map(move |commit| {
             let message = commit.message().ok().map(ToOwned::to_owned);
@@ -170,32 +172,121 @@ fn zoned_from_git_time(seconds: i64, offset_seconds: i32) -> Result<jiff::Zoned,
 }
 
 trait Git2Ext {
-    fn commit_changes_path(&self, commit: &git2::Commit, paths: &[String]) -> bool;
+    fn commit_changes_path(&self, commit: &git2::Commit, filter: &Git2PathspecFilter) -> bool;
 }
 
 impl Git2Ext for git2::Repository {
-    fn commit_changes_path(&self, commit: &git2::Commit, paths: &[String]) -> bool {
+    fn commit_changes_path(&self, commit: &git2::Commit, filter: &Git2PathspecFilter) -> bool {
         let new_tree = commit.tree().ok();
         let new_tree = new_tree.as_ref();
-        let mut opts = DiffOptions::new();
 
-        paths.iter().for_each(|path| {
-            opts.pathspec(path);
-        });
-
-        if commit.parent_count() == 0 {
+        let diff = if commit.parent_count() == 0 {
             let old_tree = None;
-            match self.diff_tree_to_tree(old_tree, new_tree, Some(&mut opts)) {
-                Ok(diff) => diff.deltas().next().is_some(),
-                Err(_) => false,
-            }
+            self.diff_tree_to_tree(old_tree, new_tree, None)
         } else {
             let old_tree = commit.parent(0).and_then(|parent| parent.tree()).ok();
             let old_tree = old_tree.as_ref();
-            match self.diff_tree_to_tree(old_tree, new_tree, Some(&mut opts)) {
-                Ok(diff) => diff.deltas().next().is_some(),
-                Err(_) => false,
-            }
-        }
+            self.diff_tree_to_tree(old_tree, new_tree, None)
+        };
+
+        let Ok(diff) = diff else {
+            return false;
+        };
+
+        filter.matches(&diff)
     }
+}
+
+struct Git2PathspecFilter {
+    include: Option<Pathspec>,
+    exclude: Option<Pathspec>,
+}
+
+impl Git2PathspecFilter {
+    fn new(paths: &[String]) -> Option<Self> {
+        let include_paths = paths
+            .iter()
+            .filter(|path| !is_exclude_pathspec(path))
+            .collect::<Vec<_>>();
+        let exclude_paths = paths
+            .iter()
+            .filter_map(|path| positive_pathspec_from_exclude(path))
+            .collect::<Vec<_>>();
+
+        let include = if include_paths.is_empty() {
+            None
+        } else {
+            Some(Pathspec::new(include_paths).ok()?)
+        };
+        let exclude = if exclude_paths.is_empty() {
+            None
+        } else {
+            Some(Pathspec::new(&exclude_paths).ok()?)
+        };
+
+        (include.is_some() || exclude.is_some()).then_some(Self { include, exclude })
+    }
+
+    fn matches(&self, diff: &git2::Diff<'_>) -> bool {
+        diff.deltas().any(|delta| {
+            let old_path = (delta.status() != Delta::Added)
+                .then(|| delta.old_file().path())
+                .flatten();
+            let new_path = (delta.status() != Delta::Deleted)
+                .then(|| delta.new_file().path())
+                .flatten();
+
+            old_path.into_iter().chain(new_path).any(|path| {
+                let included = self
+                    .include
+                    .as_ref()
+                    .is_none_or(|pathspec| pathspec.matches_path(path, PathspecFlags::DEFAULT));
+                let excluded = self
+                    .exclude
+                    .as_ref()
+                    .is_some_and(|pathspec| pathspec.matches_path(path, PathspecFlags::DEFAULT));
+
+                included && !excluded
+            })
+        })
+    }
+}
+
+fn is_exclude_pathspec(pathspec: &str) -> bool {
+    pathspec.starts_with(":!")
+        || pathspec.starts_with(":^")
+        || long_magic_contains_exclude(pathspec)
+}
+
+fn long_magic_contains_exclude(pathspec: &str) -> bool {
+    let Some(magic) = pathspec
+        .strip_prefix(":(")
+        .and_then(|pathspec| pathspec.split_once(')').map(|(magic, _)| magic))
+    else {
+        return false;
+    };
+
+    magic.split(',').any(|token| token == "exclude")
+}
+
+fn positive_pathspec_from_exclude(pathspec: &str) -> Option<String> {
+    if let Some(pathspec) = pathspec
+        .strip_prefix(":!")
+        .or_else(|| pathspec.strip_prefix(":^"))
+    {
+        return Some(pathspec.to_owned());
+    }
+
+    let pathspec = pathspec.strip_prefix(":(")?;
+    let (magic, pattern) = pathspec.split_once(')')?;
+    let magic = magic
+        .split(',')
+        .filter(|token| *token != "exclude")
+        .collect::<Vec<_>>();
+
+    Some(if magic.is_empty() {
+        pattern.to_owned()
+    } else {
+        format!(":({}){}", magic.join(","), pattern)
+    })
 }

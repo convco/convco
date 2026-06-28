@@ -88,6 +88,12 @@ It is inspired by [conventional changelog][2] and the [configuration file](#conf
 convco changelog > CHANGELOG.md
 ```
 
+Limit changelog commits with git pathspecs:
+
+```sh
+convco changelog --paths 'src,:(exclude)src/generated'
+```
+
 ### Check
 
 Check a range of revisions for compliance.
@@ -135,6 +141,13 @@ If needed one can provide `--major`, `--minor` or `--patch` to overrule the conv
 
 ```sh
 convco version --bump
+```
+
+Limit version calculation with git pathspecs:
+
+```sh
+convco version --bump --paths src
+convco version --bump --paths ':(exclude)charts'
 ```
 
 It is useful to use it with release tools, such as [`cargo-release`](https://crates.io/crates/cargo-release):

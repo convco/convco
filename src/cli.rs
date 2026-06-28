@@ -70,8 +70,8 @@ pub struct VersionCommand {
     /// Suffix with a prerelease version. Requires --bump.
     #[clap(long, requires = "bump", default_value_t = Prerelease::new("").unwrap())]
     pub prerelease: Prerelease,
-    /// Only commits that update those <paths> will be taken into account. It is useful to support monorepos.
-    /// Each path should be relative to the root of the repository.
+    /// Only commits that update those <pathspecs> will be taken into account. It is useful to support monorepos.
+    /// Pathspecs are evaluated relative to the root of the repository.
     #[clap(short = 'P', long, env = "CONVCO_PATHS", value_delimiter = ',')]
     pub paths: Vec<String>,
     /// Print the commit-sha of the version instead of the semantic version
@@ -154,8 +154,8 @@ pub struct ChangelogCommand {
     /// Print hidden sections
     #[clap(long, env = "CONVCO_INCLUDE_HIDDEN_SECTIONS")]
     pub include_hidden_sections: bool,
-    /// Only commits that update those <paths> will be taken into account. It is useful to support monorepos.
-    /// Each path should be relative to the root of the repository.
+    /// Only commits that update those <pathspecs> will be taken into account. It is useful to support monorepos.
+    /// Pathspecs are evaluated relative to the root of the repository.
     #[clap(short = 'P', long, env = "CONVCO_PATHS", value_delimiter = ',')]
     pub paths: Vec<PathBuf>,
     /// Follow only the first parent of merge commits. Commits from the merged branche(s) will be discarded.
@@ -338,6 +338,20 @@ mod tests {
 
         let opt = Opt::try_parse_from([
             "convco",
+            "version",
+            "--paths",
+            "src",
+            "--paths",
+            ":(exclude)src/generated",
+        ])
+        .unwrap();
+        let Command::Version(command) = opt.cmd else {
+            panic!("expected version command");
+        };
+        assert_eq!(command.paths, ["src", ":(exclude)src/generated"]);
+
+        let opt = Opt::try_parse_from([
+            "convco",
             "changelog",
             "--paths",
             "packages/app,packages/lib",
@@ -349,6 +363,26 @@ mod tests {
         assert_eq!(
             command.paths,
             [PathBuf::from("packages/app"), PathBuf::from("packages/lib")]
+        );
+
+        let opt = Opt::try_parse_from([
+            "convco",
+            "changelog",
+            "--paths",
+            "src",
+            "--paths",
+            ":(exclude)src/generated",
+        ])
+        .unwrap();
+        let Command::Changelog(command) = opt.cmd else {
+            panic!("expected changelog command");
+        };
+        assert_eq!(
+            command.paths,
+            [
+                PathBuf::from("src"),
+                PathBuf::from(":(exclude)src/generated")
+            ]
         );
 
         let opt = Opt::try_parse_from(["convco", "commit", "-N", "one.txt,two.txt"]).unwrap();
