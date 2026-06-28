@@ -255,6 +255,74 @@ fn paths_limit_commits_to_specified_directories() -> Result<(), Box<dyn std::err
 }
 
 #[test]
+fn pathspec_excludes_filter_changelog_commits() -> Result<(), Box<dyn std::error::Error>> {
+    let temp = tempdir()?;
+    let repo = temp.path();
+
+    git(repo, &["init"])?;
+    git(repo, &["config", "user.name", "Convco Test"])?;
+    git(repo, &["config", "user.email", "test@example.com"])?;
+
+    fs::create_dir_all(repo.join("src/generated"))?;
+    fs::create_dir_all(repo.join("charts"))?;
+
+    fs::write(repo.join("src/app.txt"), "base")?;
+    git(repo, &["add", "src/app.txt"])?;
+    git(repo, &["commit", "-m", "feat: base"])?;
+    git(repo, &["tag", "v1.0.0"])?;
+
+    fs::write(repo.join("charts/chart.txt"), "chart")?;
+    git(repo, &["add", "charts/chart.txt"])?;
+    git(repo, &["commit", "-m", "feat: chart only"])?;
+
+    fs::write(repo.join("src/generated/schema.txt"), "generated")?;
+    git(repo, &["add", "src/generated/schema.txt"])?;
+    git(repo, &["commit", "-m", "feat: generated only"])?;
+
+    fs::write(repo.join("src/app.txt"), "source fix")?;
+    git(repo, &["add", "src/app.txt"])?;
+    git(repo, &["commit", "-m", "fix: source only"])?;
+
+    let output = run_convco_command(
+        &[
+            "changelog",
+            "--no-links",
+            "--paths",
+            "src,:(exclude)src/generated",
+            "--skip-empty",
+        ],
+        Some(repo),
+        true,
+        "",
+    )?;
+
+    assert!(output.contains("source only"), "got:\n{output}");
+    assert!(!output.contains("generated only"), "got:\n{output}");
+    assert!(!output.contains("chart only"), "got:\n{output}");
+
+    let output = run_convco_command(
+        &[
+            "changelog",
+            "--no-links",
+            "--paths",
+            "src",
+            "--paths",
+            ":(exclude)src/generated",
+            "--skip-empty",
+        ],
+        Some(repo),
+        true,
+        "",
+    )?;
+
+    assert!(output.contains("source only"), "got:\n{output}");
+    assert!(!output.contains("generated only"), "got:\n{output}");
+    assert!(!output.contains("chart only"), "got:\n{output}");
+
+    Ok(())
+}
+
+#[test]
 fn paths_filter_merge_commits_against_first_parent() -> Result<(), Box<dyn std::error::Error>> {
     let temp = tempdir()?;
     let repo = temp.path();

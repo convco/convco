@@ -291,6 +291,116 @@ fn revparse_single_resolves_head_and_revwalk_filters_paths() {
     });
 }
 
+fn setup_repo_with_pathspec_commits() -> TempDir {
+    let temp = setup_repo();
+    let repo = temp.path();
+
+    fs::create_dir_all(repo.join("src/generated")).unwrap();
+    fs::create_dir_all(repo.join("charts")).unwrap();
+
+    fs::write(repo.join("src/app.txt"), "base").unwrap();
+    git(repo, &["add", "src/app.txt"]);
+    git(repo, &["commit", "-m", "feat: base"]);
+    git(repo, &["tag", "v1.0.0"]);
+
+    fs::write(repo.join("charts/chart.txt"), "chart").unwrap();
+    git(repo, &["add", "charts/chart.txt"]);
+    git(repo, &["commit", "-m", "feat: chart only"]);
+
+    fs::write(repo.join("src/app.txt"), "source fix").unwrap();
+    git(repo, &["add", "src/app.txt"]);
+    git(repo, &["commit", "-m", "fix: source only"]);
+
+    fs::write(repo.join("src/generated/schema.txt"), "generated").unwrap();
+    git(repo, &["add", "src/generated/schema.txt"]);
+    git(repo, &["commit", "-m", "feat: generated only"]);
+
+    fs::write(repo.join("charts/chart.txt"), "chart mixed").unwrap();
+    fs::write(repo.join("src/mixed.txt"), "source mixed").unwrap();
+    git(repo, &["add", "charts/chart.txt", "src/mixed.txt"]);
+    git(repo, &["commit", "-m", "feat: mixed source and chart"]);
+
+    temp
+}
+
+fn revwalk_messages(repo: &Path, paths: Vec<String>) -> Vec<String> {
+    with_repo(repo, || {
+        let repo = open_repo().unwrap();
+        let head = Repo::revparse_single(&repo, "HEAD").unwrap();
+        let parser = CommitParser::builder().build();
+        let commits = Repo::revwalk(
+            &repo,
+            RevWalkOptions {
+                from_rev: vec![],
+                to_rev: head,
+                first_parent: false,
+                no_merge_commits: false,
+                no_revert_commits: false,
+                paths,
+                parser: &parser,
+            },
+        )
+        .unwrap()
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap();
+
+        commits
+            .iter()
+            .map(|commit| commit.commit.commit_message().unwrap().into_owned())
+            .collect::<Vec<_>>()
+    })
+}
+
+#[test]
+fn revwalk_supports_exclude_only_pathspecs() {
+    let temp = setup_repo_with_pathspec_commits();
+    let messages = revwalk_messages(temp.path(), vec![":(exclude)charts".to_owned()]);
+
+    assert_eq!(
+        messages,
+        [
+            "feat: mixed source and chart\n",
+            "feat: generated only\n",
+            "fix: source only\n",
+            "feat: base\n",
+        ]
+    );
+}
+
+#[test]
+fn revwalk_supports_shorthand_exclude_pathspecs() {
+    let temp = setup_repo_with_pathspec_commits();
+    let messages = revwalk_messages(temp.path(), vec![":!charts".to_owned()]);
+
+    assert_eq!(
+        messages,
+        [
+            "feat: mixed source and chart\n",
+            "feat: generated only\n",
+            "fix: source only\n",
+            "feat: base\n",
+        ]
+    );
+}
+
+#[test]
+fn revwalk_supports_include_and_exclude_pathspecs() {
+    let temp = setup_repo_with_pathspec_commits();
+    let messages = revwalk_messages(
+        temp.path(),
+        vec!["src".to_owned(), ":(exclude)src/generated".to_owned()],
+    );
+
+    assert_eq!(
+        messages,
+        [
+            "feat: mixed source and chart\n",
+            "fix: source only\n",
+            "feat: base\n",
+        ]
+    );
+}
+
 #[test]
 fn revwalk_without_paths_works_in_bare_repository() {
     let temp = setup_repo();

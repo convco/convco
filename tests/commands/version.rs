@@ -195,3 +195,90 @@ fn paths_filter_merge_commits_against_first_parent_for_bump(
 
     Ok(())
 }
+
+#[test]
+fn exclude_only_pathspec_ignores_chart_only_commits_for_bump(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let temp = tempdir()?;
+    let repo = temp.path();
+
+    git(repo, &["init"])?;
+    git(repo, &["config", "user.name", "Convco Test"])?;
+    git(repo, &["config", "user.email", "test@example.com"])?;
+
+    fs::create_dir_all(repo.join("src"))?;
+    fs::write(repo.join("src/app.txt"), "base")?;
+    git(repo, &["add", "src/app.txt"])?;
+    git(repo, &["commit", "-m", "feat: base"])?;
+    git(repo, &["tag", "v1.0.0"])?;
+
+    fs::create_dir_all(repo.join("charts"))?;
+    fs::write(repo.join("charts/chart.txt"), "chart")?;
+    git(repo, &["add", "charts/chart.txt"])?;
+    git(repo, &["commit", "-m", "feat: chart only"])?;
+
+    fs::write(repo.join("src/app.txt"), "source fix")?;
+    git(repo, &["add", "src/app.txt"])?;
+    git(repo, &["commit", "-m", "fix: source only"])?;
+
+    assert_version(
+        repo,
+        &[
+            "version",
+            "--bump",
+            "--paths",
+            "src,:(exclude)src/generated",
+        ],
+        "1.0.1",
+    )?;
+    assert_version(
+        repo,
+        &[
+            "version",
+            "--bump",
+            "--paths",
+            "src",
+            "--paths",
+            ":(exclude)src/generated",
+        ],
+        "1.0.1",
+    )?;
+    assert_version(
+        repo,
+        &["version", "--bump", "--paths", ":(exclude)charts"],
+        "1.0.1",
+    )?;
+    assert_version(repo, &["version", "--bump", "--paths", ":!charts"], "1.0.1")?;
+
+    Ok(())
+}
+
+#[test]
+fn mixed_excluded_and_included_commit_is_used_for_bump() -> Result<(), Box<dyn std::error::Error>> {
+    let temp = tempdir()?;
+    let repo = temp.path();
+
+    git(repo, &["init"])?;
+    git(repo, &["config", "user.name", "Convco Test"])?;
+    git(repo, &["config", "user.email", "test@example.com"])?;
+
+    fs::create_dir_all(repo.join("src"))?;
+    fs::create_dir_all(repo.join("charts"))?;
+    fs::write(repo.join("src/app.txt"), "base")?;
+    git(repo, &["add", "src/app.txt"])?;
+    git(repo, &["commit", "-m", "feat: base"])?;
+    git(repo, &["tag", "v1.0.0"])?;
+
+    fs::write(repo.join("charts/chart.txt"), "chart")?;
+    fs::write(repo.join("src/app.txt"), "source feature")?;
+    git(repo, &["add", "charts/chart.txt", "src/app.txt"])?;
+    git(repo, &["commit", "-m", "feat: mixed source and chart"])?;
+
+    assert_version(
+        repo,
+        &["version", "--bump", "--paths", ":(exclude)charts"],
+        "1.1.0",
+    )?;
+
+    Ok(())
+}
