@@ -43,6 +43,17 @@ fn setup_repo() -> TempDir {
     temp
 }
 
+fn setup_sha256_repo() -> TempDir {
+    let temp = tempdir().unwrap();
+    let repo = temp.path();
+
+    git(repo, &["init", "--object-format=sha256"]);
+    git(repo, &["config", "user.name", "Convco Test"]);
+    git(repo, &["config", "user.email", "test@example.com"]);
+
+    temp
+}
+
 fn with_repo<T>(repo: &Path, test: impl FnOnce() -> T) -> T {
     let _guard = cwd_lock().lock().unwrap_or_else(|err| err.into_inner());
     let original_dir = env::current_dir().unwrap();
@@ -64,6 +75,69 @@ fn open_repo_discovers_repository_from_nested_directory() {
     with_repo(&nested, || {
         let repo = open_repo().unwrap();
         let _ = Repo::url(&repo, "origin").unwrap();
+    });
+}
+
+#[test]
+fn sha256_repositories_support_core_backend_operations() {
+    let temp = setup_sha256_repo();
+    let repo = temp.path();
+
+    fs::create_dir_all(repo.join("packages/app")).unwrap();
+    fs::write(repo.join("packages/app/app.txt"), "app").unwrap();
+    git(repo, &["add", "packages/app/app.txt"]);
+    git(repo, &["commit", "-m", "feat(app): app change"]);
+    git(repo, &["tag", "v1.0.0"]);
+
+    fs::create_dir_all(repo.join("packages/lib")).unwrap();
+    fs::write(repo.join("packages/lib/lib.txt"), "lib").unwrap();
+    git(repo, &["add", "packages/lib/lib.txt"]);
+    git(
+        repo,
+        &["commit", "-m", "feat(lib): lib change", "-m", "body line"],
+    );
+
+    with_repo(repo, || {
+        let repo = open_repo().unwrap();
+        let head = Repo::revparse_single(&repo, "HEAD").unwrap();
+        assert_eq!(CommitTrait::id(&head).len(), 64);
+        assert_eq!(
+            head.commit_message().unwrap().as_ref(),
+            "feat(lib): lib change\n\nbody line\n"
+        );
+
+        let semvers = Repo::semver_tags(&repo, "v").unwrap();
+        assert_eq!(semvers.len(), 1);
+        assert_eq!(semvers[0].0.to_string(), "1.0.0");
+
+        let version = Repo::find_last_version(&repo, &head, false, &semvers).unwrap();
+        assert_eq!(
+            version.map(|(version, _)| version.to_string()),
+            Some("1.0.0".to_owned())
+        );
+
+        let parser = CommitParser::builder().build();
+        let commits = Repo::revwalk(
+            &repo,
+            RevWalkOptions {
+                from_rev: vec![],
+                to_rev: head,
+                first_parent: false,
+                no_merge_commits: false,
+                no_revert_commits: false,
+                paths: vec!["packages/app".to_owned()],
+                parser: &parser,
+            },
+        )
+        .unwrap()
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap();
+        let messages = commits
+            .iter()
+            .map(|commit| commit.commit.commit_message().unwrap().into_owned())
+            .collect::<Vec<_>>();
+
+        assert_eq!(messages, ["feat(app): app change\n"]);
     });
 }
 

@@ -26,8 +26,8 @@ clap_complete = { version = "4.6.5", optional = true }
 ctrlc = "3.5.2"
 dialoguer = { version = "0.12.0", features = ["fuzzy-select"] }
 git2 = { version = "0.21.0", default-features = false, optional = true }
-gix = { version = "0.85.0", default-features = false, features = ["revision", "blob-diff", "sha1"], optional = true }
-gix-hash = { version = "0.25.1", default-features = false, features = ["sha1"], optional = true }
+gix = { version = "0.85.0", default-features = false, features = ["revision", "blob-diff", "sha1", "sha256"], optional = true }
+gix-hash = { version = "0.25.1", default-features = false, features = ["sha1", "sha256"], optional = true }
 handlebars = { version = "6.4.1", features = ["dir_source"] }
 jiff = { version = "0.2.28", features = ["serde"] }
 regex = "1.12.4"
@@ -46,7 +46,7 @@ semver = "1.0.28"
 
 [features]
 default = ["git2", "zlib-ng-compat"]
-git2 = ["dep:git2"]
+git2 = ["dep:git2", "git2/unstable-sha256"]
 gix = ["dep:gix", "dep:gix-hash"]
 zlib-ng-compat = ["git2/zlib-ng-compat"]
 completions = ["dep:clap_complete"]
