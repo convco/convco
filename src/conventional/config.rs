@@ -108,6 +108,9 @@ pub struct Config {
     /// Initial version to use if no previous version is found
     #[serde(default = "default_initial_bump_version")]
     pub initial_bump_version: Version,
+    /// Treat major version zero as stable when calculating the next version.
+    #[serde(default)]
+    pub treat_major_zero_as_stable: bool,
     /// Ignore commits whose message matches any of the given regex patterns
     #[serde(default)]
     pub ignore_message_pattern: Vec<String>,
@@ -212,6 +215,7 @@ impl Default for Config {
             strip_regex: "".to_string(),
             description: Default::default(),
             initial_bump_version: Version::new(0, 1, 0),
+            treat_major_zero_as_stable: false,
             ignore_message_pattern: vec![],
         }
     }
@@ -570,6 +574,7 @@ mod tests {
                 strip_regex: "".to_string(),
                 description: DescriptionConfig { length: DescriptionLengthConfig { min: Some(10), max: None } },
                 initial_bump_version: Version::new(0, 1, 0),
+                treat_major_zero_as_stable: false,
                 ignore_message_pattern: vec![],
             }
         )

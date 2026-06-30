@@ -83,6 +83,9 @@ pub struct VersionCommand {
     /// If no version is found use this version for the first bump
     #[clap(long, env = "CONVCO_INITIAL_BUMP_VERSION")]
     pub initial_bump_version: Option<Version>,
+    /// Treat major version zero as stable when calculating the next version. Requires --bump.
+    #[clap(long, env = "CONVCO_TREAT_MAJOR_ZERO_AS_STABLE", requires = "bump")]
+    pub treat_major_zero_as_stable: bool,
 }
 
 #[derive(Debug, Parser)]
