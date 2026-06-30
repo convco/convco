@@ -59,19 +59,3 @@ strip = true
 assert_cmd = { version = "2.2.2", features = [] }
 tempfile = { version = "3.27.0" }
 insta = { version = "1.48.0", features = ["redactions", "yaml"] }
-
-[package.metadata.deb]
-depends = ""
-extended-description = """\
-Conventional commit tools. \
-Create a changelog. \
-Check if commits follow the convention. \
-Calculate the next version based on the conventional commits."""
-assets = [
-    # bin
-    ["bin/convco", "/usr/local/bin/", "755"],
-    # completions
-    ["target/completions/convco.bash", "/usr/share/bash-completion/completions/", "644"],
-    ["target/completions/_convco", "/usr/share/zsh/vendor-completions/", "644"],
-    ["target/completions/convco.fish", "/usr/share/fish/completions/", "644"],
-]
