@@ -15,18 +15,46 @@ It provides the following commands:
 - `convco check`: Checks if a range of commits is following the convention.
 - `convco commit`: Helps to make conventional commits.
 - `convco version`: Finds out the current or next version.
+- `convco config`: Prints the effective configuration or the default configuration.
 - `convco completions`: Generates tab completions for shells (exists only with the feature `completions` enabled).
 
 ## Installation
 
-`cargo install convco`
+Convco is built as a single binary. It does not need an additional runtime.
+
+Download release archives from the latest [GitHub release](https://github.com/convco/convco/releases/latest):
+
+```sh
+target=x86_64-unknown-linux-musl
+curl -OL "https://github.com/convco/convco/releases/latest/download/convco-${target}.tar.gz"
+tar -xzf "convco-${target}.tar.gz" --strip-components=1 "convco-${target}/convco"
+sudo install -m 755 convco /usr/local/bin/convco
+```
+
+For macOS or Linux with Homebrew:
+
+```sh
+brew install convco
+```
+
+With Cargo:
+
+```sh
+cargo install convco
+```
+
+With Docker:
+
+```sh
+docker run --rm -v "$PWD:/tmp" -w /tmp convco/convco --help
+```
 
 ## Building from source
 
-Rust 1.60 or newer is required.
+Rust 1.87 or newer is required.
 
 Building with `cargo` depends on `git2` and `cmake` due to linking with `zlib-ng`.
-You can optionally disable this by changing the defaults for a build:
+You can disable the default backend features for a source build:
 
 ```sh
 cargo build --no-default-features
@@ -34,20 +62,21 @@ cargo build --no-default-features
 
 ## Configuration
 
-`convco` uses follows the [conventional-changelog-config-spec][3].
+`convco` follows the [conventional-changelog-config-spec][3].
 
-The configuration file is loaded in the following order
+The configuration is loaded in this order:
 
-1. Load the internal defaults
+1. Load the internal defaults.
     - specified in [src/conventional/config.rs](src/conventional/config.rs),
     - see these defaults at [`convco config --default`](https://convco.github.io/configuration#default-configuration).
-2. Then override with values from the command line, `convco -c|--config path/to/.convco`
-3. Or, if not specified via `-c|--config`, load `${PWD}/.convco` if it exists (or `${PWD}/.versionrc` for compatibility with conventional-changelog).
+2. If `-c` or `--config` is provided, load that file.
+3. Otherwise, load `${PWD}/.convco` when it exists.
+4. Otherwise, load `${PWD}/.versionrc` for compatibility with conventional-changelog.
 
 To get the final derived configuration run `convco config`.
 
-The `host: ...`, `owner: ...` and `repository: ...` when not supplied via custom or the `.versionrc` are loaded
-from the `git remote origin` value.
+When `host`, `owner` and `repository` are not supplied, convco derives them from the `origin` git remote.
+Additional convco-specific config includes `commitTemplate`, description length limits, `initialBumpVersion`, and `ignoreMessagePattern`.
 
 ## Docker usage
 
@@ -55,13 +84,13 @@ from the `git remote origin` value.
 # build the convco image
 docker build -t convco .
 # run it on any codebase
-docker run -v "$PWD:/tmp" --workdir /tmp --rm convco
+docker run --rm -v "$PWD:/tmp" -w /tmp convco --help
 ```
 
 or use it from the Docker Hub:
 
 ```sh
-docker run -v "$PWD:/tmp" --workdir /tmp --rm convco/convco
+docker run --rm -v "$PWD:/tmp" -w /tmp convco/convco --help
 ```
 
 ### Use it in .gitlab-ci.yml
@@ -77,12 +106,38 @@ convco:check:
     - check
 ```
 
+## GitHub Actions
+
+Use `convco check` in pull requests to validate the commits in the PR range.
+
+```yaml
+name: Pull request
+on: [pull_request]
+
+jobs:
+  convco:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 10
+      - name: Validate commit messages
+        shell: bash
+        run: |
+          set -euo pipefail
+          target="x86_64-unknown-linux-musl"
+          curl -sSfL "https://github.com/convco/convco/releases/latest/download/convco-${target}.tar.gz" \
+            | tar -xz --strip-components=1 "convco-${target}/convco"
+          chmod +x convco
+          ./convco check ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}
+```
+
 ## Tools
 
 ### Changelog
 
 A changelog can be generated using the conventional commits.
-It is inspired by [conventional changelog][2] and the [configuration file](#configuration) allows changes to the generated the output.
+It is inspired by [conventional changelog][2] and the [configuration file](#configuration) allows changes to the generated output.
 
 ```sh
 convco changelog > CHANGELOG.md
@@ -92,17 +147,20 @@ Limit changelog commits with git pathspecs:
 
 ```sh
 convco changelog --paths 'src,:(exclude)src/generated'
+convco changelog --paths src --paths ':(exclude)src/generated'
 ```
 
 ### Check
 
 Check a range of revisions for compliance.
 
-It returns a non zero exit code if some commits are not conventional.
-This is useful in a pre-push hook.
+It returns a non-zero exit code if some commits are not conventional.
+This is useful in a pre-push hook or CI job.
 
 ```sh
 convco check $remote_sha..$local_sha
+convco check origin/main..HEAD
+git log -1 --format=%B | convco check --from-stdin
 ```
 
 ### Commit
@@ -113,6 +171,11 @@ Convco will recover the previous message in case git failed to create the commit
 
 ```sh
 convco commit --feat
+convco commit --fix --scope parser --message "handle empty input"
+convco commit --feat --breaking --trailer "Reviewed-by: Z"
+convco commit --interactive --patch
+convco commit --feat -- -p --edit
+convco commit --intent-to-add new-file.rs --patch
 ```
 
 `convco commit` can also be used as git [core.editor][4].
@@ -143,11 +206,19 @@ If needed one can provide `--major`, `--minor` or `--patch` to overrule the conv
 convco version --bump
 ```
 
+Use `--major`, `--minor` or `--patch` to force the bump, and `--prerelease` to calculate a prerelease version:
+
+```sh
+convco version --bump --minor
+convco version --bump --prerelease rc
+```
+
 Limit version calculation with git pathspecs:
 
 ```sh
 convco version --bump --paths src
 convco version --bump --paths ':(exclude)charts'
+convco version --bump --paths 'packages/app,packages/lib'
 ```
 
 It is useful to use it with release tools, such as [`cargo-release`](https://crates.io/crates/cargo-release):
@@ -173,7 +244,7 @@ If your shell cannot be detected (the `$SHELL` variable isn't present) you can s
 convco completions bash
 ```
 
-The tab completions will be outputed to the stdout so you may want to output them to a certain file to save them for future use. Here are some example files for given shells:
+The tab completions will be output to stdout so you may want to write them to a file for future use. Here are some example files for given shells:
 
 - Bash: `/usr/share/bash-completion/completions/convco`
 - Zsh: `/usr/share/zsh/site-functions/_convco`
