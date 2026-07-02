@@ -39,6 +39,105 @@ fn forced_bump_env_vars_are_supported() -> Result<(), Box<dyn std::error::Error>
     Ok(())
 }
 
+fn setup_major_zero_repo(commit: &str) -> Result<tempfile::TempDir, Box<dyn std::error::Error>> {
+    let temp = setup_repo_with_commits(&["fix: base"])?;
+    let repo = temp.path();
+    git(repo, &["tag", "v0.1.0"])?;
+    git(repo, &["commit", "--allow-empty", "-m", commit])?;
+    Ok(temp)
+}
+
+#[test]
+fn major_zero_default_bump_uses_pre_major_rules() -> Result<(), Box<dyn std::error::Error>> {
+    let temp = setup_major_zero_repo("feat: next")?;
+    assert_version(temp.path(), &["version", "--bump"], "0.1.1")?;
+
+    let temp = setup_major_zero_repo("feat!: next")?;
+    assert_version(temp.path(), &["version", "--bump"], "0.2.0")?;
+
+    Ok(())
+}
+
+#[test]
+fn major_zero_can_be_treated_as_stable_with_cli_flag() -> Result<(), Box<dyn std::error::Error>> {
+    let temp = setup_major_zero_repo("feat: next")?;
+    assert_version(
+        temp.path(),
+        &["version", "--bump", "--treat-major-zero-as-stable"],
+        "0.2.0",
+    )?;
+
+    let temp = setup_major_zero_repo("feat!: next")?;
+    assert_version(
+        temp.path(),
+        &["version", "--bump", "--treat-major-zero-as-stable"],
+        "1.0.0",
+    )?;
+
+    Ok(())
+}
+
+#[test]
+fn major_zero_can_be_treated_as_stable_with_env_var() -> Result<(), Box<dyn std::error::Error>> {
+    let temp = setup_major_zero_repo("feat: next")?;
+    let repo = temp.path();
+
+    let mut cmd = Command::cargo_bin("convco")?;
+    let assert = cmd
+        .current_dir(repo)
+        .env("CONVCO_TREAT_MAJOR_ZERO_AS_STABLE", "true")
+        .args(["version", "--bump"])
+        .assert()
+        .success();
+    let stdout = std::str::from_utf8(&assert.get_output().stdout)?;
+    assert_eq!(stdout, "0.2.0\n");
+
+    Ok(())
+}
+
+#[test]
+fn major_zero_can_be_treated_as_stable_with_config() -> Result<(), Box<dyn std::error::Error>> {
+    let temp = setup_major_zero_repo("feat: next")?;
+    let repo = temp.path();
+    fs::write(repo.join(".versionrc"), "treatMajorZeroAsStable: true\n")?;
+
+    assert_version(repo, &["version", "--bump"], "0.2.0")?;
+
+    Ok(())
+}
+
+#[test]
+fn treat_major_zero_as_stable_flag_overrides_false_config() -> Result<(), Box<dyn std::error::Error>>
+{
+    let temp = setup_major_zero_repo("feat: next")?;
+    let repo = temp.path();
+    fs::write(repo.join(".versionrc"), "treatMajorZeroAsStable: false\n")?;
+
+    assert_version(
+        repo,
+        &["version", "--bump", "--treat-major-zero-as-stable"],
+        "0.2.0",
+    )?;
+
+    Ok(())
+}
+
+#[test]
+fn treat_major_zero_as_stable_requires_bump() -> Result<(), Box<dyn std::error::Error>> {
+    let temp = setup_major_zero_repo("feat: next")?;
+
+    let mut cmd = Command::cargo_bin("convco")?;
+    let assert = cmd
+        .current_dir(temp.path())
+        .args(["version", "--treat-major-zero-as-stable"])
+        .assert()
+        .failure();
+    let stderr = std::str::from_utf8(&assert.get_output().stderr)?;
+    assert!(stderr.contains("--bump"));
+
+    Ok(())
+}
+
 #[test]
 fn non_linear_history_uses_highest_reachable_semver() -> Result<(), Box<dyn std::error::Error>> {
     let temp = setup_repo_with_non_linear_version_tags()?;

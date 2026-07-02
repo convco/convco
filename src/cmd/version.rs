@@ -102,6 +102,7 @@ impl VersionCommand {
         strip_regex: String,
         types: Vec<convco::Type>,
         mut initial_bump_version: Version,
+        treat_major_zero_as_stable: bool,
     ) -> Result<(Version, Label, String), ConvcoError> {
         let repo = open_repo()?;
         let prefix = self.prefix.as_str();
@@ -173,7 +174,15 @@ impl VersionCommand {
                             .scope_regex(scope_regex)
                             .strip_regex(strip_regex)
                             .build();
-                        self.find_bump_version(&repo, commit, version, &parser, &types, &semvers)?
+                        self.find_bump_version(
+                            &repo,
+                            commit,
+                            version,
+                            &parser,
+                            &types,
+                            &semvers,
+                            treat_major_zero_as_stable,
+                        )?
                     }
                 } else {
                     (version, Label::Release, CommitTrait::id(&commit))
@@ -191,6 +200,7 @@ impl VersionCommand {
         parser: &'a CommitParser,
         types: &[Type],
         semvers: &[(Version, C)],
+        treat_major_zero_as_stable: bool,
     ) -> Result<(Version, Label, String), ConvcoError>
     where
         R: Repo<'a, CommitTrait = C>,
@@ -212,7 +222,7 @@ impl VersionCommand {
         let mut minor = false;
         let mut patch = false;
 
-        let major_version_zero = last_version.major == 0;
+        let major_version_zero = last_version.major == 0 && !treat_major_zero_as_stable;
         let mut commit_sha = None;
         for commit in revwalk.flatten() {
             if commit_sha.is_none() {
@@ -271,11 +281,14 @@ impl Command for VersionCommand {
             .initial_bump_version
             .clone()
             .unwrap_or(config.initial_bump_version);
+        let treat_major_zero_as_stable =
+            self.treat_major_zero_as_stable || config.treat_major_zero_as_stable;
         let (version, label, commit_sha) = self.get_version(
             config.scope_regex,
             config.strip_regex,
             config.types,
             initial_bump_version,
+            treat_major_zero_as_stable,
         )?;
         if self.label {
             println!("{label}");
