@@ -1,8 +1,25 @@
 # Changelog
 
-## v0.6.4 (2026-05-24)
+## v0.7.0 (2026-07-08)
 
 ### Features
+
+* **commit:** lookup previous scopes for history and completion of scope
+(f559b5d), closes #337
+* add --treat-major-zero-as-stable for semver 0.y.z bumping (#420) (1a5de8b),
+closes #420 #419
+* enable sha256 support (e8c6d92)
+* support git pathspec for `--paths` (03bbd76), closes #389
+
+### Fixes
+
+* add pre-release validation if already released (b7b4521), closes #134
+* comply with the conventional commit spec regarding casing (12926cc), closes
+#219
+
+### v0.6.4 (2026-05-24)
+
+#### Features
 
 * **check:** add ignore_message_pattern to filter commits by regexes
 (6ad245a), closes #397
