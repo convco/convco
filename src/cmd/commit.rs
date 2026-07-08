@@ -1,9 +1,15 @@
 use std::{
+    collections::HashSet,
     path::PathBuf,
     process::{self, ExitStatus},
+    sync::Mutex,
 };
 
-use convco::{open_repo, strip::Strip, CommitParser, Config, ConvcoError, ParseError, Type};
+use convco::{
+    open_repo, strip::Strip, CommitParser, Config, ConvcoError, ParseError, Repo, RevWalkOptions,
+    Type,
+};
+use dialoguer::{BasicHistory, Completion, History};
 use handlebars::{no_escape, Handlebars};
 use regex::Regex;
 use serde::Serialize;
@@ -64,9 +70,14 @@ fn read_scope(
     theme: &impl dialoguer::theme::Theme,
     default: &str,
     scope_regex: Regex,
+    scopes: &[String],
 ) -> Result<String, ConvcoError> {
+    let mut history = scope_history(scopes);
+    let completion = ScopeCompletion::new(scopes);
     let result: String = dialoguer::Input::with_theme(theme)
         .with_prompt("scope")
+        .history_with(&mut history)
+        .completion_with(&completion)
         .validate_with(move |input: &String| match scope_regex.is_match(input) {
             true => Ok(()),
             false => {
@@ -81,6 +92,119 @@ fn read_scope(
         .allow_empty(true)
         .interact_text()?;
     Ok(result)
+}
+
+struct ScopeCompletion {
+    scopes: Vec<String>,
+    state: Mutex<Option<ScopeCompletionState>>,
+}
+
+struct ScopeCompletionState {
+    prefix: String,
+    matches: Vec<String>,
+    index: usize,
+}
+
+impl ScopeCompletion {
+    fn new(scopes: &[String]) -> Self {
+        Self {
+            scopes: scopes.to_owned(),
+            state: Mutex::new(None),
+        }
+    }
+
+    fn matches(&self, input: &str) -> Vec<String> {
+        self.scopes
+            .iter()
+            .filter(|scope| scope.starts_with(input))
+            .cloned()
+            .collect()
+    }
+}
+
+impl Completion for ScopeCompletion {
+    fn get(&self, input: &str) -> Option<String> {
+        let mut state = self.state.lock().expect("scope completion state lock");
+
+        if let Some(state) = state.as_mut() {
+            let current = state.matches.get(state.index)?;
+            if input == current || input == state.prefix {
+                state.index = (state.index + 1) % state.matches.len();
+                return state.matches.get(state.index).cloned();
+            }
+        }
+
+        let matches = self.matches(input);
+        match matches.as_slice() {
+            [] => {
+                *state = None;
+                None
+            }
+            [scope] => {
+                *state = None;
+                Some(scope.to_string())
+            }
+            _ => {
+                if input.is_empty() {
+                    let first_match = matches.first().cloned();
+                    *state = Some(ScopeCompletionState {
+                        prefix: input.to_string(),
+                        matches,
+                        index: 0,
+                    });
+                    return first_match;
+                }
+
+                let common_prefix = common_prefix(&matches);
+                if common_prefix.len() > input.len() {
+                    *state = None;
+                    Some(common_prefix)
+                } else {
+                    let first_match = matches.first().cloned();
+                    *state = Some(ScopeCompletionState {
+                        prefix: input.to_string(),
+                        matches,
+                        index: 0,
+                    });
+                    first_match
+                }
+            }
+        }
+    }
+}
+
+fn common_prefix(scopes: &[String]) -> String {
+    let Some(first) = scopes.first() else {
+        return String::new();
+    };
+
+    let mut end = first.len();
+    for scope in scopes.iter().skip(1) {
+        end = first
+            .char_indices()
+            .take_while(|(index, ch)| {
+                scope
+                    .get(*index..)
+                    .and_then(|suffix| suffix.chars().next())
+                    .is_some_and(|other| other == *ch)
+            })
+            .map(|(index, ch)| index + ch.len_utf8())
+            .last()
+            .unwrap_or(0)
+            .min(end);
+    }
+
+    first[..end].to_string()
+}
+
+fn scope_history(scopes: &[String]) -> BasicHistory {
+    let mut history = BasicHistory::new()
+        .max_entries(scopes.len())
+        .no_duplicates(true);
+    for scope in scopes.iter().rev() {
+        history.write(scope);
+    }
+    history
 }
 
 fn read_description(
@@ -195,6 +319,7 @@ impl Dialog {
         config: &Config,
         parser: CommitParser,
         interactive: bool,
+        scopes: &[String],
     ) -> Result<String, ConvcoError> {
         let mut handlebars = Handlebars::new();
         handlebars.set_strict_mode(true);
@@ -226,7 +351,7 @@ impl Dialog {
             })
             .unwrap();
             self.r#type = Self::select_type(theme, self.r#type.as_str(), types)?;
-            self.scope = read_scope(theme, self.scope.as_str(), scope_regex)?;
+            self.scope = read_scope(theme, self.scope.as_str(), scope_regex, scopes)?;
             self.description = read_description(
                 theme,
                 self.description.clone(),
@@ -269,6 +394,7 @@ impl Command for CommitCommand {
         let parser = CommitParser::builder()
             .scope_regex(config.scope_regex.clone())
             .build();
+        let scopes = collect_commit_scopes(&parser, self.scope_history_limit).unwrap_or_default();
         let types = config_types_to_conventional(&config.types);
         if !is_git_editor {
             if !self.intent_to_add.is_empty() {
@@ -377,7 +503,7 @@ impl Command for CommitCommand {
                 .map(|f| format!("{}: {}", f.0, f.1))
                 .collect(),
         }
-        .wizard(&config, parser, self.interactive)?;
+        .wizard(&config, parser, self.interactive, &scopes)?;
 
         std::fs::write(commit_editmsg_path, &msg)?;
         if !is_git_editor {
@@ -396,7 +522,151 @@ fn config_types_to_conventional(types: &[Type]) -> Vec<String> {
         .collect()
 }
 
+fn collect_commit_scopes(
+    parser: &CommitParser,
+    scope_history_limit: usize,
+) -> Result<Vec<String>, ConvcoError> {
+    let repo = open_repo()?;
+    collect_commit_scopes_from_repo(&repo, parser, scope_history_limit)
+}
+
+fn collect_commit_scopes_from_repo<'repo, R>(
+    repo: &'repo R,
+    parser: &'repo CommitParser,
+    scope_history_limit: usize,
+) -> Result<Vec<String>, ConvcoError>
+where
+    R: Repo<'repo>,
+{
+    let Ok(head) = Repo::revparse_single(repo, "HEAD") else {
+        return Ok(Vec::new());
+    };
+    let options = RevWalkOptions {
+        from_rev: Vec::new(),
+        to_rev: head,
+        first_parent: false,
+        no_merge_commits: false,
+        no_revert_commits: true,
+        paths: Vec::new(),
+        parser,
+    };
+
+    let mut seen = HashSet::new();
+    let mut scopes = Vec::new();
+
+    for commit in Repo::revwalk(repo, options)?.take(scope_history_limit) {
+        if let Ok(commit) = commit {
+            push_scope(&mut scopes, &mut seen, commit.conventional_commit.scope);
+        }
+    }
+
+    Ok(scopes)
+}
+
+fn push_scope(scopes: &mut Vec<String>, seen: &mut HashSet<String>, scope: Option<String>) {
+    if let Some(scope) = scope {
+        if seen.insert(scope.clone()) {
+            scopes.push(scope);
+        }
+    }
+}
+
 fn get_default_commit_msg_path() -> Result<PathBuf, ConvcoError> {
     let repo = open_repo()?;
     Ok(repo.path().join("CONVCO_MSG"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn scope_completion_returns_unique_prefix_match() {
+        let completion = ScopeCompletion::new(&["commit".into(), "changelog".into()]);
+
+        assert_eq!(completion.get("com"), Some("commit".into()));
+    }
+
+    #[test]
+    fn scope_completion_extends_ambiguous_prefix_to_common_prefix() {
+        let completion = ScopeCompletion::new(&["commit-parser".into(), "commit-ui".into()]);
+
+        assert_eq!(completion.get("c"), Some("commit-".into()));
+    }
+
+    #[test]
+    fn scope_completion_cycles_ambiguous_prefix_without_progress() {
+        let completion = ScopeCompletion::new(&["commit".into(), "config".into()]);
+
+        assert_eq!(completion.get("co"), Some("commit".into()));
+        assert_eq!(completion.get("commit"), Some("config".into()));
+        assert_eq!(completion.get("config"), Some("commit".into()));
+    }
+
+    #[test]
+    fn scope_completion_cycles_scopes_with_same_prefix() {
+        let completion = ScopeCompletion::new(&["changelog".into(), "check".into()]);
+
+        assert_eq!(completion.get("ch"), Some("changelog".into()));
+        assert_eq!(completion.get("changelog"), Some("check".into()));
+        assert_eq!(completion.get("check"), Some("changelog".into()));
+    }
+
+    #[test]
+    fn scope_completion_ignores_unknown_prefix() {
+        let completion = ScopeCompletion::new(&["commit".into()]);
+
+        assert_eq!(completion.get("parser"), None);
+    }
+
+    #[test]
+    fn scope_completion_ignores_empty_input() {
+        let completion = ScopeCompletion::new(&["commit".into()]);
+
+        assert_eq!(completion.get(""), Some("commit".into()));
+    }
+
+    #[test]
+    fn scope_completion_cycles_from_empty_input() {
+        let completion = ScopeCompletion::new(&["commit".into(), "check".into()]);
+
+        assert_eq!(completion.get(""), Some("commit".into()));
+        assert_eq!(completion.get("commit"), Some("check".into()));
+        assert_eq!(completion.get("check"), Some("commit".into()));
+    }
+
+    #[test]
+    fn scope_completion_ignores_empty_input_without_scopes() {
+        let completion = ScopeCompletion::new(&[]);
+
+        assert_eq!(completion.get(""), None);
+    }
+
+    #[test]
+    fn scope_history_preserves_most_recent_first_order() {
+        let history = scope_history(&["commit".into(), "check".into()]);
+
+        assert_eq!(
+            <BasicHistory as History<String>>::read(&history, 0),
+            Some("commit".into())
+        );
+        assert_eq!(
+            <BasicHistory as History<String>>::read(&history, 1),
+            Some("check".into())
+        );
+        assert_eq!(<BasicHistory as History<String>>::read(&history, 2), None);
+    }
+
+    #[test]
+    fn push_scope_deduplicates_and_ignores_empty_scopes() {
+        let mut scopes = Vec::new();
+        let mut seen = HashSet::new();
+
+        push_scope(&mut scopes, &mut seen, Some("commit".into()));
+        push_scope(&mut scopes, &mut seen, None);
+        push_scope(&mut scopes, &mut seen, Some("check".into()));
+        push_scope(&mut scopes, &mut seen, Some("commit".into()));
+
+        assert_eq!(scopes, vec!["commit", "check"]);
+    }
 }

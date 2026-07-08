@@ -241,6 +241,9 @@ pub struct CommitCommand {
     /// Specifies the scope of the message
     #[clap(short, long)]
     pub scope: Option<String>,
+    /// Limit the number of commits scanned for scope history.
+    #[clap(long, env = "CONVCO_SCOPE_HISTORY_LIMIT", default_value_t = 500)]
+    pub scope_history_limit: usize,
     /// The first message will be the description. Other -m options will be used as the body.
     #[clap(short, long)]
     pub message: Vec<String>,
@@ -396,6 +399,21 @@ mod tests {
             command.intent_to_add,
             [PathBuf::from("one.txt"), PathBuf::from("two.txt")]
         );
+    }
+
+    #[test]
+    fn commit_scope_history_limit_defaults_and_accepts_override() {
+        let opt = Opt::try_parse_from(["convco", "commit"]).unwrap();
+        let Command::Commit(command) = opt.cmd else {
+            panic!("expected commit command");
+        };
+        assert_eq!(command.scope_history_limit, 500);
+
+        let opt = Opt::try_parse_from(["convco", "commit", "--scope-history-limit", "42"]).unwrap();
+        let Command::Commit(command) = opt.cmd else {
+            panic!("expected commit command");
+        };
+        assert_eq!(command.scope_history_limit, 42);
     }
 
     #[test]
