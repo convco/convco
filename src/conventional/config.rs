@@ -33,6 +33,14 @@ impl fmt::Display for Type {
     }
 }
 
+pub fn commit_type_eq(config_type: &str, commit_type: &str) -> bool {
+    config_type.eq_ignore_ascii_case(commit_type)
+}
+
+pub fn commit_scope_eq(left: &str, right: &str) -> bool {
+    left.eq_ignore_ascii_case(right)
+}
+
 /// see: [Conventional Changelog Configuration](https://github.com/conventional-changelog/conventional-changelog-config-spec/blob/master/versions/2.1.0/README.md)
 /// Additional config: `host`, `owner`, `repository`, `scope_regex` and `template`
 /// Those values are derived from `git remote origin get-url` if not set.

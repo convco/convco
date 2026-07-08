@@ -404,6 +404,15 @@ mod tests {
     }
 
     #[test]
+    fn test_lowercase_breaking_change_footer_is_not_breaking() {
+        let msg = "feat: allow provided config object to extend other configs\n\
+                         \n\
+                         breaking change: `extends` key in config file is now used for extending other config files";
+        let conventional_commit: ConventionalCommit = parser().parse(msg).expect("valid");
+        assert!(!conventional_commit.is_breaking());
+    }
+
+    #[test]
     fn test_with_breaking_footer_newline() {
         let msg = "feat: allow provided config object to extend other configs\n\
                          \n\

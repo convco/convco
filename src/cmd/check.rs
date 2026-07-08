@@ -6,8 +6,8 @@ use std::{
 };
 
 use convco::{
-    open_repo, strip::Strip, Commit, CommitParser, CommitTrait, Config, ConvcoError, Repo,
-    RevWalkOptions,
+    commit_type_eq, open_repo, strip::Strip, Commit, CommitParser, CommitTrait, Config,
+    ConvcoError, Repo, RevWalkOptions,
 };
 use jiff::Zoned;
 use regex::RegexSet;
@@ -75,7 +75,10 @@ fn print_check<O: CommitTrait>(
         Ok(Commit {
             conventional_commit,
             commit: oid,
-        }) if !types.contains(&conventional_commit.r#type) => {
+        }) if !types
+            .iter()
+            .any(|ty| commit_type_eq(ty, &conventional_commit.r#type)) =>
+        {
             let message = oid
                 .commit_message()
                 .unwrap_or_else(|_| Cow::Owned(conventional_commit.description.clone()));

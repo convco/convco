@@ -59,6 +59,55 @@ fn major_zero_default_bump_uses_pre_major_rules() -> Result<(), Box<dyn std::err
 }
 
 #[test]
+fn bump_matches_default_types_case_insensitively() -> Result<(), Box<dyn std::error::Error>> {
+    let temp = setup_repo_with_commits(&["fix: base"])?;
+    let repo = temp.path();
+    git(repo, &["tag", "v1.0.0"])?;
+    git(
+        repo,
+        &["commit", "--allow-empty", "-m", "FEAT: uppercase feature"],
+    )?;
+
+    assert_version(repo, &["version", "--bump"], "1.1.0")?;
+
+    let temp = setup_repo_with_commits(&["feat: base"])?;
+    let repo = temp.path();
+    git(repo, &["tag", "v1.0.0"])?;
+    git(
+        repo,
+        &["commit", "--allow-empty", "-m", "FIX: uppercase fix"],
+    )?;
+
+    assert_version(repo, &["version", "--bump"], "1.0.1")?;
+
+    Ok(())
+}
+
+#[test]
+fn bump_matches_custom_type_case_insensitively() -> Result<(), Box<dyn std::error::Error>> {
+    let temp = setup_repo_with_commits(&["fix: base"])?;
+    let repo = temp.path();
+    git(repo, &["tag", "v1.0.0"])?;
+    git(
+        repo,
+        &["commit", "--allow-empty", "-m", "CUSTOM: uppercase custom"],
+    )?;
+    fs::write(
+        repo.join(".convco"),
+        r#"types:
+- type: custom
+  increment: Patch
+  section: Custom
+  hidden: false
+"#,
+    )?;
+
+    assert_version(repo, &["version", "--bump"], "1.0.1")?;
+
+    Ok(())
+}
+
+#[test]
 fn major_zero_can_be_treated_as_stable_with_cli_flag() -> Result<(), Box<dyn std::error::Error>> {
     let temp = setup_major_zero_repo("feat: next")?;
     assert_version(

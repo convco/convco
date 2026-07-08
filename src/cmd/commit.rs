@@ -6,8 +6,8 @@ use std::{
 };
 
 use convco::{
-    open_repo, strip::Strip, CommitParser, Config, ConvcoError, ParseError, Repo, RevWalkOptions,
-    Type,
+    commit_scope_eq, open_repo, strip::Strip, CommitParser, Config, ConvcoError, ParseError, Repo,
+    RevWalkOptions, Type,
 };
 use dialoguer::{BasicHistory, Completion, History};
 use handlebars::{no_escape, Handlebars};
@@ -107,8 +107,18 @@ struct ScopeCompletionState {
 
 impl ScopeCompletion {
     fn new(scopes: &[String]) -> Self {
+        let mut unique_scopes: Vec<String> = Vec::new();
+        for scope in scopes {
+            if !unique_scopes
+                .iter()
+                .any(|unique_scope| commit_scope_eq(unique_scope, scope))
+            {
+                unique_scopes.push(scope.clone());
+            }
+        }
+
         Self {
-            scopes: scopes.to_owned(),
+            scopes: unique_scopes,
             state: Mutex::new(None),
         }
     }
@@ -116,7 +126,12 @@ impl ScopeCompletion {
     fn matches(&self, input: &str) -> Vec<String> {
         self.scopes
             .iter()
-            .filter(|scope| scope.starts_with(input))
+            .filter(|scope| {
+                scope
+                    .get(..input.len())
+                    .map(|prefix| commit_scope_eq(prefix, input))
+                    .unwrap_or(false)
+            })
             .cloned()
             .collect()
     }
@@ -565,7 +580,7 @@ where
 
 fn push_scope(scopes: &mut Vec<String>, seen: &mut HashSet<String>, scope: Option<String>) {
     if let Some(scope) = scope {
-        if seen.insert(scope.clone()) {
+        if seen.insert(scope.to_ascii_lowercase()) {
             scopes.push(scope);
         }
     }
@@ -585,6 +600,21 @@ mod tests {
         let completion = ScopeCompletion::new(&["commit".into(), "changelog".into()]);
 
         assert_eq!(completion.get("com"), Some("commit".into()));
+    }
+
+    #[test]
+    fn scope_completion_matches_prefix_case_insensitively() {
+        let completion = ScopeCompletion::new(&["Parser".into()]);
+
+        assert_eq!(completion.get("pa"), Some("Parser".into()));
+    }
+
+    #[test]
+    fn scope_completion_deduplicates_case_variants() {
+        let completion = ScopeCompletion::new(&["Parser".into(), "parser".into()]);
+
+        assert_eq!(completion.get("pa"), Some("Parser".into()));
+        assert_eq!(completion.get("Parser"), Some("Parser".into()));
     }
 
     #[test]
@@ -668,5 +698,16 @@ mod tests {
         push_scope(&mut scopes, &mut seen, Some("commit".into()));
 
         assert_eq!(scopes, vec!["commit", "check"]);
+    }
+
+    #[test]
+    fn push_scope_deduplicates_case_variants_and_keeps_first_casing() {
+        let mut scopes = Vec::new();
+        let mut seen = HashSet::new();
+
+        push_scope(&mut scopes, &mut seen, Some("Parser".into()));
+        push_scope(&mut scopes, &mut seen, Some("parser".into()));
+
+        assert_eq!(scopes, vec!["Parser"]);
     }
 }
