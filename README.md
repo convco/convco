@@ -93,6 +93,12 @@ or use it from the Docker Hub:
 docker run --rm -v "$PWD:/tmp" -w /tmp convco/convco --help
 ```
 
+or use it from the GitHub Container Registry:
+
+```sh
+docker run --rm -v "$PWD:/tmp" -w /tmp ghcr.io/convco/convco --help
+```
+
 ### Use it in .gitlab-ci.yml
 
 If you've created an image and pushed it into your private registry
