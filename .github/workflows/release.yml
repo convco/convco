@@ -237,6 +237,9 @@ jobs:
     needs:
       - prepare
       - build-binaries
+    permissions:
+      contents: read
+      packages: write
     uses: ./.github/workflows/docker.yml
     with:
       ref: ${{ needs.prepare.outputs.tag }}
