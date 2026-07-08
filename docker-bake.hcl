@@ -14,6 +14,7 @@ variable "AMD64" {default=true}
 variable "TAG" {default=""}
 variable "LATEST" {default=false}
 variable "IMAGE_NAME" {default="convco/convco"}
+variable "GHCR_IMAGE_NAME" {default="ghcr.io/convco/convco"}
 group "default" {
   targets = [
     "convco"
@@ -27,8 +28,15 @@ target "convco" {
   dockerfile = "Dockerfile"
   tags = [
     equal(LATEST,true) ? "${IMAGE_NAME}:latest": "",
+    equal(LATEST,true) ? "${GHCR_IMAGE_NAME}:latest": "",
     notequal("",TAG) ? "${IMAGE_NAME}:${TAG}": "",
+    notequal("",TAG) ? "${GHCR_IMAGE_NAME}:${TAG}": "",
   ]
+  labels = {
+    "org.opencontainers.image.source" = "https://github.com/convco/convco"
+    "org.opencontainers.image.licenses" = "MIT"
+    "org.opencontainers.image.description" = "Conventional commits, changelog and versioning"
+  }
   platforms = [
     equal(AMD64,true) ?"linux/amd64":"",
     equal(ARM64,true) ?"linux/arm64":"",
