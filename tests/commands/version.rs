@@ -309,6 +309,32 @@ fn prerelease_bump_advances_latest_prerelease_after_followup_commit(
 }
 
 #[test]
+fn prerelease_bump_fails_when_base_version_is_already_released(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let temp = setup_repo_with_commits(&["fix: base"])?;
+    let repo = temp.path();
+    git(repo, &["tag", "v0.1.1"])?;
+    git(repo, &["commit", "--allow-empty", "-m", "fix: prerelease"])?;
+    git(repo, &["tag", "v0.1.2-beta.1"])?;
+    git(repo, &["tag", "v0.1.2"])?;
+    git(repo, &["commit", "--allow-empty", "-m", "chore: followup"])?;
+
+    let output = run_convco_command(
+        &["version", "--bump", "--prerelease", "beta"],
+        Some(repo),
+        false,
+        "",
+    )?;
+
+    assert!(
+        output.contains("version 0.1.2 is already released; cannot create prerelease 0.1.2-beta.2"),
+        "expected prerelease conflict error, got:\n{output}"
+    );
+
+    Ok(())
+}
+
+#[test]
 fn paths_filter_merge_commits_against_first_parent_for_bump(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let temp = tempdir()?;

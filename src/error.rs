@@ -69,6 +69,11 @@ pub enum ConvcoError {
     Check,
     #[error("wrong type: {wrong_type}")]
     Type { wrong_type: String },
+    #[error("version {release} is already released; cannot create prerelease {prerelease}")]
+    PrereleaseBaseAlreadyReleased {
+        release: semver::Version,
+        prerelease: semver::Version,
+    },
     #[error("canceled by user")]
     CancelledByUser,
     #[error("git commit failed: {0}")]
