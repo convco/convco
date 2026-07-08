@@ -95,6 +95,29 @@ fn calc_prerelease<C: CommitTrait>(
     }
 }
 
+fn ensure_prerelease_base_is_unreleased<C: CommitTrait>(
+    version: &Version,
+    semvers: &[(Version, C)],
+) -> Result<(), ConvcoError> {
+    if version.pre.is_empty() {
+        return Ok(());
+    }
+
+    if semvers.iter().any(|(tag_version, _)| {
+        same_base_version(tag_version, version) && tag_version.pre.is_empty()
+    }) {
+        let mut release = version.clone();
+        release.pre = semver::Prerelease::EMPTY;
+        release.build = semver::BuildMetadata::EMPTY;
+        return Err(ConvcoError::PrereleaseBaseAlreadyReleased {
+            release,
+            prerelease: version.clone(),
+        });
+    }
+
+    Ok(())
+}
+
 impl VersionCommand {
     fn get_version(
         &self,
@@ -134,6 +157,7 @@ impl VersionCommand {
                             &semvers,
                             &CommitTrait::id(&commit),
                         );
+                        ensure_prerelease_base_is_unreleased(&initial_bump_version, &semvers)?;
                         Ok((initial_bump_version, Label::Prerelease, commit_sha))
                     }
                 } else if self.patch {
@@ -167,6 +191,7 @@ impl VersionCommand {
                             (version, Label::Release, CommitTrait::id(&commit))
                         } else {
                             version.increment_prerelease(&self.prerelease);
+                            ensure_prerelease_base_is_unreleased(&version, &semvers)?;
                             (version, Label::Prerelease, CommitTrait::id(&commit))
                         }
                     } else {
@@ -270,6 +295,7 @@ impl VersionCommand {
         let commit_sha = commit_sha.unwrap_or_default();
         if !self.prerelease.is_empty() {
             calc_prerelease(&mut last_version, &self.prerelease, semvers, &commit_sha);
+            ensure_prerelease_base_is_unreleased(&last_version, semvers)?;
         }
         Ok((last_version, label, commit_sha))
     }
