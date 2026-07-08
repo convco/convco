@@ -6,7 +6,7 @@ pub mod strip;
 pub use conventional::{
     changelog,
     commit::{Footer, FooterKey},
-    config::{Increment, Type},
+    config::{commit_scope_eq, commit_type_eq, Increment, Type},
     CommitParser, Config, ParseError,
 };
 pub use error::ConvcoError;

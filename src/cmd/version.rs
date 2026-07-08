@@ -1,8 +1,8 @@
 use std::fmt;
 
 use convco::{
-    open_repo, CommitParser, CommitTrait, Config, ConvcoError, Increment, Repo, RevWalkOptions,
-    Type,
+    commit_type_eq, open_repo, CommitParser, CommitTrait, Config, ConvcoError, Increment, Repo,
+    RevWalkOptions, Type,
 };
 use semver::{Prerelease, Version};
 
@@ -239,7 +239,7 @@ impl VersionCommand {
 
             let option_commit_type = types
                 .iter()
-                .find(|x| x.r#type == commit.conventional_commit.r#type);
+                .find(|x| commit_type_eq(&x.r#type, &commit.conventional_commit.r#type));
 
             if let Some(some_commit_type) = option_commit_type {
                 match (&some_commit_type.increment, major_version_zero) {

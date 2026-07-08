@@ -16,6 +16,34 @@ fn succeeds_on_conventional_commits() -> Result<(), Box<dyn std::error::Error>> 
 }
 
 #[test]
+fn succeeds_on_case_insensitive_default_type() -> Result<(), Box<dyn std::error::Error>> {
+    let temp = setup_repo_with_commits(&["FEAT: uppercase feature"])?;
+    let repo = temp.path();
+
+    run_convco_command(&["check"], Some(repo), true, "")?;
+
+    Ok(())
+}
+
+#[test]
+fn succeeds_on_case_insensitive_custom_type() -> Result<(), Box<dyn std::error::Error>> {
+    let temp = setup_repo_with_commits(&["CUSTOM: uppercase custom"])?;
+    let repo = temp.path();
+    std::fs::write(
+        repo.join(".convco"),
+        r#"types:
+- type: custom
+  section: Custom
+  hidden: false
+"#,
+    )?;
+
+    run_convco_command(&["check"], Some(repo), true, "")?;
+
+    Ok(())
+}
+
+#[test]
 fn fails_on_non_conventional_commits() -> Result<(), Box<dyn std::error::Error>> {
     let temp = setup_repo_with_commits(&["this is not conventional"])?;
     let repo = temp.path();

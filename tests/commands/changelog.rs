@@ -56,6 +56,74 @@ fn succeeds_on_conventional_commits() -> Result<(), Box<dyn std::error::Error>> 
 }
 
 #[test]
+fn groups_default_types_case_insensitively() -> Result<(), Box<dyn std::error::Error>> {
+    let temp = setup_repo_with_commits(&["FEAT: uppercase feature"])?;
+    let repo = temp.path();
+
+    let output = run_convco_command(&["changelog", "--no-links"], Some(repo), true, "")?;
+
+    assert!(output.contains("### Features"), "got:\n{output}");
+    assert!(output.contains("uppercase feature"), "got:\n{output}");
+
+    Ok(())
+}
+
+#[test]
+fn preserves_scope_casing_in_output() -> Result<(), Box<dyn std::error::Error>> {
+    let temp = setup_repo_with_commits(&["feat(Parser): scoped feature"])?;
+    let repo = temp.path();
+
+    let output = run_convco_command(&["changelog", "--no-links"], Some(repo), true, "")?;
+
+    assert!(
+        output.contains("**Parser:** scoped feature"),
+        "got:\n{output}"
+    );
+
+    Ok(())
+}
+
+#[test]
+fn groups_custom_types_case_insensitively() -> Result<(), Box<dyn std::error::Error>> {
+    let temp = setup_repo_with_commits(&["CUSTOM: uppercase custom"])?;
+    let repo = temp.path();
+    fs::write(
+        repo.join(".convco"),
+        r#"types:
+- type: custom
+  section: Custom
+  hidden: false
+"#,
+    )?;
+
+    let output = run_convco_command(&["changelog", "--no-links"], Some(repo), true, "")?;
+
+    assert!(output.contains("### Custom"), "got:\n{output}");
+    assert!(output.contains("uppercase custom"), "got:\n{output}");
+
+    Ok(())
+}
+
+#[test]
+fn hidden_types_are_filtered_case_insensitively() -> Result<(), Box<dyn std::error::Error>> {
+    let temp = setup_repo_with_commits(&["DOCS: uppercase docs"])?;
+    let repo = temp.path();
+
+    let output = run_convco_command(&["changelog", "--no-links"], Some(repo), true, "")?;
+    assert!(!output.contains("uppercase docs"), "got:\n{output}");
+
+    let output = run_convco_command(
+        &["changelog", "--no-links", "--include-hidden-sections"],
+        Some(repo),
+        true,
+        "",
+    )?;
+    assert!(output.contains("uppercase docs"), "got:\n{output}");
+
+    Ok(())
+}
+
+#[test]
 fn non_linear_history_uses_highest_reachable_semver() -> Result<(), Box<dyn std::error::Error>> {
     let temp = setup_repo_with_non_linear_version_tags()?;
     let repo = temp.path();

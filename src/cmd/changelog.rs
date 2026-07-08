@@ -6,8 +6,8 @@ use convco::{
         ChangelogWriter, CommitContext, CommitGroup, Context, ContextBase, ContextBuilder, Note,
         NoteGroup, Reference,
     },
-    open_repo, CommitParser, CommitTrait, Config, ConvcoError, Footer, FooterKey, MaxMajorsIterExt,
-    MaxMinorsIterExt, MaxPatchesIterExt, Repo, RevWalkOptions,
+    commit_type_eq, open_repo, CommitParser, CommitTrait, Config, ConvcoError, Footer, FooterKey,
+    MaxMajorsIterExt, MaxMinorsIterExt, MaxPatchesIterExt, Repo, RevWalkOptions,
 };
 use semver::Version;
 
@@ -28,7 +28,7 @@ struct Unreleased {
 
 /// Transforms a range of commits to pass them to the changelog writer.
 struct ChangeLogTransformer<'a, R: Repo<'a>> {
-    group_types: HashMap<&'a str, &'a str>,
+    group_types: Vec<(&'a str, &'a str)>,
     config: &'a Config,
     revwalk_options: RevWalkOptions<'a, R::CommitTrait>,
     unreleased: Unreleased,
@@ -50,10 +50,8 @@ impl<'a, R: Repo<'a>> ChangeLogTransformer<'a, R> {
             .types
             .iter()
             .filter(|ty| include_hidden_sections || !ty.hidden)
-            .fold(HashMap::new(), |mut acc, ty| {
-                acc.insert(ty.r#type.as_str(), ty.section.as_str());
-                acc
-            });
+            .map(|ty| (ty.r#type.as_str(), ty.section.as_str()))
+            .collect();
 
         let context_builder = ContextBuilder::new(config)?;
         let unreleased = match unreleased.parse::<Version>() {
@@ -159,7 +157,11 @@ impl<'a, R: Repo<'a>> ChangeLogTransformer<'a, R> {
                 short_hash,
                 references,
             };
-            if let Some(section) = self.group_types.get(conv_commit.r#type.as_str()) {
+            if let Some((_, section)) = self
+                .group_types
+                .iter()
+                .find(|(ty, _)| commit_type_eq(ty, &conv_commit.r#type))
+            {
                 commits.entry(section).or_default().push(commit_context)
             }
         }
