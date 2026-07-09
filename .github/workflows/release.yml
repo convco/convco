@@ -271,4 +271,6 @@ jobs:
         run: |
           set -euo pipefail
           gh release create "${{ needs.prepare.outputs.tag }}" dist/* \
-            --title "${{ needs.prepare.outputs.tag }}"
+            --repo "${{ github.repository }}" \
+            --title "${{ needs.prepare.outputs.tag }}" \
+            --verify-tag
