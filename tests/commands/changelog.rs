@@ -143,6 +143,88 @@ fn non_linear_history_uses_highest_reachable_semver() -> Result<(), Box<dyn std:
 }
 
 #[test]
+fn calver_tags_are_ordered_and_rendered() -> Result<(), Box<dyn std::error::Error>> {
+    let temp = tempdir()?;
+    let repo = temp.path();
+
+    git(repo, &["init"])?;
+    git(repo, &["config", "user.name", "Convco Test"])?;
+    git(repo, &["config", "user.email", "test@example.com"])?;
+    git(repo, &["commit", "--allow-empty", "-m", "feat: january"])?;
+    git(repo, &["tag", "v2026.01.0"])?;
+    git(repo, &["commit", "--allow-empty", "-m", "fix: february"])?;
+    git(repo, &["tag", "v2026.02.0"])?;
+
+    let output = run_convco_command(
+        &[
+            "changelog",
+            "--no-links",
+            "--version-scheme",
+            "calver",
+            "--calver-format",
+            "YYYY.0M.MICRO",
+        ],
+        Some(repo),
+        true,
+        "",
+    )?;
+
+    let february = output
+        .find("## v2026.02.0")
+        .expect("expected February CalVer section");
+    let january = output
+        .find("## v2026.01.0")
+        .expect("expected January CalVer section");
+    assert!(
+        february < january,
+        "expected descending CalVer order:\n{output}"
+    );
+
+    Ok(())
+}
+
+#[test]
+fn calver_optional_micro_orders_trimmed_and_full_tags() -> Result<(), Box<dyn std::error::Error>> {
+    let temp = tempdir()?;
+    let repo = temp.path();
+
+    git(repo, &["init"])?;
+    git(repo, &["config", "user.name", "Convco Test"])?;
+    git(repo, &["config", "user.email", "test@example.com"])?;
+    git(repo, &["commit", "--allow-empty", "-m", "feat: first"])?;
+    git(repo, &["tag", "v2026.07"])?;
+    git(repo, &["commit", "--allow-empty", "-m", "fix: second"])?;
+    git(repo, &["tag", "v2026.07.1"])?;
+
+    let output = run_convco_command(
+        &[
+            "changelog",
+            "--no-links",
+            "--version-scheme",
+            "calver",
+            "--calver-format",
+            "YYYY.0M(.MICRO)",
+        ],
+        Some(repo),
+        true,
+        "",
+    )?;
+
+    let full = output
+        .find("## v2026.07.1")
+        .expect("expected full CalVer section");
+    let trimmed = output
+        .find("## v2026.07 (")
+        .expect("expected trimmed CalVer section");
+    assert!(
+        full < trimmed,
+        "expected descending CalVer order:\n{output}"
+    );
+
+    Ok(())
+}
+
+#[test]
 fn links_references_with_remote_derived_repository_metadata(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let temp = tempdir()?;

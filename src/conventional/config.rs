@@ -7,7 +7,7 @@ use semver::Version;
 use serde::{Deserialize, Deserializer, Serialize};
 use url::Url;
 
-use crate::{error::ConvcoError, git::Repo};
+use crate::{error::ConvcoError, git::Repo, VersionSchemeName};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Increment {
@@ -122,6 +122,12 @@ pub struct Config {
     /// Ignore commits whose message matches any of the given regex patterns
     #[serde(default)]
     pub ignore_message_pattern: Vec<String>,
+    /// Versioning scheme used for version tags.
+    #[serde(default)]
+    pub version_scheme: VersionSchemeName,
+    /// Calendar version format used when versionScheme is calver.
+    #[serde(default = "default_calver_format")]
+    pub calver_format: String,
 }
 
 fn default_initial_bump_version() -> Version {
@@ -225,8 +231,14 @@ impl Default for Config {
             initial_bump_version: Version::new(0, 1, 0),
             treat_major_zero_as_stable: false,
             ignore_message_pattern: vec![],
+            version_scheme: VersionSchemeName::Semver,
+            calver_format: default_calver_format(),
         }
     }
+}
+
+fn default_calver_format() -> String {
+    "YYYY.0M.MICRO".to_owned()
 }
 
 fn default_header() -> String {
@@ -584,6 +596,8 @@ mod tests {
                 initial_bump_version: Version::new(0, 1, 0),
                 treat_major_zero_as_stable: false,
                 ignore_message_pattern: vec![],
+                version_scheme: VersionSchemeName::Semver,
+                calver_format: "YYYY.0M.MICRO".to_owned(),
             }
         )
     }

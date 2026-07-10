@@ -7,23 +7,37 @@ use convco::{
         NoteGroup, Reference,
     },
     commit_type_eq, open_repo, CommitParser, CommitTrait, Config, ConvcoError, Footer, FooterKey,
-    MaxMajorsIterExt, MaxMinorsIterExt, MaxPatchesIterExt, Repo, RevWalkOptions,
+    MaxMajorsIterExt, MaxMinorsIterExt, MaxPatchesIterExt, Repo, RevWalkOptions, VersionScheme,
+    VersionSchemeName, VersionTag,
 };
-use semver::Version;
 
-use crate::{cli::ChangelogCommand, Command};
+use crate::{
+    cli::{ChangelogCommand, CliVersionScheme},
+    Command,
+};
+
+fn cli_version_scheme(
+    value: Option<CliVersionScheme>,
+    default: VersionSchemeName,
+) -> VersionSchemeName {
+    match value {
+        Some(CliVersionScheme::Semver) => VersionSchemeName::Semver,
+        Some(CliVersionScheme::Calver) => VersionSchemeName::Calver,
+        None => default,
+    }
+}
 
 #[derive(Debug, Clone)]
 struct Rev<C> {
     commit: Option<C>,
-    version: Option<Version>,
+    version: Option<VersionTag>,
     tag: String,
     version_label: Option<String>,
 }
 
 struct Unreleased {
     str: String,
-    version: Option<Version>,
+    version: Option<VersionTag>,
 }
 
 /// Transforms a range of commits to pass them to the changelog writer.
@@ -45,6 +59,7 @@ impl<'a, R: Repo<'a>> ChangeLogTransformer<'a, R> {
         revwalk_options: RevWalkOptions<'a, R::CommitTrait>,
         unreleased: String,
         prefix: &'a str,
+        version_scheme: &VersionScheme,
     ) -> Result<Self, ConvcoError> {
         let group_types = config
             .types
@@ -54,14 +69,26 @@ impl<'a, R: Repo<'a>> ChangeLogTransformer<'a, R> {
             .collect();
 
         let context_builder = ContextBuilder::new(config)?;
-        let unreleased = match unreleased.parse::<Version>() {
-            Ok(version) => Unreleased {
-                str: unreleased,
-                version: Some(version),
+        let unreleased = match version_scheme {
+            VersionScheme::Semver => match unreleased.parse::<semver::Version>() {
+                Ok(version) => Unreleased {
+                    str: unreleased,
+                    version: Some(VersionTag::Semver(version)),
+                },
+                _ => Unreleased {
+                    str: unreleased,
+                    version: None,
+                },
             },
-            _ => Unreleased {
-                str: unreleased,
-                version: None,
+            VersionScheme::Calver(format) => match format.parse_version(&unreleased) {
+                Some(version) => Unreleased {
+                    str: unreleased,
+                    version: Some(VersionTag::Calver(version)),
+                },
+                _ => Unreleased {
+                    str: unreleased,
+                    version: None,
+                },
             },
         };
 
@@ -179,14 +206,14 @@ impl<'a, R: Repo<'a>> ChangeLogTransformer<'a, R> {
         let is_patch = to_rev
             .version
             .as_ref()
-            .map(|i| i.patch != 0)
+            .map(|i| i.patch_component() != 0)
             .unwrap_or(false)
             || (to_rev.version.is_none()
                 && self
                     .unreleased
                     .version
                     .as_ref()
-                    .map(|i| i.patch != 0)
+                    .map(|i| i.patch_component() != 0)
                     .unwrap_or(false));
         let mut commit_groups: Vec<CommitGroup<'_>> = commits
             .into_iter()
@@ -300,6 +327,12 @@ impl ChangelogCommand {
                 .collect(),
             parser: &commit_parser,
         };
+        let version_scheme = VersionScheme::resolve(
+            cli_version_scheme(self.version_scheme, config.version_scheme),
+            self.calver_format
+                .as_deref()
+                .unwrap_or(config.calver_format.as_str()),
+        )?;
         let transformer = ChangeLogTransformer::new(
             &config,
             self.include_hidden_sections,
@@ -307,19 +340,20 @@ impl ChangelogCommand {
             revwalk_options,
             self.unreleased.clone(),
             &self.prefix,
+            &version_scheme,
         )?;
-        let semvers = repo.semver_tags(&self.prefix)?;
+        let versions = repo.version_tags(&self.prefix, &version_scheme)?;
 
-        // Find the highest semver tag reachable from rev_high
+        // Find the highest version tag reachable from rev_high
         let tag_high = repo
-            .find_last_version(&rev_high, self.ignore_prereleases, &semvers)
+            .find_last_version(&rev_high, self.ignore_prereleases, &versions)
             .with_context(|| {
                 format!("Could not find the last version for revision {}", &self.rev)
             })?;
 
-        // Find the highest semver tag reachable from rev_low (if set)
+        // Find the highest version tag reachable from rev_low (if set)
         let tag_low = match &rev_low {
-            Some(rev_low) => repo.find_last_version(rev_low, self.ignore_prereleases, &semvers)?,
+            Some(rev_low) => repo.find_last_version(rev_low, self.ignore_prereleases, &versions)?,
             None => None,
         };
 
@@ -327,30 +361,30 @@ impl ChangelogCommand {
             Some(tag_high) => {
                 // Save the full semvers list for finding the lower boundary tag
                 // when --max-* flags limit the visible tags.
-                let all_semvers = semvers.clone();
+                let all_versions = versions.clone();
 
-                // Filter semver tags to those within the range:
+                // Filter version tags to those within the range:
                 // - version > tag_low.version (strictly above the lower boundary tag)
                 // - version <= tag_high.version (up to and including the upper boundary tag)
-                let mut sem_ver_iter: Box<dyn Iterator<Item = (semver::Version, _)>> =
-                    Box::new(semvers.into_iter().filter(|(version, _)| {
+                let mut version_iter: Box<dyn Iterator<Item = (VersionTag, _)>> =
+                    Box::new(versions.into_iter().filter(|(version, _)| {
                         version <= &tag_high.0
                             && tag_low
                                 .as_ref()
                                 .is_none_or(|(low_ver, _)| version > low_ver)
                     }));
                 if self.max_majors != u64::MAX {
-                    sem_ver_iter = Box::new(sem_ver_iter.max_majors_iter(self.max_majors));
+                    version_iter = Box::new(version_iter.max_majors_iter(self.max_majors));
                 }
                 if self.max_minors != u64::MAX {
-                    sem_ver_iter = Box::new(sem_ver_iter.max_minors_iter(self.max_minors));
+                    version_iter = Box::new(version_iter.max_minors_iter(self.max_minors));
                 }
                 if self.max_patches != u64::MAX {
-                    sem_ver_iter = Box::new(sem_ver_iter.max_patches_iter(self.max_patches));
+                    version_iter = Box::new(version_iter.max_patches_iter(self.max_patches));
                 }
-                let semver_data: Vec<(_, _)> = sem_ver_iter.collect::<Vec<_>>();
+                let version_data: Vec<(_, _)> = version_iter.collect::<Vec<_>>();
 
-                let semvers: Vec<Rev<_>> = semver_data
+                let version_revs: Vec<Rev<_>> = version_data
                     .into_iter()
                     .map(|(version, commit)| Rev {
                         tag: format!("{}{}", self.prefix, version),
@@ -360,7 +394,7 @@ impl ChangelogCommand {
                     })
                     .collect::<Vec<_>>();
 
-                let mut revs = Vec::with_capacity(semvers.len() + 2);
+                let mut revs = Vec::with_capacity(version_revs.len() + 2);
 
                 // If rev_high commit is not the same as tag_high commit,
                 // add an unreleased section for commits between tag_high and rev_high
@@ -375,7 +409,7 @@ impl ChangelogCommand {
                     });
                 }
 
-                revs.extend(semvers);
+                revs.extend(version_revs);
 
                 if let Some(max_versions) = self.max_versions {
                     revs.truncate(max_versions);
@@ -422,7 +456,7 @@ impl ChangelogCommand {
                                 revs.last()
                                     .and_then(|r| r.version.as_ref())
                                     .and_then(|last_ver| {
-                                        all_semvers.iter().find(|(v, _)| v < last_ver).cloned()
+                                        all_versions.iter().find(|(v, _)| v < last_ver).cloned()
                                     })
                             };
                         if let Some((below_ver, below_commit)) = next_tag_below {

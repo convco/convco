@@ -3,6 +3,7 @@ use std::{borrow::Cow, fmt::Debug};
 use crate::{
     conventional::commit::{CommitParser, ConventionalCommit},
     error::ConvcoError,
+    VersionScheme, VersionTag,
 };
 
 #[cfg(feature = "git2")]
@@ -46,8 +47,8 @@ pub trait Repo<'repo>: Sized {
         &'repo self,
         commit: &Self::CommitTrait,
         ignore_prereleases: bool,
-        semvers: &[(semver::Version, Self::CommitTrait)],
-    ) -> Result<Option<(semver::Version, Self::CommitTrait)>, ConvcoError>;
+        versions: &[(VersionTag, Self::CommitTrait)],
+    ) -> Result<Option<(VersionTag, Self::CommitTrait)>, ConvcoError>;
 
     fn revwalk(
         &'repo self,
@@ -59,6 +60,13 @@ pub trait Repo<'repo>: Sized {
         &'repo self,
         prefix: &str,
     ) -> Result<Vec<(semver::Version, Self::CommitTrait)>, ConvcoError>;
+
+    /// Get the list of tags matching the prefix ordered by the selected scheme
+    fn version_tags(
+        &'repo self,
+        prefix: &str,
+        scheme: &VersionScheme,
+    ) -> Result<Vec<(VersionTag, Self::CommitTrait)>, ConvcoError>;
 
     fn revparse_single(&'repo self, spec: &str) -> Result<Self::CommitTrait, ConvcoError>;
 
@@ -72,31 +80,31 @@ pub trait Repo<'repo>: Sized {
 }
 
 macro_rules! define_max_component_iter {
-    ($name:ident, $ext_trait:ident, $method:ident, $component:ident) => {
-        pub struct $name<O: CommitTrait, I: Iterator<Item = (semver::Version, O)>> {
+    ($name:ident, $ext_trait:ident, $method:ident, $component:literal) => {
+        pub struct $name<O: CommitTrait, I: Iterator<Item = (VersionTag, O)>> {
             inner: I,
             max_count: u64,
             current: u64,
         }
 
-        pub trait $ext_trait<O: CommitTrait, I: Iterator<Item = (semver::Version, O)>> {
+        pub trait $ext_trait<O: CommitTrait, I: Iterator<Item = (VersionTag, O)>> {
             fn $method(self, max_count: u64) -> $name<O, I>;
         }
 
-        impl<O: CommitTrait, I: Iterator<Item = (semver::Version, O)>> Iterator for $name<O, I> {
+        impl<O: CommitTrait, I: Iterator<Item = (VersionTag, O)>> Iterator for $name<O, I> {
             type Item = I::Item;
 
             fn next(&mut self) -> Option<Self::Item> {
                 let next = self.inner.next()?;
                 if self.current == u64::MAX {
-                    self.current = next.0.$component;
+                    self.current = next.0.component($component);
                 }
-                if next.0.$component != self.current {
+                if next.0.component($component) != self.current {
                     self.max_count -= 1;
                     if self.max_count == 0 {
                         return None;
                     }
-                    self.current = next.0.$component;
+                    self.current = next.0.component($component);
                 }
                 Some(next)
             }
@@ -104,7 +112,7 @@ macro_rules! define_max_component_iter {
 
         impl<I, O> $ext_trait<O, I> for I
         where
-            I: Iterator<Item = (semver::Version, O)>,
+            I: Iterator<Item = (VersionTag, O)>,
             O: CommitTrait,
         {
             fn $method(self, max_count: u64) -> $name<O, I> {
@@ -117,9 +125,9 @@ macro_rules! define_max_component_iter {
         }
     };
 }
-define_max_component_iter!(MaxMajorsIter, MaxMajorsIterExt, max_majors_iter, major);
-define_max_component_iter!(MaxMinorsIter, MaxMinorsIterExt, max_minors_iter, minor);
-define_max_component_iter!(MaxPatchesIter, MaxPatchesIterExt, max_patches_iter, patch);
+define_max_component_iter!(MaxMajorsIter, MaxMajorsIterExt, max_majors_iter, 0);
+define_max_component_iter!(MaxMinorsIter, MaxMinorsIterExt, max_minors_iter, 1);
+define_max_component_iter!(MaxPatchesIter, MaxPatchesIterExt, max_patches_iter, 2);
 
 #[derive(Clone, Debug)]
 pub struct RevWalkOptions<'a, C> {
