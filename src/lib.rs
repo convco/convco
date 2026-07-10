@@ -2,6 +2,7 @@ mod conventional;
 mod error;
 mod git;
 pub mod strip;
+mod version;
 
 pub use conventional::{
     changelog,
@@ -13,4 +14,7 @@ pub use error::ConvcoError;
 pub use git::{
     open_repo, Commit, CommitTrait, MaxMajorsIterExt, MaxMinorsIterExt, MaxPatchesIterExt, Repo,
     RevWalkOptions,
+};
+pub use version::{
+    utc_today, CalverFormat, CalverVersion, VersionScheme, VersionSchemeName, VersionTag,
 };
