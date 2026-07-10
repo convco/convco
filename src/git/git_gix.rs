@@ -11,7 +11,7 @@ use jiff::{
 };
 
 use super::{Commit, CommitTrait, Repo, RevWalkIter, RevWalkOptions};
-use crate::error::ConvcoError;
+use crate::{error::ConvcoError, VersionScheme, VersionTag};
 
 impl CommitTrait for gix::Commit<'_> {
     type ObjectId = gix::ObjectId;
@@ -64,8 +64,8 @@ impl<'repo> Repo<'repo> for gix::Repository {
         &'repo self,
         commit: &Self::CommitTrait,
         ignore_prereleases: bool,
-        semvers: &[(semver::Version, Self::CommitTrait)],
-    ) -> Result<Option<(semver::Version, Self::CommitTrait)>, ConvcoError> {
+        versions: &[(VersionTag, Self::CommitTrait)],
+    ) -> Result<Option<(VersionTag, Self::CommitTrait)>, ConvcoError> {
         let tips = [commit.id];
         let platform = self
             .rev_walk(tips)
@@ -76,9 +76,9 @@ impl<'repo> Repo<'repo> for gix::Repository {
             .map(|info| info.id)
             .collect::<HashSet<_>>();
 
-        Ok(semvers
+        Ok(versions
             .iter()
-            .filter(|(version, _)| !ignore_prereleases || version.pre.is_empty())
+            .filter(|(version, _)| !ignore_prereleases || !version.is_prerelease())
             .find(|(_, commit)| reachable.contains(&commit.id))
             .map(|(version, commit)| (version.clone(), commit.clone())))
     }
@@ -160,6 +160,21 @@ impl<'repo> Repo<'repo> for gix::Repository {
         &'repo self,
         prefix: &str,
     ) -> Result<Vec<(semver::Version, Self::CommitTrait)>, ConvcoError> {
+        let versions = self.version_tags(prefix, &VersionScheme::Semver)?;
+        Ok(versions
+            .into_iter()
+            .filter_map(|(version, commit)| match version {
+                VersionTag::Semver(version) => Some((version, commit)),
+                VersionTag::Calver(_) => None,
+            })
+            .collect())
+    }
+
+    fn version_tags(
+        &'repo self,
+        prefix: &str,
+        scheme: &VersionScheme,
+    ) -> Result<Vec<(VersionTag, Self::CommitTrait)>, ConvcoError> {
         let mut versions = self
             .references()?
             .tags()?
@@ -168,7 +183,15 @@ impl<'repo> Repo<'repo> for gix::Repository {
                 let name = tag.name().as_bstr().strip_prefix(b"refs/tags/").unwrap();
                 if name.starts_with(prefix.as_bytes()) {
                     let name = name.strip_prefix(prefix.as_bytes()).unwrap();
-                    let version = semver::Version::parse(name.to_str().ok()?).ok()?;
+                    let name = name.to_str().ok()?;
+                    let version = match scheme {
+                        VersionScheme::Semver => {
+                            VersionTag::Semver(semver::Version::parse(name).ok()?)
+                        }
+                        VersionScheme::Calver(format) => {
+                            VersionTag::Calver(format.parse_version(name)?)
+                        }
+                    };
                     let commit = tag
                         .peel_to_commit()
                         .ok()?

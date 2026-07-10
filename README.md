@@ -207,10 +207,23 @@ When no options are given it will return the current version.
 When `--bump` is provided, the next version will be printed out.
 Conventional commits are used to calculate the next major, minor or patch.
 If needed one can provide `--major`, `--minor` or `--patch` to overrule the convention.
+SemVer is used by default. CalVer can be enabled with `versionScheme: calver`
+and a `calverFormat`, or with command line flags.
 
 ```sh
 convco version --bump
+convco version --bump --version-scheme calver --calver-format YYYY.0M.MICRO
 ```
+
+Supported CalVer calendar tokens are `YYYY`, `YY`, `0Y`, `MM`, `0M`, `WW`,
+`0W`, `DD`, and `0D`. Counter and modifier tokens are `MAJOR`, `MINOR`,
+`MICRO`, `PATCH` as an alias for `MICRO`, and `MODIFIER`. For example,
+`YYYY.0M.MICRO`, `YY.0M.MICRO`, and `YYYY.0M.0D` are valid formats. The final
+counter segment can be optional, for example `YYYY.0M(.MICRO)`, which parses
+both `2026.07` and `2026.07.1` while displaying `2026.07.0` as `2026.07`.
+Calendar-only formats such as `YYYY.0M.0D` can be read from tags, but `--bump`
+fails if that version already exists because there is no counter to make a
+second release in the same calendar period distinct.
 
 Use `--major`, `--minor` or `--patch` to force the bump, and `--prerelease` to calculate a prerelease version:
 
