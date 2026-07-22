@@ -74,6 +74,14 @@ pub enum ConvcoError {
         release: semver::Version,
         prerelease: semver::Version,
     },
+    #[error("invalid version scheme: {0}")]
+    InvalidVersionScheme(String),
+    #[error("invalid CalVer format: {0}")]
+    InvalidCalverFormat(String),
+    #[error("invalid CalVer token: {0}")]
+    InvalidCalverToken(String),
+    #[error("CalVer version {0} already exists; add a counter token such as MICRO to allow multiple releases in the same calendar period")]
+    DuplicateCalverVersion(String),
     #[error("canceled by user")]
     CancelledByUser,
     #[error("git commit failed: {0}")]

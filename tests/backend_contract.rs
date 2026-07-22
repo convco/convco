@@ -8,7 +8,7 @@ use std::{
     sync::{Mutex, OnceLock},
 };
 
-use convco::{open_repo, CommitParser, CommitTrait, Repo, RevWalkOptions};
+use convco::{open_repo, CommitParser, CommitTrait, Repo, RevWalkOptions, VersionScheme};
 use tempfile::{tempdir, TempDir};
 
 fn cwd_lock() -> &'static Mutex<()> {
@@ -110,7 +110,8 @@ fn sha256_repositories_support_core_backend_operations() {
         assert_eq!(semvers.len(), 1);
         assert_eq!(semvers[0].0.to_string(), "1.0.0");
 
-        let version = Repo::find_last_version(&repo, &head, false, &semvers).unwrap();
+        let versions = Repo::version_tags(&repo, "v", &VersionScheme::Semver).unwrap();
+        let version = Repo::find_last_version(&repo, &head, false, &versions).unwrap();
         assert_eq!(
             version.map(|(version, _)| version.to_string()),
             Some("1.0.0".to_owned())
@@ -307,8 +308,8 @@ fn find_last_version_selects_highest_reachable_semver_in_non_linear_history() {
     with_repo(repo, || {
         let repo = open_repo().unwrap();
         let head = Repo::revparse_single(&repo, "HEAD").unwrap();
-        let semvers = Repo::semver_tags(&repo, "v").unwrap();
-        let version = Repo::find_last_version(&repo, &head, false, &semvers).unwrap();
+        let versions = Repo::version_tags(&repo, "v", &VersionScheme::Semver).unwrap();
+        let version = Repo::find_last_version(&repo, &head, false, &versions).unwrap();
 
         assert_eq!(
             version.map(|(version, _)| version.to_string()),

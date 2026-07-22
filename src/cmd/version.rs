@@ -1,12 +1,27 @@
 use std::fmt;
 
 use convco::{
-    commit_type_eq, open_repo, CommitParser, CommitTrait, Config, ConvcoError, Increment, Repo,
-    RevWalkOptions, Type,
+    commit_type_eq, open_repo, utc_today, CalverFormat, CommitParser, CommitTrait, Config,
+    ConvcoError, Increment, Repo, RevWalkOptions, Type, VersionScheme, VersionSchemeName,
+    VersionTag,
 };
 use semver::{Prerelease, Version};
 
-use crate::{cli::VersionCommand, cmd::Command};
+use crate::{
+    cli::{CliVersionScheme, VersionCommand},
+    cmd::Command,
+};
+
+fn cli_version_scheme(
+    value: Option<CliVersionScheme>,
+    default: VersionSchemeName,
+) -> VersionSchemeName {
+    match value {
+        Some(CliVersionScheme::Semver) => VersionSchemeName::Semver,
+        Some(CliVersionScheme::Calver) => VersionSchemeName::Calver,
+        None => default,
+    }
+}
 
 enum Label {
     /// Bump major version (0.1.0 -> 1.0.0)
@@ -124,15 +139,49 @@ impl VersionCommand {
         scope_regex: String,
         strip_regex: String,
         types: Vec<convco::Type>,
+        initial_bump_version: Version,
+        treat_major_zero_as_stable: bool,
+        version_scheme: VersionScheme,
+    ) -> Result<(VersionTag, Label, String), ConvcoError> {
+        match version_scheme {
+            VersionScheme::Semver => self.get_semver(
+                scope_regex,
+                strip_regex,
+                types,
+                initial_bump_version,
+                treat_major_zero_as_stable,
+            ),
+            VersionScheme::Calver(format) => {
+                self.get_calver(scope_regex, strip_regex, types, format)
+            }
+        }
+    }
+
+    fn get_semver(
+        &self,
+        scope_regex: String,
+        strip_regex: String,
+        types: Vec<convco::Type>,
         mut initial_bump_version: Version,
         treat_major_zero_as_stable: bool,
-    ) -> Result<(Version, Label, String), ConvcoError> {
+    ) -> Result<(VersionTag, Label, String), ConvcoError> {
         let repo = open_repo()?;
         let prefix = self.prefix.as_str();
         let ignore_prereleases = self.bump || self.ignore_prereleases;
-        let semvers = repo.semver_tags(prefix)?;
+        let versions = repo.version_tags(prefix, &VersionScheme::Semver)?;
+        let semvers = versions
+            .iter()
+            .filter_map(|(version, commit)| match version {
+                VersionTag::Semver(version) => Some((version.clone(), commit.clone())),
+                VersionTag::Calver(_) => None,
+            })
+            .collect::<Vec<_>>();
         let rev = Repo::revparse_single(&repo, &self.rev)?;
-        let last_version = repo.find_last_version(&rev, ignore_prereleases, &semvers)?;
+        let last_version = repo.find_last_version(&rev, ignore_prereleases, &versions)?;
+        let last_version = last_version.and_then(|(version, commit)| match version {
+            VersionTag::Semver(version) => Some((version, commit)),
+            VersionTag::Calver(_) => None,
+        });
         match last_version {
             None => {
                 let commit = Repo::revparse_single(&repo, &self.rev)?;
@@ -149,7 +198,7 @@ impl VersionCommand {
                             (_, _, 0) => Label::Minor,
                             _ => Label::Patch,
                         };
-                        Ok((initial_bump_version, label, commit_sha))
+                        Ok((VersionTag::Semver(initial_bump_version), label, commit_sha))
                     } else {
                         calc_prerelease(
                             &mut initial_bump_version,
@@ -158,19 +207,23 @@ impl VersionCommand {
                             &CommitTrait::id(&commit),
                         );
                         ensure_prerelease_base_is_unreleased(&initial_bump_version, &semvers)?;
-                        Ok((initial_bump_version, Label::Prerelease, commit_sha))
+                        Ok((
+                            VersionTag::Semver(initial_bump_version),
+                            Label::Prerelease,
+                            commit_sha,
+                        ))
                     }
                 } else if self.patch {
                     version.patch = 1;
-                    Ok((version, Label::Patch, commit_sha))
+                    Ok((VersionTag::Semver(version), Label::Patch, commit_sha))
                 } else if self.minor {
                     version.minor = 1;
-                    Ok((version, Label::Minor, commit_sha))
+                    Ok((VersionTag::Semver(version), Label::Minor, commit_sha))
                 } else if self.major {
                     version.major = 1;
-                    Ok((version, Label::Major, commit_sha))
+                    Ok((VersionTag::Semver(version), Label::Major, commit_sha))
                 } else {
-                    Ok((version, Label::Patch, commit_sha))
+                    Ok((VersionTag::Semver(version), Label::Patch, commit_sha))
                 }
             }
             Some((mut version, commit)) => {
@@ -212,9 +265,75 @@ impl VersionCommand {
                 } else {
                     (version, Label::Release, CommitTrait::id(&commit))
                 };
-                Ok(v)
+                Ok((VersionTag::Semver(v.0), v.1, v.2))
             }
         }
+    }
+
+    fn get_calver(
+        &self,
+        scope_regex: String,
+        strip_regex: String,
+        types: Vec<convco::Type>,
+        calver_format: CalverFormat,
+    ) -> Result<(VersionTag, Label, String), ConvcoError> {
+        let repo = open_repo()?;
+        let scheme = VersionScheme::Calver(calver_format);
+        let versions = repo.version_tags(self.prefix.as_str(), &scheme)?;
+        let VersionScheme::Calver(calver_format) = &scheme else {
+            unreachable!()
+        };
+        let rev = Repo::revparse_single(&repo, &self.rev)?;
+        let last_version = repo.find_last_version(&rev, self.ignore_prereleases, &versions)?;
+        let commit_sha = CommitTrait::id(&rev);
+        let current = last_version
+            .as_ref()
+            .and_then(|(version, _)| match version {
+                VersionTag::Calver(version) => Some(version.clone()),
+                VersionTag::Semver(_) => None,
+            });
+
+        if !self.bump && !self.major && !self.minor && !self.patch {
+            return Ok((
+                VersionTag::Calver(
+                    current.unwrap_or_else(|| calver_format.current_version(utc_today())),
+                ),
+                Label::Release,
+                commit_sha,
+            ));
+        }
+
+        let label = if self.major {
+            Label::Major
+        } else if self.minor {
+            Label::Minor
+        } else if self.patch {
+            Label::Patch
+        } else if let Some((_, commit)) = last_version {
+            let parser = CommitParser::builder()
+                .scope_regex(scope_regex)
+                .strip_regex(strip_regex)
+                .build();
+            let (_, label, _) = self.find_bump_label(&repo, commit, &parser, &types)?;
+            label
+        } else {
+            Label::Patch
+        };
+        let has_release = !matches!(label, Label::Release);
+        let forced = self.major || self.minor || self.patch;
+        let existing_versions = versions
+            .iter()
+            .map(|(version, _)| version.clone())
+            .collect::<Vec<_>>();
+        let (next, changed) = calver_format.next_version(
+            current.as_ref(),
+            has_release,
+            forced,
+            utc_today(),
+            &existing_versions,
+        )?;
+        let label = if changed { label } else { Label::Release };
+        Ok((VersionTag::Calver(next), label, commit_sha))
     }
 
     fn find_bump_version<'a, R, C>(
@@ -299,6 +418,67 @@ impl VersionCommand {
         }
         Ok((last_version, label, commit_sha))
     }
+
+    fn find_bump_label<'a, R, C>(
+        &self,
+        repo: &'a R,
+        commit: C,
+        parser: &'a CommitParser,
+        types: &[Type],
+    ) -> Result<(bool, Label, String), ConvcoError>
+    where
+        R: Repo<'a, CommitTrait = C>,
+        C: CommitTrait,
+    {
+        let to_rev = repo.revparse_single(&self.rev)?;
+        let options = RevWalkOptions {
+            from_rev: vec![commit],
+            to_rev,
+            first_parent: false,
+            no_merge_commits: false,
+            no_revert_commits: false,
+            paths: self.paths.clone(),
+            parser,
+        };
+        let revwalk = repo.revwalk(options)?;
+        let mut major = false;
+        let mut minor = false;
+        let mut patch = false;
+        let mut commit_sha = None;
+
+        for commit in revwalk.flatten() {
+            if commit_sha.is_none() {
+                commit_sha = Some(commit.commit.id());
+            }
+            if commit.conventional_commit.is_breaking() {
+                major = true;
+                break;
+            }
+            let option_commit_type = types
+                .iter()
+                .find(|x| commit_type_eq(&x.r#type, &commit.conventional_commit.r#type));
+            if let Some(some_commit_type) = option_commit_type {
+                match some_commit_type.increment {
+                    Increment::Major => major = true,
+                    Increment::Minor => minor = true,
+                    Increment::Patch => patch = true,
+                    Increment::None => {}
+                }
+            }
+        }
+
+        let label = match (major, minor, patch) {
+            (true, _, _) => Label::Major,
+            (false, true, _) => Label::Minor,
+            (false, false, true) => Label::Patch,
+            _ => Label::Release,
+        };
+        Ok((
+            !matches!(label, Label::Release),
+            label,
+            commit_sha.unwrap_or_default(),
+        ))
+    }
 }
 
 impl Command for VersionCommand {
@@ -309,12 +489,19 @@ impl Command for VersionCommand {
             .unwrap_or(config.initial_bump_version);
         let treat_major_zero_as_stable =
             self.treat_major_zero_as_stable || config.treat_major_zero_as_stable;
+        let version_scheme = VersionScheme::resolve(
+            cli_version_scheme(self.version_scheme, config.version_scheme),
+            self.calver_format
+                .as_deref()
+                .unwrap_or(config.calver_format.as_str()),
+        )?;
         let (version, label, commit_sha) = self.get_version(
             config.scope_regex,
             config.strip_regex,
             config.types,
             initial_bump_version,
             treat_major_zero_as_stable,
+            version_scheme,
         )?;
         if self.label {
             println!("{label}");

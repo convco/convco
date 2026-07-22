@@ -1,6 +1,7 @@
 use std::fs;
 
 use assert_cmd::Command;
+use jiff::{tz::TimeZone, Timestamp};
 use tempfile::tempdir;
 
 use super::super::{
@@ -18,6 +19,11 @@ fn assert_version(
         "expected version {expected}, got:\n{output}"
     );
     Ok(())
+}
+
+fn utc_year_month() -> (i16, i8) {
+    let date = Timestamp::now().to_zoned(TimeZone::UTC).date();
+    (date.year(), date.month())
 }
 
 #[test]
@@ -453,6 +459,260 @@ fn mixed_excluded_and_included_commit_is_used_for_bump() -> Result<(), Box<dyn s
         &["version", "--bump", "--paths", ":(exclude)charts"],
         "1.1.0",
     )?;
+
+    Ok(())
+}
+
+#[test]
+fn calver_current_version_is_read_from_matching_tags() -> Result<(), Box<dyn std::error::Error>> {
+    let temp = setup_repo_with_commits(&["feat: base"])?;
+    let repo = temp.path();
+    git(repo, &["tag", "v2026.07.3"])?;
+
+    assert_version(
+        repo,
+        &[
+            "version",
+            "--version-scheme",
+            "calver",
+            "--calver-format",
+            "YYYY.0M.MICRO",
+        ],
+        "2026.07.3",
+    )?;
+
+    Ok(())
+}
+
+#[test]
+fn calver_bump_increments_micro_in_same_period() -> Result<(), Box<dyn std::error::Error>> {
+    let (year, month) = utc_year_month();
+    let current = format!("v{year}.{month:02}.3");
+    let expected = format!("{year}.{month:02}.4");
+    let temp = setup_repo_with_commits(&["feat: base"])?;
+    let repo = temp.path();
+    git(repo, &["tag", current.as_str()])?;
+    git(repo, &["commit", "--allow-empty", "-m", "fix: followup"])?;
+
+    assert_version(
+        repo,
+        &[
+            "version",
+            "--bump",
+            "--version-scheme",
+            "calver",
+            "--calver-format",
+            "YYYY.0M.MICRO",
+        ],
+        &expected,
+    )?;
+
+    Ok(())
+}
+
+#[test]
+fn calver_optional_micro_trims_zero_and_bumps_to_full_version(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let (year, month) = utc_year_month();
+    let current = format!("v{year}.{month:02}");
+    let expected_current = format!("{year}.{month:02}");
+    let expected_next = format!("{year}.{month:02}.1");
+    let temp = setup_repo_with_commits(&["feat: base"])?;
+    let repo = temp.path();
+    git(repo, &["tag", current.as_str()])?;
+
+    assert_version(
+        repo,
+        &[
+            "version",
+            "--version-scheme",
+            "calver",
+            "--calver-format",
+            "YYYY.0M(.MICRO)",
+        ],
+        &expected_current,
+    )?;
+
+    git(repo, &["commit", "--allow-empty", "-m", "fix: followup"])?;
+    assert_version(
+        repo,
+        &[
+            "version",
+            "--bump",
+            "--version-scheme",
+            "calver",
+            "--calver-format",
+            "YYYY.0M(.MICRO)",
+        ],
+        &expected_next,
+    )?;
+
+    Ok(())
+}
+
+#[test]
+fn calver_bump_resets_micro_in_new_period() -> Result<(), Box<dyn std::error::Error>> {
+    let (year, month) = utc_year_month();
+    let old_year = if month == 1 { year - 1 } else { year };
+    let old_month = if month == 1 { 12 } else { month - 1 };
+    let current = format!("v{old_year}.{old_month:02}.3");
+    let expected = format!("{year}.{month:02}.0");
+    let temp = setup_repo_with_commits(&["feat: base"])?;
+    let repo = temp.path();
+    git(repo, &["tag", current.as_str()])?;
+    git(repo, &["commit", "--allow-empty", "-m", "feat: next"])?;
+
+    assert_version(
+        repo,
+        &[
+            "version",
+            "--bump",
+            "--version-scheme",
+            "calver",
+            "--calver-format",
+            "YYYY.0M.MICRO",
+        ],
+        &expected,
+    )?;
+
+    Ok(())
+}
+
+#[test]
+fn calver_optional_micro_resets_to_trimmed_version_in_new_period(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let (year, month) = utc_year_month();
+    let old_year = if month == 1 { year - 1 } else { year };
+    let old_month = if month == 1 { 12 } else { month - 1 };
+    let current = format!("v{old_year}.{old_month:02}.3");
+    let expected = format!("{year}.{month:02}");
+    let temp = setup_repo_with_commits(&["feat: base"])?;
+    let repo = temp.path();
+    git(repo, &["tag", current.as_str()])?;
+    git(repo, &["commit", "--allow-empty", "-m", "feat: next"])?;
+
+    assert_version(
+        repo,
+        &[
+            "version",
+            "--bump",
+            "--version-scheme",
+            "calver",
+            "--calver-format",
+            "YYYY.0M(.MICRO)",
+        ],
+        &expected,
+    )?;
+
+    Ok(())
+}
+
+#[test]
+fn calver_no_release_commit_returns_current_version() -> Result<(), Box<dyn std::error::Error>> {
+    let (year, month) = utc_year_month();
+    let current = format!("v{year}.{month:02}.3");
+    let expected = format!("{year}.{month:02}.3");
+    let temp = setup_repo_with_commits(&["feat: base"])?;
+    let repo = temp.path();
+    git(repo, &["tag", current.as_str()])?;
+    git(repo, &["commit", "--allow-empty", "-m", "chore: followup"])?;
+
+    assert_version(
+        repo,
+        &[
+            "version",
+            "--bump",
+            "--version-scheme",
+            "calver",
+            "--calver-format",
+            "YYYY.0M.MICRO",
+        ],
+        &expected,
+    )?;
+
+    Ok(())
+}
+
+#[test]
+fn calver_label_still_reports_conventional_commit_bump() -> Result<(), Box<dyn std::error::Error>> {
+    let (year, month) = utc_year_month();
+    let current = format!("v{year}.{month:02}.3");
+    let temp = setup_repo_with_commits(&["feat: base"])?;
+    let repo = temp.path();
+    git(repo, &["tag", current.as_str()])?;
+    git(repo, &["commit", "--allow-empty", "-m", "feat: next"])?;
+
+    assert_version(
+        repo,
+        &[
+            "version",
+            "--bump",
+            "--label",
+            "--version-scheme",
+            "calver",
+            "--calver-format",
+            "YYYY.0M.MICRO",
+        ],
+        "minor",
+    )?;
+
+    Ok(())
+}
+
+#[test]
+fn calver_calendar_only_duplicate_fails() -> Result<(), Box<dyn std::error::Error>> {
+    let date = Timestamp::now().to_zoned(TimeZone::UTC).date();
+    let current = format!("v{}.{:02}.{:02}", date.year(), date.month(), date.day());
+    let temp = setup_repo_with_commits(&["feat: base"])?;
+    let repo = temp.path();
+    git(repo, &["tag", current.as_str()])?;
+    git(repo, &["commit", "--allow-empty", "-m", "fix: followup"])?;
+
+    let output = run_convco_command(
+        &[
+            "version",
+            "--bump",
+            "--version-scheme",
+            "calver",
+            "--calver-format",
+            "YYYY.0M.0D",
+        ],
+        Some(repo),
+        false,
+        "",
+    )?;
+
+    assert!(
+        output.contains("already exists"),
+        "expected duplicate CalVer error, got:\n{output}"
+    );
+
+    Ok(())
+}
+
+#[test]
+fn calver_scheme_and_format_can_come_from_config_and_env() -> Result<(), Box<dyn std::error::Error>>
+{
+    let temp = setup_repo_with_commits(&["feat: base"])?;
+    let repo = temp.path();
+    git(repo, &["tag", "v26.07.3"])?;
+    fs::write(
+        repo.join(".versionrc"),
+        "versionScheme: calver\ncalverFormat: YY.0M.MICRO\n",
+    )?;
+
+    assert_version(repo, &["version"], "26.07.3")?;
+
+    git(repo, &["tag", "v2026.07.4"])?;
+    let mut cmd = Command::cargo_bin("convco")?;
+    let assert = cmd
+        .current_dir(repo)
+        .env("CONVCO_CALVER_FORMAT", "YYYY.0M.MICRO")
+        .args(["version"])
+        .assert()
+        .success();
+    let stdout = std::str::from_utf8(&assert.get_output().stdout)?;
+    assert_eq!(stdout, "2026.07.4\n");
 
     Ok(())
 }

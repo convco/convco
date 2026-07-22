@@ -1,9 +1,15 @@
 use std::{path::PathBuf, str::FromStr};
 
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 #[cfg(feature = "completions")]
 use clap_complete::aot::Shell as Shells;
 use semver::{Prerelease, Version};
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub enum CliVersionScheme {
+    Semver,
+    Calver,
+}
 
 #[derive(Debug, Parser)]
 #[clap(name = "convco", about = "Conventional commit tools", version)]
@@ -86,6 +92,12 @@ pub struct VersionCommand {
     /// Treat major version zero as stable when calculating the next version. Requires --bump.
     #[clap(long, env = "CONVCO_TREAT_MAJOR_ZERO_AS_STABLE", requires = "bump")]
     pub treat_major_zero_as_stable: bool,
+    /// Versioning scheme to use for version tags.
+    #[clap(long, env = "CONVCO_VERSION_SCHEME")]
+    pub version_scheme: Option<CliVersionScheme>,
+    /// Calendar version format used when --version-scheme calver.
+    #[clap(long, env = "CONVCO_CALVER_FORMAT")]
+    pub calver_format: Option<String>,
 }
 
 #[derive(Debug, Parser)]
@@ -179,6 +191,12 @@ pub struct ChangelogCommand {
     /// Path to write the changelog to.
     #[clap(short, long, default_value = "-", env = "CONVCO_OUTPUT")]
     pub output: PathBuf,
+    /// Versioning scheme to use for version tags.
+    #[clap(long, env = "CONVCO_VERSION_SCHEME")]
+    pub version_scheme: Option<CliVersionScheme>,
+    /// Calendar version format used when --version-scheme calver.
+    #[clap(long, env = "CONVCO_CALVER_FORMAT")]
+    pub calver_format: Option<String>,
 }
 
 #[derive(Debug, Parser)]
