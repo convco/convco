@@ -1,5 +1,16 @@
 # Changelog
 
+### v0.7.1 (2026-08-03)
+
+#### Features
+
+* choose calver as alternative to semver (1d81464), closes #110
+
+#### Fixes
+
+* **changelog:** filter prereleases when `--ignore-prereleases` is provided
+(b52b092), closes #438
+
 ## v0.7.0 (2026-07-08)
 
 ### Features
