@@ -308,7 +308,10 @@ impl ChangelogCommand {
             self.unreleased.clone(),
             &self.prefix,
         )?;
-        let semvers = repo.semver_tags(&self.prefix)?;
+        let mut semvers = repo.semver_tags(&self.prefix)?;
+        if self.ignore_prereleases {
+            semvers.retain(|(version, _)| version.pre.is_empty());
+        }
 
         // Find the highest semver tag reachable from rev_high
         let tag_high = repo
