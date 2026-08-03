@@ -617,6 +617,55 @@ fn max_versions_limits_rendered_sections() -> Result<(), Box<dyn std::error::Err
 }
 
 #[test]
+fn ignore_prereleases_excludes_sections_and_release_boundaries(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let temp = setup_repo_with_commits(&["feat: stable base"])?;
+    let repo = temp.path();
+    git(repo, &["tag", "v1.0.0"])?;
+    git(
+        repo,
+        &["commit", "--allow-empty", "-m", "feat: prerelease work"],
+    )?;
+    git(repo, &["tag", "v2.0.0-rc.1"])?;
+    git(
+        repo,
+        &["commit", "--allow-empty", "-m", "fix: release followup"],
+    )?;
+    git(repo, &["tag", "v2.0.0"])?;
+
+    let output = run_convco_command(
+        &["changelog", "--no-links", "--ignore-prereleases"],
+        Some(repo),
+        true,
+        "",
+    )?;
+
+    assert!(!output.contains("## v2.0.0-rc.1"), "got:\n{output}");
+    assert!(output.contains("prerelease work"), "got:\n{output}");
+    assert!(output.contains("release followup"), "got:\n{output}");
+
+    let output = run_convco_command(
+        &[
+            "changelog",
+            "--no-links",
+            "--ignore-prereleases",
+            "--max-versions",
+            "1",
+        ],
+        Some(repo),
+        true,
+        "",
+    )?;
+
+    assert!(output.contains("## v2.0.0"), "got:\n{output}");
+    assert!(!output.contains("## v2.0.0-rc.1"), "got:\n{output}");
+    assert!(output.contains("prerelease work"), "got:\n{output}");
+    assert!(output.contains("release followup"), "got:\n{output}");
+
+    Ok(())
+}
+
+#[test]
 fn annotated_tag_date_uses_tagger_date() -> Result<(), Box<dyn std::error::Error>> {
     let temp = tempdir()?;
     let repo = temp.path();

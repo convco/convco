@@ -199,6 +199,20 @@ fn non_linear_history_uses_highest_reachable_semver() -> Result<(), Box<dyn std:
 }
 
 #[test]
+fn ignore_prereleases_uses_previous_stable_version() -> Result<(), Box<dyn std::error::Error>> {
+    let temp = setup_repo_with_commits(&["feat: stable"])?;
+    let repo = temp.path();
+    git(repo, &["tag", "v1.0.0"])?;
+    git(repo, &["commit", "--allow-empty", "-m", "feat: next"])?;
+    git(repo, &["tag", "v2.0.0-rc.1"])?;
+
+    assert_version(repo, &["version"], "2.0.0-rc.1")?;
+    assert_version(repo, &["version", "--ignore-prereleases"], "1.0.0")?;
+
+    Ok(())
+}
+
+#[test]
 fn semver_like_blob_tags_are_ignored() -> Result<(), Box<dyn std::error::Error>> {
     let temp = tempdir()?;
     let repo = temp.path();
