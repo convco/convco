@@ -33,11 +33,11 @@ jiff = { version = "0.2.28", features = ["serde"] }
 regex = "1.12.4"
 semver = { version = "1.0.28", features = ["serde"] }
 serde = { version = "1.0.228", default-features = false, features = ["derive", "std"] }
-serde_norway = "0.9.42"
 strsim = "0.11.1"
 thiserror = "2.0.18"
 url = "2.5.8"
 walkdir = "2.5.0"
+yaml-rt = { version = "0.2.2", default-features = false, features = ["serde"] }
 
 [build-dependencies]
 clap_complete = "4.6.5"
