@@ -388,7 +388,7 @@ impl Config {
     pub fn from_path(path: impl AsRef<Path>) -> Self {
         let mut config: Config = std::fs::read(path)
             .ok()
-            .and_then(|vec| (serde_norway::from_reader(vec.as_slice())).ok())
+            .and_then(|vec| (yaml_rt::from_reader(vec.as_slice())).ok())
             .unwrap_or_default();
 
         config.disable_reference_links_without_host();
@@ -401,7 +401,7 @@ impl Config {
     ) -> Result<Self, ConvcoError> {
         let mut config: Config = std::fs::read(path)
             .ok()
-            .and_then(|vec| (serde_norway::from_reader(vec.as_slice())).ok())
+            .and_then(|vec| (yaml_rt::from_reader(vec.as_slice())).ok())
             .unwrap_or_default();
         if let Config {
             host: None,
@@ -488,7 +488,7 @@ mod tests {
                 {"type": "ci", "section":"CI", "hidden":false}
               ],
             }"#;
-        let value: Config = serde_norway::from_str(json).unwrap();
+        let value: Config = yaml_rt::from_str(json).unwrap();
         assert_eq!(
             value,
             Config {

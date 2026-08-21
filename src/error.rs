@@ -58,7 +58,7 @@ pub enum ConvcoError {
     #[error(transparent)]
     SemVer(#[from] semver::Error),
     #[error(transparent)]
-    Yaml(#[from] serde_norway::Error),
+    Yaml(#[from] yaml_rt::Error),
     #[error(transparent)]
     Regex(#[from] regex::Error),
     #[error(transparent)]
