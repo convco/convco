@@ -5,7 +5,10 @@ FROM --platform=$BUILDPLATFORM ghcr.io/rust-cross/cargo-zigbuild AS base
 ARG TARGETARCH
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 FROM base AS builder-layer
-RUN rustup --version \
+ARG RUST_VERSION=1.96
+RUN rustup toolchain install --profile minimal "$RUST_VERSION" \
+  && rustup default "$RUST_VERSION" \
+  && rustup --version \
   && cargo --version \
   && rustc --version; \
   case "${TARGETARCH}" in \
