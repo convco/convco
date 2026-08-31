@@ -499,6 +499,118 @@ fn calver_current_version_is_read_from_matching_tags() -> Result<(), Box<dyn std
 }
 
 #[test]
+fn calver_prerelease_is_generated_and_reused_at_head() -> Result<(), Box<dyn std::error::Error>> {
+    let date = Timestamp::now().to_zoned(TimeZone::UTC).date();
+    let expected = format!("{}.{:02}.{:02}.rc1", date.year(), date.month(), date.day());
+    let tag = format!("v{expected}");
+    let temp = setup_repo_with_commits(&["feat: base"])?;
+    let repo = temp.path();
+
+    let args = [
+        "version",
+        "--bump",
+        "--prerelease",
+        "rc",
+        "--version-scheme",
+        "calver",
+        "--calver-format",
+        "YYYY.0M.0D(.MODIFIER)",
+    ];
+    assert_version(repo, &args, &expected)?;
+    git(repo, &["tag", tag.as_str()])?;
+    assert_version(repo, &args, &expected)?;
+
+    let mut ignored_args = args.to_vec();
+    ignored_args.push("--ignore-prereleases");
+    assert_version(repo, &ignored_args, &expected)?;
+
+    Ok(())
+}
+
+#[test]
+fn calver_prerelease_advances_after_followup_commit() -> Result<(), Box<dyn std::error::Error>> {
+    let (year, month) = utc_year_month();
+    let stable = format!("v{year}.{month:02}.0");
+    let first = format!("v{year}.{month:02}.1.rc1");
+    let expected = format!("{year}.{month:02}.1.rc2");
+    let temp = setup_repo_with_commits(&["feat: base"])?;
+    let repo = temp.path();
+    git(repo, &["tag", stable.as_str()])?;
+    git(repo, &["commit", "--allow-empty", "-m", "feat: prerelease"])?;
+    git(repo, &["tag", first.as_str()])?;
+    git(repo, &["commit", "--allow-empty", "-m", "fix: followup"])?;
+
+    assert_version(
+        repo,
+        &[
+            "version",
+            "--bump",
+            "--prerelease",
+            "rc",
+            "--version-scheme",
+            "calver",
+            "--calver-format",
+            "YYYY.0M.MICRO(.MODIFIER)",
+        ],
+        &expected,
+    )?;
+
+    Ok(())
+}
+
+#[test]
+fn calver_prerelease_requires_modifier_and_unreleased_base(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let date = Timestamp::now().to_zoned(TimeZone::UTC).date();
+    let stable = format!("v{}.{:02}.{:02}", date.year(), date.month(), date.day());
+    let temp = setup_repo_with_commits(&["feat: base"])?;
+    let repo = temp.path();
+
+    let output = run_convco_command(
+        &[
+            "version",
+            "--bump",
+            "--prerelease",
+            "rc",
+            "--version-scheme",
+            "calver",
+            "--calver-format",
+            "YYYY.0M.0D",
+        ],
+        Some(repo),
+        false,
+        "",
+    )?;
+    assert!(
+        output.contains("require a MODIFIER token"),
+        "got:\n{output}"
+    );
+
+    git(repo, &["tag", stable.as_str()])?;
+    let output = run_convco_command(
+        &[
+            "version",
+            "--bump",
+            "--prerelease",
+            "rc",
+            "--version-scheme",
+            "calver",
+            "--calver-format",
+            "YYYY.0M.0D(.MODIFIER)",
+        ],
+        Some(repo),
+        false,
+        "",
+    )?;
+    assert!(
+        output.contains("already released; cannot create prerelease"),
+        "got:\n{output}"
+    );
+
+    Ok(())
+}
+
+#[test]
 fn calver_bump_increments_micro_in_same_period() -> Result<(), Box<dyn std::error::Error>> {
     let (year, month) = utc_year_month();
     let current = format!("v{year}.{month:02}.3");

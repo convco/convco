@@ -1,8 +1,8 @@
 use std::fmt;
 
 use convco::{
-    commit_type_eq, open_repo, utc_today, CalverFormat, CommitParser, CommitTrait, Config,
-    ConvcoError, Increment, Repo, RevWalkOptions, Type, VersionScheme, VersionSchemeName,
+    commit_type_eq, open_repo, utc_today, CalverFormat, CalverVersion, CommitParser, CommitTrait,
+    Config, ConvcoError, Increment, Repo, RevWalkOptions, Type, VersionScheme, VersionSchemeName,
     VersionTag,
 };
 use semver::{Prerelease, Version};
@@ -131,6 +131,69 @@ fn ensure_prerelease_base_is_unreleased<C: CommitTrait>(
     }
 
     Ok(())
+}
+
+fn calver_modifier_number(modifier: Option<&str>, label: &str) -> Option<u64> {
+    modifier?
+        .strip_prefix(label)?
+        .parse::<u64>()
+        .ok()
+        .filter(|number| *number > 0)
+}
+
+fn calc_calver_prerelease<C: CommitTrait>(
+    version: CalverVersion,
+    prerelease: &Prerelease,
+    versions: &[(VersionTag, C)],
+    commit_id: &str,
+) -> Result<CalverVersion, ConvcoError> {
+    if !version.format().has_modifier() {
+        return Err(ConvcoError::CalverPrereleaseRequiresModifier);
+    }
+    let label = prerelease.as_str();
+    if label.contains('.') {
+        return Err(ConvcoError::InvalidCalverModifier(label.to_owned()));
+    }
+
+    let matching = versions.iter().filter_map(|(tag, commit)| {
+        let VersionTag::Calver(candidate) = tag else {
+            return None;
+        };
+        version
+            .same_base(candidate)
+            .then(|| {
+                calver_modifier_number(candidate.modifier(), label)
+                    .map(|number| (number, commit.id()))
+            })
+            .flatten()
+    });
+    let matching = matching.collect::<Vec<_>>();
+    let number = matching
+        .iter()
+        .filter(|(_, tagged_commit)| tagged_commit == commit_id)
+        .map(|(number, _)| *number)
+        .max()
+        .unwrap_or_else(|| {
+            matching
+                .iter()
+                .map(|(number, _)| *number)
+                .max()
+                .unwrap_or_default()
+                + 1
+        });
+    let prerelease = version.with_modifier(format!("{label}{number}"))?;
+
+    if versions.iter().any(|(tag, _)| {
+        matches!(tag, VersionTag::Calver(candidate) if candidate.modifier().is_none() && candidate.same_base(&prerelease))
+    }) {
+        let release = prerelease.clone().without_modifier();
+        return Err(ConvcoError::CalverPrereleaseBaseAlreadyReleased {
+            release: release.to_string(),
+            prerelease: prerelease.to_string(),
+        });
+    }
+
+    Ok(prerelease)
 }
 
 impl VersionCommand {
@@ -284,7 +347,8 @@ impl VersionCommand {
             unreachable!()
         };
         let rev = Repo::revparse_single(&repo, &self.rev)?;
-        let last_version = repo.find_last_version(&rev, self.ignore_prereleases, &versions)?;
+        let ignore_prereleases = self.bump || self.ignore_prereleases;
+        let last_version = repo.find_last_version(&rev, ignore_prereleases, &versions)?;
         let commit_sha = CommitTrait::id(&rev);
         let current = last_version
             .as_ref()
@@ -325,14 +389,26 @@ impl VersionCommand {
             .iter()
             .map(|(version, _)| version.clone())
             .collect::<Vec<_>>();
-        let (next, changed) = calver_format.next_version(
+        let versions_for_next = if self.prerelease.is_empty() {
+            existing_versions.as_slice()
+        } else {
+            &[]
+        };
+        let (mut next, changed) = calver_format.next_version(
             current.as_ref(),
             has_release,
             forced,
             utc_today(),
-            &existing_versions,
+            versions_for_next,
         )?;
-        let label = if changed { label } else { Label::Release };
+        let label = if !self.prerelease.is_empty() {
+            next = calc_calver_prerelease(next, &self.prerelease, &versions, &commit_sha)?;
+            Label::Prerelease
+        } else if changed {
+            label
+        } else {
+            Label::Release
+        };
         Ok((VersionTag::Calver(next), label, commit_sha))
     }
 
