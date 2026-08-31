@@ -80,6 +80,12 @@ pub enum ConvcoError {
     InvalidCalverFormat(String),
     #[error("invalid CalVer token: {0}")]
     InvalidCalverToken(String),
+    #[error("invalid CalVer modifier: {0}")]
+    InvalidCalverModifier(String),
+    #[error("CalVer prereleases require a MODIFIER token in the CalVer format")]
+    CalverPrereleaseRequiresModifier,
+    #[error("CalVer version {release} is already released; cannot create prerelease {prerelease}")]
+    CalverPrereleaseBaseAlreadyReleased { release: String, prerelease: String },
     #[error("CalVer version {0} already exists; add a counter token such as MICRO to allow multiple releases in the same calendar period")]
     DuplicateCalverVersion(String),
     #[error("canceled by user")]

@@ -137,7 +137,10 @@ impl CalverFormat {
         }
 
         let mut modifier = false;
-        let numeric_parts = if parts.last().is_some_and(|part| part == "MODIFIER") {
+        let numeric_parts = if parts
+            .last()
+            .is_some_and(|part| matches!(part.as_str(), "MODIFIER" | "(MODIFIER)"))
+        {
             modifier = true;
             parts.pop();
             parts.as_slice()
@@ -148,6 +151,14 @@ impl CalverFormat {
         if !(2..=3).contains(&numeric_parts.len()) {
             return Err(ConvcoError::InvalidCalverFormat(
                 "CalVer format must have two or three numeric segments".to_owned(),
+            ));
+        }
+        if numeric_parts
+            .iter()
+            .any(|part| matches!(part.as_str(), "MODIFIER" | "(MODIFIER)"))
+        {
+            return Err(ConvcoError::InvalidCalverFormat(
+                "MODIFIER must be the final CalVer segment".to_owned(),
             ));
         }
 
@@ -202,10 +213,17 @@ impl CalverFormat {
     pub fn parse_version(&self, value: &str) -> Option<CalverVersion> {
         let mut parts = value.split('.').collect::<Vec<_>>();
         let modifier = if self.modifier && parts.len() == self.segments.len() + 1 {
-            Some(parts.pop()?.to_owned())
+            let modifier = parts.pop()?;
+            valid_modifier(modifier).then(|| modifier.to_owned())
         } else {
             None
         };
+        if self.modifier
+            && value.split('.').count() == self.segments.len() + 1
+            && modifier.is_none()
+        {
+            return None;
+        }
         if parts.len() != self.segments.len() {
             if self.optional_segment.is_some() && parts.len() == self.segments.len() - 1 {
                 parts.push("0");
@@ -248,6 +266,10 @@ impl CalverFormat {
             .enumerate()
             .filter(|(_, segment)| segment.is_calendar())
             .all(|(index, _)| left.values.get(index) == right.values.get(index))
+    }
+
+    pub fn has_modifier(&self) -> bool {
+        self.modifier
     }
 
     pub fn next_version(
@@ -338,6 +360,10 @@ fn optional_part(value: &str) -> Result<(&str, bool), ConvcoError> {
         ));
     }
     Ok((value, false))
+}
+
+fn valid_modifier(value: &str) -> bool {
+    !value.is_empty()
 }
 
 impl Default for CalverFormat {
@@ -451,6 +477,30 @@ impl CalverVersion {
     pub fn format(&self) -> &CalverFormat {
         &self.format
     }
+
+    pub fn modifier(&self) -> Option<&str> {
+        self.modifier.as_deref()
+    }
+
+    pub fn same_base(&self, other: &Self) -> bool {
+        self.values == other.values
+    }
+
+    pub fn with_modifier(mut self, modifier: String) -> Result<Self, ConvcoError> {
+        if !self.format.has_modifier() {
+            return Err(ConvcoError::CalverPrereleaseRequiresModifier);
+        }
+        if !valid_modifier(&modifier) {
+            return Err(ConvcoError::InvalidCalverModifier(modifier));
+        }
+        self.modifier = Some(modifier);
+        Ok(self)
+    }
+
+    pub fn without_modifier(mut self) -> Self {
+        self.modifier = None;
+        self
+    }
 }
 
 impl fmt::Display for CalverVersion {
@@ -514,6 +564,8 @@ mod tests {
             "0Y.0M.0D",
             "YYYY.0W.MICRO",
             "YYYY.0M.MICRO.MODIFIER",
+            "YYYY.0M(.MODIFIER)",
+            "YYYY.0M.0D(.MODIFIER)",
         ] {
             CalverFormat::parse(format).unwrap();
         }
@@ -532,6 +584,13 @@ mod tests {
         assert!(CalverFormat::parse("YYYY.NOPE.MICRO").is_err());
         assert!(CalverFormat::parse("YYYY.0M.0W").is_err());
         assert!(CalverFormat::parse("MAJOR.MINOR.MICRO").is_err());
+        for format in [
+            "YYYY.MODIFIER.0M",
+            "YYYY.MODIFIER.MODIFIER",
+            "YYYY.0M.MODIFIER(.MODIFIER)",
+        ] {
+            assert!(CalverFormat::parse(format).is_err(), "accepted {format}");
+        }
     }
 
     #[test]
@@ -607,11 +666,15 @@ mod tests {
 
     #[test]
     fn calver_versions_sort_by_components_and_modifier() {
-        let format = CalverFormat::parse("YYYY.0M.MICRO.MODIFIER").unwrap();
+        let format = CalverFormat::parse("YYYY.0M.MICRO(.MODIFIER)").unwrap();
         let stable = format.parse_version("2026.07.1").unwrap();
         let rc = format.parse_version("2026.07.1.rc1").unwrap();
+        let beta = format.parse_version("2026.07.1.beta").unwrap();
         let next = format.parse_version("2026.07.2").unwrap();
         assert!(stable > rc);
+        assert!(stable > beta);
         assert!(next > stable);
+        assert!(format.parse_version("2026.07.1.").is_none());
+        assert!(format.parse_version("2026.07.1.rc.1").is_none());
     }
 }
