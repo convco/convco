@@ -1,6 +1,6 @@
 use std::{path::PathBuf, str::FromStr};
 
-use clap::{Parser, ValueEnum};
+use clap::{Parser, Subcommand, ValueEnum};
 #[cfg(feature = "completions")]
 use clap_complete::aot::Shell as Shells;
 use semver::{Prerelease, Version};
@@ -45,6 +45,24 @@ pub struct ConfigCommand {
     /// Print out the default configuration instead of the current configuration.
     #[clap(short, long)]
     pub default: bool,
+    #[clap(subcommand)]
+    pub action: Option<ConfigAction>,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum ConfigAction {
+    /// Print one value from the effective configuration.
+    Get {
+        /// Dot-separated configuration path (for example description.length.max).
+        key: String,
+    },
+    /// Set one value in the configuration file while preserving its formatting.
+    Set {
+        /// Dot-separated configuration path (for example types.0.hidden).
+        key: String,
+        /// A complete YAML value.
+        value: String,
+    },
 }
 
 #[derive(Debug, Parser)]
@@ -432,6 +450,27 @@ mod tests {
             panic!("expected commit command");
         };
         assert_eq!(command.scope_history_limit, 42);
+    }
+
+    #[test]
+    fn config_accepts_get_and_set_subcommands() {
+        let opt = Opt::try_parse_from(["convco", "config", "get", "types.0.hidden"]).unwrap();
+        let Command::Config(command) = opt.cmd else {
+            panic!("expected config command");
+        };
+        assert!(matches!(
+            command.action,
+            Some(ConfigAction::Get { key }) if key == "types.0.hidden"
+        ));
+
+        let opt = Opt::try_parse_from(["convco", "config", "set", "lineLength", "100"]).unwrap();
+        let Command::Config(command) = opt.cmd else {
+            panic!("expected config command");
+        };
+        assert!(matches!(
+            command.action,
+            Some(ConfigAction::Set { key, value }) if key == "lineLength" && value == "100"
+        ));
     }
 
     #[test]

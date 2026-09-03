@@ -75,6 +75,20 @@ The configuration is loaded in this order:
 
 To get the final derived configuration run `convco config`.
 
+Use `convco config get <key>` to print one effective value. Keys are dot-separated
+and may include sequence indexes, for example `description.length.max` or
+`types.0.hidden`. Use `convco config set <key> <value>` to update the selected
+configuration file. Values are parsed as YAML, so quote strings when they could
+otherwise be interpreted as booleans, numbers, or null. The update preserves
+comments, whitespace, quoting, collection style, and line endings outside the
+changed value.
+
+```sh
+convco config get lineLength
+convco config set lineLength 100
+convco config set types.0.hidden true
+```
+
 When `host`, `owner` and `repository` are not supplied, convco derives them from the `origin` git remote.
 Additional convco-specific config includes `commitTemplate`, description length limits, `initialBumpVersion`, and `ignoreMessagePattern`.
 

@@ -26,8 +26,8 @@ clap_complete = { version = "4.6.9", optional = true }
 ctrlc = "3.5.2"
 dialoguer = { version = "0.12.0", features = ["completion", "fuzzy-select", "history"] }
 git2 = { version = "0.21.0", default-features = false, optional = true }
-gix = { version = "0.86.0", default-features = false, features = ["revision", "blob-diff", "sha1", "sha256"], optional = true }
-gix-hash = { version = "0.26.0", default-features = false, features = ["sha1", "sha256"], optional = true }
+gix = { version = "0.87.1", default-features = false, features = ["revision", "blob-diff", "sha1", "sha256"], optional = true }
+gix-hash = { version = "0.26.2", default-features = false, features = ["sha1", "sha256"], optional = true }
 handlebars = { version = "6.4.4", features = ["dir_source"] }
 jiff = { version = "0.2.35", features = ["serde"] }
 regex = "1.13.1"
@@ -37,7 +37,7 @@ strsim = "0.11.1"
 thiserror = "2.0.20"
 url = "2.5.8"
 walkdir = "2.5.0"
-yaml-rt = { version = "0.2.2", default-features = false, features = ["serde"] }
+yaml-rt = { version = "0.2.4", default-features = false, features = ["serde"] }
 
 [build-dependencies]
 clap_complete = "4.6.9"

@@ -31,7 +31,7 @@ fn main() -> anyhow::Result<()> {
                     Err(_) => Config::from_path(&config_path),
                 }
             };
-            command.exec(config)
+            command.exec_with_path(config, config_path)
         }
         cli::Command::Check(command) => {
             let repo = open_repo()?;
