@@ -1,5 +1,12 @@
 # Changelog
 
+### v0.7.2 (2026-09-03)
+
+#### Fixes
+
+* **version:** support calver prerelease modifiers (f47211a), closes #447
+#448
+
 ### v0.7.1 (2026-08-03)
 
 #### Features
