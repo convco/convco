@@ -37,7 +37,7 @@ strsim = "0.11.1"
 thiserror = "2.0.20"
 url = "2.5.8"
 walkdir = "2.5.0"
-yaml-rt = { version = "0.2.4", default-features = false, features = ["serde"] }
+yaml-rt = { version = "0.3.0", default-features = false, features = ["serde"] }
 
 [build-dependencies]
 clap_complete = "4.6.9"
