@@ -2459,9 +2459,9 @@ checksum = "3ad82d2a33cdc9674dc7465672f271e096168fcdbe0f799d9e6db8c5892679dc"
 
 [[package]]
 name = "yaml-rt"
-version = "0.2.4"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "466b3fd311a1501377bcf76796bb23689685aa245f5961bec9d417e3829a8024"
+checksum = "47cba0986904d72ac28dd1afa6c55cbed7b3bf761ed72062adcd53e310025a0c"
 dependencies = [
  "yaml-rt-core",
  "yaml-rt-serde",
@@ -2469,15 +2469,15 @@ dependencies = [
 
 [[package]]
 name = "yaml-rt-core"
-version = "0.2.4"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a139ae82b574c4bc2a00ecaacecf719fd4d469938d036b745cea7208335f9453"
+checksum = "2924552979c393234d7cea6cda2cf773801fb5f31de20ec5e89d6ac5ed8de971"
 
 [[package]]
 name = "yaml-rt-serde"
-version = "0.2.4"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1954d6a84da609647707ea3b0c71c79a9289cdee7f671acf028b19766adabb6c"
+checksum = "aaafdb3d698ffb1562ccbc1337a452a9f7f057b7309b3206c9c95ffd6949a6d6"
 dependencies = [
  "serde",
  "yaml-rt-core",
