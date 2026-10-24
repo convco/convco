@@ -206,6 +206,11 @@ pub struct ChangelogCommand {
     /// If a semantic version is given, the title will be prefixed.
     #[clap(short, long, default_value = "Unreleased", env = "CONVCO_UNRELEASED")]
     pub unreleased: String,
+    /// Render the unreleased commits as if HEAD was tagged today with the version given by --unreleased.
+    /// The changelog is then the same as the one generated after tagging, so it can be committed before.
+    /// The dates only match for an annotated tag created the same day: a lightweight tag gets the commit date.
+    #[clap(long, env = "CONVCO_TAG_UNRELEASED")]
+    pub tag_unreleased: bool,
     /// Path to write the changelog to.
     #[clap(short, long, default_value = "-", env = "CONVCO_OUTPUT")]
     pub output: PathBuf,

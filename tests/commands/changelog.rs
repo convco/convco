@@ -674,6 +674,157 @@ fn heading_levels_use_current_version_patch_status() -> Result<(), Box<dyn std::
     Ok(())
 }
 
+fn convco_stdout(repo: &Path, args: &[&str]) -> Result<String, Box<dyn std::error::Error>> {
+    let output = Command::cargo_bin("convco")?
+        .current_dir(repo)
+        .args(args)
+        .output()?;
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    Ok(String::from_utf8(output.stdout)?)
+}
+
+#[test]
+fn tag_unreleased_matches_changelog_after_tagging() -> Result<(), Box<dyn std::error::Error>> {
+    let temp = setup_repo_with_version_tags()?;
+    let repo = temp.path();
+    git(
+        repo,
+        &[
+            "remote",
+            "add",
+            "origin",
+            "https://github.com/acme/demo.git",
+        ],
+    )?;
+
+    // the version gets the date of tagging, not the one of the release commit
+    let output = StdCommand::new("git")
+        .args(["commit", "--allow-empty", "-m", "chore: release v4.0.0"])
+        .env("GIT_AUTHOR_DATE", "2001-02-03T04:05:06Z")
+        .env("GIT_COMMITTER_DATE", "2001-02-03T04:05:06Z")
+        .current_dir(repo)
+        .output()?;
+    assert!(output.status.success());
+
+    let before = convco_stdout(
+        repo,
+        &["changelog", "--unreleased", "4.0.0", "--tag-unreleased"],
+    )?;
+
+    git(repo, &["tag", "-a", "v4.0.0", "-m", "v4.0.0"])?;
+
+    let after = convco_stdout(repo, &["changelog"])?;
+
+    assert_eq!(before, after);
+    assert!(after.contains("compare/v3.0.0...v4.0.0"), "got:\n{after}");
+
+    Ok(())
+}
+
+/// Asserts that `changelog <args> --unreleased <version> --tag-unreleased` renders the same
+/// changelog as `changelog <args>` after tagging HEAD with `version`.
+fn assert_tag_unreleased_with_max_args_matches_after_tagging(
+    args: &[&str],
+    version: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let temp = tempdir()?;
+    let repo = temp.path();
+
+    git(repo, &["init"])?;
+    git(repo, &["config", "user.name", "Convco Test"])?;
+    git(repo, &["config", "user.email", "test@example.com"])?;
+    git(
+        repo,
+        &["commit", "--allow-empty", "-m", "feat: minor feature"],
+    )?;
+    git(repo, &["tag", "v1.1.0"])?;
+    git(repo, &["commit", "--allow-empty", "-m", "fix: patch fix"])?;
+    git(repo, &["tag", "v1.2.2"])?;
+    git(
+        repo,
+        &["commit", "--allow-empty", "-m", "feat: unreleased feature"],
+    )?;
+
+    let before = convco_stdout(
+        repo,
+        &[
+            ["changelog"].as_slice(),
+            args,
+            &["--unreleased", version, "--tag-unreleased"],
+        ]
+        .concat(),
+    )?;
+
+    let tag = format!("v{version}");
+    git(repo, &["tag", "-a", &tag, "-m", &tag])?;
+
+    let after = convco_stdout(repo, &[["changelog"].as_slice(), args].concat())?;
+
+    assert_eq!(before, after);
+
+    Ok(())
+}
+
+#[test]
+fn tag_unreleased_counts_unreleased_version_for_max_majors(
+) -> Result<(), Box<dyn std::error::Error>> {
+    assert_tag_unreleased_with_max_args_matches_after_tagging(&["--max-majors", "1"], "2.0.0")
+}
+
+#[test]
+fn tag_unreleased_counts_unreleased_version_for_max_minors(
+) -> Result<(), Box<dyn std::error::Error>> {
+    assert_tag_unreleased_with_max_args_matches_after_tagging(&["--max-minors", "1"], "1.3.0")
+}
+
+#[test]
+fn tag_unreleased_counts_unreleased_version_for_max_patches(
+) -> Result<(), Box<dyn std::error::Error>> {
+    assert_tag_unreleased_with_max_args_matches_after_tagging(&["--max-patches", "1"], "1.2.3")
+}
+
+#[test]
+fn tag_unreleased_counts_unreleased_version_for_max_versions(
+) -> Result<(), Box<dyn std::error::Error>> {
+    assert_tag_unreleased_with_max_args_matches_after_tagging(&["--max-versions", "1"], "1.3.0")
+}
+
+#[test]
+fn tag_unreleased_requires_version_at_head() -> Result<(), Box<dyn std::error::Error>> {
+    let temp = setup_repo_with_version_tags()?;
+    let repo = temp.path();
+
+    let output = run_convco_command(&["changelog", "--tag-unreleased"], Some(repo), false, "")?;
+    assert!(
+        output.contains("--tag-unreleased requires a version as --unreleased"),
+        "got:\n{output}"
+    );
+
+    let output = run_convco_command(
+        &[
+            "changelog",
+            "--unreleased",
+            "4.0.0",
+            "--tag-unreleased",
+            "HEAD~1",
+        ],
+        Some(repo),
+        false,
+        "",
+    )?;
+    assert!(
+        output.contains("--tag-unreleased requires HEAD as revision"),
+        "got:\n{output}"
+    );
+
+    Ok(())
+}
+
 #[test]
 fn max_versions_limits_rendered_sections() -> Result<(), Box<dyn std::error::Error>> {
     let temp = setup_repo_with_version_tags()?;

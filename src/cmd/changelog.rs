@@ -38,6 +38,8 @@ struct Rev<C> {
 struct Unreleased {
     str: String,
     version: Option<VersionTag>,
+    /// Render the unreleased commits as if HEAD was tagged today with `version`.
+    tagged: bool,
 }
 
 /// Transforms a range of commits to pass them to the changelog writer.
@@ -74,20 +76,24 @@ impl<'a, R: Repo<'a>> ChangeLogTransformer<'a, R> {
                 Ok(version) => Unreleased {
                     str: unreleased,
                     version: Some(VersionTag::Semver(version)),
+                    tagged: false,
                 },
                 _ => Unreleased {
                     str: unreleased,
                     version: None,
+                    tagged: false,
                 },
             },
             VersionScheme::Calver(format) => match format.parse_version(&unreleased) {
                 Some(version) => Unreleased {
                     str: unreleased,
                     version: Some(VersionTag::Calver(version)),
+                    tagged: false,
                 },
                 _ => Unreleased {
                     str: unreleased,
                     version: None,
+                    tagged: false,
                 },
             },
         };
@@ -139,10 +145,24 @@ impl<'a, R: Repo<'a>> ChangeLogTransformer<'a, R> {
         let revwalk = self.repo.revwalk(revwalk_options)?;
         let mut commits: HashMap<&str, Vec<CommitContext>> = HashMap::new();
         let mut notes: HashMap<String, Vec<Note>> = HashMap::new();
-        let version_date = self
-            .repo
-            .revision_time(&to_rev.tag, to_rev.commit.as_ref().unwrap())?
-            .date();
+        // the tag the unreleased commits will get, see --tag-unreleased
+        let unreleased_tag = match &self.unreleased.version {
+            Some(version)
+                if self.unreleased.tagged
+                    && to_rev.version.is_none()
+                    && to_rev.version_label.is_none() =>
+            {
+                Some(format!("{}{}", self.prefix, version))
+            }
+            _ => None,
+        };
+        let version_date = match unreleased_tag {
+            Some(_) => jiff::Zoned::now().date(),
+            None => self
+                .repo
+                .revision_time(&to_rev.tag, to_rev.commit.as_ref().unwrap())?
+                .date(),
+        };
         let Config {
             host,
             owner,
@@ -232,7 +252,7 @@ impl<'a, R: Repo<'a>> ChangeLogTransformer<'a, R> {
             commit_groups,
             note_groups,
             previous_tag: from_rev.tag,
-            current_tag: to_rev.tag.into(),
+            current_tag: unreleased_tag.unwrap_or(to_rev.tag).into(),
             host: host.to_owned(),
             owner: owner.to_owned(),
             repository: repository.to_owned(),
@@ -333,7 +353,7 @@ impl ChangelogCommand {
                 .as_deref()
                 .unwrap_or(config.calver_format.as_str()),
         )?;
-        let transformer = ChangeLogTransformer::new(
+        let mut transformer = ChangeLogTransformer::new(
             &config,
             self.include_hidden_sections,
             &repo,
@@ -342,6 +362,21 @@ impl ChangelogCommand {
             &self.prefix,
             &version_scheme,
         )?;
+        if self.tag_unreleased {
+            transformer.unreleased.tagged = true;
+            if transformer.unreleased.version.is_none() {
+                anyhow::bail!(
+                    "--tag-unreleased requires a version as --unreleased, got {}",
+                    self.unreleased
+                );
+            }
+            if rev_high_label.is_some() {
+                anyhow::bail!(
+                    "--tag-unreleased requires HEAD as revision, got {}",
+                    self.rev
+                );
+            }
+        }
         let mut versions = repo.version_tags(&self.prefix, &version_scheme)?;
         if self.ignore_prereleases {
             versions.retain(|(version, _)| !version.is_prerelease());
@@ -369,13 +404,24 @@ impl ChangelogCommand {
                 // Filter version tags to those within the range:
                 // - version > tag_low.version (strictly above the lower boundary tag)
                 // - version <= tag_high.version (up to and including the upper boundary tag)
-                let mut version_iter: Box<dyn Iterator<Item = (VersionTag, _)>> =
-                    Box::new(versions.into_iter().filter(|(version, _)| {
-                        version <= &tag_high.0
-                            && tag_low
-                                .as_ref()
-                                .is_none_or(|(low_ver, _)| version > low_ver)
-                    }));
+                // with --tag-unreleased, the unreleased version counts for the --max-* limits
+                let unreleased_version = transformer
+                    .unreleased
+                    .version
+                    .clone()
+                    .filter(|_| self.tag_unreleased && rev_high.id() != tag_high.1.id());
+                let mut version_iter: Box<dyn Iterator<Item = (VersionTag, _)>> = Box::new(
+                    unreleased_version
+                        .clone()
+                        .map(|version| (version, rev_high.clone()))
+                        .into_iter()
+                        .chain(versions.into_iter().filter(|(version, _)| {
+                            version <= &tag_high.0
+                                && tag_low
+                                    .as_ref()
+                                    .is_none_or(|(low_ver, _)| version > low_ver)
+                        })),
+                );
                 if self.max_majors != u64::MAX {
                     version_iter = Box::new(version_iter.max_majors_iter(self.max_majors));
                 }
@@ -385,7 +431,9 @@ impl ChangelogCommand {
                 if self.max_patches != u64::MAX {
                     version_iter = Box::new(version_iter.max_patches_iter(self.max_patches));
                 }
-                let version_data: Vec<(_, _)> = version_iter.collect::<Vec<_>>();
+                let version_data: Vec<(_, _)> = version_iter
+                    .skip(unreleased_version.is_some() as usize)
+                    .collect::<Vec<_>>();
 
                 let version_revs: Vec<Rev<_>> = version_data
                     .into_iter()
