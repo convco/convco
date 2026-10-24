@@ -170,6 +170,21 @@ convco changelog --paths 'src,:(exclude)src/generated'
 convco changelog --paths src --paths ':(exclude)src/generated'
 ```
 
+Commit the changelog of a release before tagging it:
+
+```sh
+convco changelog --unreleased 1.2.0 --tag-unreleased > CHANGELOG.md
+```
+
+The unreleased commits are rendered as if HEAD was already tagged `v1.2.0` today,
+so the result is the same as running `convco changelog` on the tag later on the same day.
+
+This only holds for an annotated tag (`git tag -a`), whose date is the day of tagging.
+A lightweight tag has no date of its own: the version gets the committer date of the tagged commit,
+so the dates differ if HEAD was not committed today.
+
+The dates also only match if the changelog and the tag are created in the same time zone.
+
 ### Check
 
 Check a range of revisions for compliance.
