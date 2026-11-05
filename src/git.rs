@@ -52,6 +52,11 @@ pub trait Repo<'repo>: Sized {
 
     /// Walk the commits reachable from `to_rev`, leaving out `from_rev` and all its ancestors.
     ///
+    /// All backends return the same order, because it decides the order of the changelog: a commit
+    /// comes after its children, and the next commit is the newest one by committer date of those
+    /// discovered so far. Commits of the same second stay in the order they were discovered, with
+    /// the parents of a commit discovered first parent first.
+    ///
     /// With git2, ancestors of `from_rev` can be returned if they are much newer than `from_rev`.
     fn revwalk(
         &'repo self,
