@@ -107,7 +107,8 @@ impl<'repo> Repo<'repo> for gix::Repository {
                 }),
         );
         if options.no_merge_commits {
-            revwalk = Box::new(revwalk.filter(move |(info, _)| info.parent_ids.len() <= 1));
+            // Not `info.parent_ids`, which only has the first parent when following first parents.
+            revwalk = Box::new(revwalk.filter(|(_, commit)| commit.parent_ids().count() <= 1));
         }
         if !paths.is_empty() {
             let mut pathspec = self

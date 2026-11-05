@@ -992,3 +992,40 @@ fn merges_with_first_parent_skips_branch_commits() -> Result<(), Box<dyn std::er
 
     Ok(())
 }
+
+#[test]
+fn first_parent_leaves_out_merge_commits() -> Result<(), Box<dyn std::error::Error>> {
+    let temp = setup_repo_with_merge_commit("feat: merged feature", "feat: branch commit")?;
+    let repo = temp.path();
+
+    let output = run_convco_command(
+        &["changelog", "--first-parent", "--no-links"],
+        Some(repo),
+        true,
+        "",
+    )?;
+
+    assert!(output.contains("base"), "got:\n{output}");
+    assert!(!output.contains("branch commit"), "got:\n{output}");
+    assert!(!output.contains("merged feature"), "got:\n{output}");
+
+    Ok(())
+}
+
+#[test]
+fn first_parent_with_merges_keeps_merge_commits() -> Result<(), Box<dyn std::error::Error>> {
+    let temp = setup_repo_with_merge_commit("feat: merged feature", "feat: branch commit")?;
+    let repo = temp.path();
+
+    let output = run_convco_command(
+        &["changelog", "--first-parent", "--merges", "--no-links"],
+        Some(repo),
+        true,
+        "",
+    )?;
+
+    assert!(!output.contains("branch commit"), "got:\n{output}");
+    assert!(output.contains("merged feature"), "got:\n{output}");
+
+    Ok(())
+}
