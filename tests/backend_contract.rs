@@ -495,6 +495,169 @@ fn revwalk_subjects(repo: &Path, from_rev: Option<&str>, first_parent: bool) -> 
     })
 }
 
+#[test]
+fn revwalk_orders_branches_by_committer_date_newest_first() {
+    let temp = setup_repo();
+    let repo = temp.path();
+
+    commit_at(
+        repo,
+        "chore: base",
+        "2026-01-01T00:00:00Z",
+        "2026-01-01T00:00:00Z",
+    );
+    git(repo, &["tag", "v1.0.0"]);
+    git(repo, &["branch", "feature"]);
+    // the author dates are the other way around: they must not decide the order
+    commit_at(
+        repo,
+        "fix: first parent",
+        "2026-01-02T00:00:00Z",
+        "2027-01-01T00:00:00Z",
+    );
+    git(repo, &["checkout", "feature"]);
+    commit_at(
+        repo,
+        "fix: second parent",
+        "2026-01-03T00:00:00Z",
+        "2025-01-01T00:00:00Z",
+    );
+    git(repo, &["checkout", "-"]);
+    merge_at(repo, &["feature"], "2026-01-04T00:00:00Z");
+
+    assert_eq!(
+        revwalk_subjects(repo, Some("v1.0.0"), false),
+        ["chore: merge", "fix: second parent", "fix: first parent"]
+    );
+}
+
+#[test]
+fn revwalk_orders_an_old_commit_merged_late_by_its_date() {
+    let temp = setup_repo();
+    let repo = temp.path();
+
+    commit_at(
+        repo,
+        "chore: base",
+        "2025-10-01T00:00:00Z",
+        "2025-10-01T00:00:00Z",
+    );
+    git(repo, &["tag", "v1.0.0"]);
+    git(repo, &["branch", "bump"]);
+    git(repo, &["branch", "old"]);
+    git(repo, &["checkout", "bump"]);
+    commit_at(
+        repo,
+        "fix: bump",
+        "2025-10-29T15:00:00Z",
+        "2025-10-29T15:00:00Z",
+    );
+    git(repo, &["checkout", "old"]);
+    commit_at(
+        repo,
+        "fix: old",
+        "2025-10-27T21:00:00Z",
+        "2025-10-13T15:00:00Z",
+    );
+    git(repo, &["checkout", "-"]);
+    git(repo, &["checkout", "-"]);
+    git(repo, &["checkout", "-"]);
+    merge_at(repo, &["bump"], "2025-10-29T18:00:00Z");
+    merge_at(repo, &["old"], "2026-01-15T16:00:00Z");
+    git(repo, &["checkout", "-b", "jwt"]);
+    commit_at(
+        repo,
+        "fix: jwt one",
+        "2026-01-15T17:00:00Z",
+        "2026-01-15T17:00:00Z",
+    );
+    commit_at(
+        repo,
+        "fix: jwt two",
+        "2026-01-15T17:30:00Z",
+        "2026-01-15T17:30:00Z",
+    );
+    git(repo, &["checkout", "-"]);
+    merge_at(repo, &["jwt"], "2026-01-16T09:00:00Z");
+
+    let subjects = revwalk_subjects(repo, Some("v1.0.0"), false);
+    let fixes = subjects
+        .iter()
+        .filter(|subject| subject.starts_with("fix"))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        fixes,
+        ["fix: jwt two", "fix: jwt one", "fix: bump", "fix: old"]
+    );
+}
+
+#[test]
+fn revwalk_keeps_parent_order_for_commits_of_the_same_second() {
+    const DATE: &str = "2026-01-01T00:00:00Z";
+    let temp = setup_repo();
+    let repo = temp.path();
+
+    commit_at(repo, "chore: base", DATE, DATE);
+    git(repo, &["tag", "v1.0.0"]);
+    let branches = ["one", "two", "three", "four", "five"];
+    for branch in branches {
+        git(repo, &["checkout", "-b", branch, "v1.0.0"]);
+        commit_at(repo, &format!("fix: {branch}"), DATE, DATE);
+    }
+    git(repo, &["checkout", "-b", "release", "v1.0.0"]);
+    commit_at(repo, "fix: release", DATE, DATE);
+    merge_at(repo, &branches, DATE);
+
+    assert_eq!(
+        revwalk_subjects(repo, Some("v1.0.0"), false),
+        [
+            "chore: merge",
+            "fix: release",
+            "fix: one",
+            "fix: two",
+            "fix: three",
+            "fix: four",
+            "fix: five",
+        ]
+    );
+}
+
+#[test]
+fn revwalk_returns_children_before_parents_when_the_clock_is_skewed() {
+    let temp = setup_repo();
+    let repo = temp.path();
+
+    commit_at(
+        repo,
+        "chore: base",
+        "2026-01-01T00:00:00Z",
+        "2026-01-01T00:00:00Z",
+    );
+    commit_at(
+        repo,
+        "fix: first",
+        "2026-01-05T00:00:00Z",
+        "2026-01-05T00:00:00Z",
+    );
+    commit_at(
+        repo,
+        "fix: second",
+        "2026-01-02T00:00:00Z",
+        "2026-01-02T00:00:00Z",
+    );
+    commit_at(
+        repo,
+        "fix: third",
+        "2026-01-03T00:00:00Z",
+        "2026-01-03T00:00:00Z",
+    );
+
+    assert_eq!(
+        revwalk_subjects(repo, None, false),
+        ["fix: third", "fix: second", "fix: first", "chore: base"]
+    );
+}
+
 /// `feature` forks before the tag and is merged after it:
 ///
 /// ```text

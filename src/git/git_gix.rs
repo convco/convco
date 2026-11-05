@@ -1,4 +1,9 @@
-use std::{borrow::Cow, collections::HashSet, convert::Infallible};
+use std::{
+    borrow::Cow,
+    cmp::Reverse,
+    collections::{BinaryHeap, HashMap, HashSet},
+    convert::Infallible,
+};
 
 use bstr::ByteSlice;
 use gix::{
@@ -98,20 +103,26 @@ impl<'repo> Repo<'repo> for gix::Repository {
         let tips = (!hidden.contains(&commit)).then_some(commit);
         let mut platform = self
             .rev_walk(tips)
-            .sorting(gix::revision::walk::Sorting::BreadthFirst);
+            .sorting(gix::revision::walk::Sorting::ByCommitTime(
+                gix::traverse::commit::simple::CommitTimeOrder::NewestFirst,
+            ));
         if options.first_parent {
             platform = platform.first_parent_only();
         }
         let paths = options.paths;
-        let mut revwalk: Box<dyn Iterator<Item = _>> = Box::new(
-            platform
-                .selected(move |oid| !hidden.contains(oid))?
-                .flatten()
-                .flat_map(move |info| {
-                    let commit = info.object().ok()?;
-                    Some((info, commit))
-                }),
-        );
+        let walk = platform
+            .selected(move |oid| !hidden.contains(oid))?
+            .flatten();
+        // Following only first parents gives a single line of history, which is already in order.
+        let walk: Box<dyn Iterator<Item = _>> = if options.first_parent {
+            Box::new(walk)
+        } else {
+            Box::new(newest_first(commit, walk).into_iter())
+        };
+        let mut revwalk: Box<dyn Iterator<Item = _>> = Box::new(walk.flat_map(move |info| {
+            let commit = info.object().ok()?;
+            Some((info, commit))
+        }));
         if options.no_merge_commits {
             // Not `info.parent_ids`, which only has the first parent when following first parents.
             revwalk = Box::new(revwalk.filter(|(_, commit)| commit.parent_ids().count() <= 1));
@@ -241,6 +252,40 @@ impl<'repo> Repo<'repo> for gix::Repository {
             commit.commit_time()
         }
     }
+}
+
+/// Put the commits of a walk from `tip` in the order documented on [`Repo::revwalk`].
+///
+/// The commit time sorting of gix agrees with it except for commits of the same second, which it
+/// returns in an arbitrary order.
+fn newest_first<'repo>(
+    tip: gix::ObjectId,
+    walk: impl Iterator<Item = gix::revision::walk::Info<'repo>>,
+) -> Vec<gix::revision::walk::Info<'repo>> {
+    let mut commits: HashMap<_, _> = walk.map(|info| (info.id, info)).collect();
+    let mut sorted = Vec::with_capacity(commits.len());
+    let mut queued = HashSet::from([tip]);
+    let mut queue = BinaryHeap::new();
+    let mut discovered = 0usize;
+    if let Some(info) = commits.get(&tip) {
+        queue.push((info.commit_time(), Reverse(discovered), tip));
+    }
+    while let Some((_, _, id)) = queue.pop() {
+        let Some(info) = commits.remove(&id) else {
+            continue;
+        };
+        for parent in &info.parent_ids {
+            // Parents that are not part of the walk are hidden.
+            if let Some(parent_info) = commits.get(parent) {
+                if queued.insert(*parent) {
+                    discovered += 1;
+                    queue.push((parent_info.commit_time(), Reverse(discovered), *parent));
+                }
+            }
+        }
+        sorted.push(info);
+    }
+    sorted
 }
 
 fn zoned_from_git_time(seconds: i64, offset_seconds: i32) -> Result<jiff::Zoned, ConvcoError> {
