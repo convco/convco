@@ -426,6 +426,263 @@ fn revwalk_messages(repo: &Path, paths: Vec<String>) -> Vec<String> {
     })
 }
 
+/// Create an empty commit with fixed dates, so a test decides how commits compare in time.
+fn commit_at(repo: &Path, message: &str, committer_date: &str, author_date: &str) {
+    let output = Command::new("git")
+        .args(["commit", "--allow-empty", "-m", message])
+        .env("GIT_COMMITTER_DATE", committer_date)
+        .env("GIT_AUTHOR_DATE", author_date)
+        .current_dir(repo)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "git commit failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+/// Merge `branches` into the current branch, which becomes the first parent.
+fn merge_at(repo: &Path, branches: &[&str], date: &str) {
+    let output = Command::new("git")
+        .args(["merge", "--no-ff", "-m", "chore: merge"])
+        .args(branches)
+        .env("GIT_COMMITTER_DATE", date)
+        .env("GIT_AUTHOR_DATE", date)
+        .current_dir(repo)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "git merge failed: {}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+/// The subjects of the commits a walk from HEAD returns, in walk order.
+fn revwalk_subjects(repo: &Path, from_rev: Option<&str>, first_parent: bool) -> Vec<String> {
+    with_repo(repo, || {
+        let repo = open_repo().unwrap();
+        let head = Repo::revparse_single(&repo, "HEAD").unwrap();
+        let from_rev = from_rev
+            .map(|rev| vec![Repo::revparse_single(&repo, rev).unwrap()])
+            .unwrap_or_default();
+        let parser = CommitParser::builder().build();
+        let commits = Repo::revwalk(
+            &repo,
+            RevWalkOptions {
+                from_rev,
+                to_rev: head,
+                first_parent,
+                no_merge_commits: false,
+                no_revert_commits: false,
+                paths: vec![],
+                parser: &parser,
+            },
+        )
+        .unwrap()
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap();
+
+        commits
+            .iter()
+            .map(|commit| {
+                let message = commit.commit.commit_message().unwrap();
+                message.lines().next().unwrap().to_owned()
+            })
+            .collect()
+    })
+}
+
+/// `feature` forks before the tag and is merged after it:
+///
+/// ```text
+/// base --- released --- tagged (v1.0.0) --- merge
+///             \                            /
+///              new ------------------------
+/// ```
+fn setup_repo_with_branch_forked_before_tag() -> TempDir {
+    let temp = setup_repo();
+    let repo = temp.path();
+
+    commit_at(
+        repo,
+        "chore: base",
+        "2026-01-01T00:00:00Z",
+        "2026-01-01T00:00:00Z",
+    );
+    commit_at(
+        repo,
+        "fix: released",
+        "2026-01-02T00:00:00Z",
+        "2026-01-02T00:00:00Z",
+    );
+    git(repo, &["branch", "feature"]);
+    commit_at(
+        repo,
+        "fix: tagged",
+        "2026-01-03T00:00:00Z",
+        "2026-01-03T00:00:00Z",
+    );
+    git(repo, &["tag", "v1.0.0"]);
+    git(repo, &["checkout", "feature"]);
+    commit_at(
+        repo,
+        "fix: new",
+        "2026-01-04T00:00:00Z",
+        "2026-01-04T00:00:00Z",
+    );
+    git(repo, &["checkout", "-"]);
+    merge_at(repo, &["feature"], "2026-01-05T00:00:00Z");
+
+    temp
+}
+
+#[test]
+fn revwalk_hides_all_ancestors_of_from_rev() {
+    let temp = setup_repo_with_branch_forked_before_tag();
+
+    assert_eq!(
+        revwalk_subjects(temp.path(), Some("v1.0.0"), false),
+        ["chore: merge", "fix: new"]
+    );
+}
+
+/// HEAD merges the tag and two of its ancestors, which only the walk from the tag can tell.
+fn setup_repo_merging_ancestors_of_tag(dates: [&str; 5]) -> TempDir {
+    let temp = setup_repo();
+    let repo = temp.path();
+
+    commit_at(repo, "chore: base", dates[0], dates[0]);
+    commit_at(repo, "fix: older", dates[1], dates[1]);
+    git(repo, &["branch", "older"]);
+    commit_at(repo, "fix: newer", dates[2], dates[2]);
+    git(repo, &["branch", "newer"]);
+    // the tag is further from the merged ancestors than HEAD is
+    for _ in 0..6 {
+        commit_at(repo, "chore: between", dates[3], dates[3]);
+    }
+    commit_at(repo, "chore: tagged", dates[3], dates[3]);
+    git(repo, &["tag", "v1.0.0"]);
+
+    let parent = |rev: &str| {
+        let output = Command::new("git")
+            .args(["rev-parse", rev])
+            .current_dir(repo)
+            .output()
+            .unwrap();
+        String::from_utf8(output.stdout).unwrap().trim().to_owned()
+    };
+    let output = Command::new("git")
+        .args(["commit-tree", "HEAD^{tree}", "-m", "fix: merge"])
+        .args(["-p", &parent("v1.0.0")])
+        .args(["-p", &parent("older")])
+        .args(["-p", &parent("newer")])
+        .env("GIT_COMMITTER_DATE", dates[4])
+        .env("GIT_AUTHOR_DATE", dates[4])
+        .current_dir(repo)
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let merge = String::from_utf8(output.stdout).unwrap();
+    git(repo, &["reset", "--hard", merge.trim()]);
+
+    temp
+}
+
+#[test]
+fn revwalk_hides_ancestors_of_from_rev_for_commits_of_the_same_second() {
+    const DATE: &str = "2026-01-01T00:00:00Z";
+    let temp = setup_repo_merging_ancestors_of_tag([DATE; 5]);
+
+    assert_eq!(
+        revwalk_subjects(temp.path(), Some("v1.0.0"), false),
+        ["fix: merge"]
+    );
+}
+
+#[test]
+#[cfg_attr(
+    feature = "git2",
+    ignore = "libgit2 stops hiding early when ancestors are much newer than from_rev"
+)]
+fn revwalk_hides_ancestors_of_from_rev_when_the_clock_is_skewed() {
+    let temp = setup_repo_merging_ancestors_of_tag([
+        "2026-01-05T00:00:00Z",
+        "2026-01-04T00:00:00Z",
+        "2026-01-06T00:00:00Z",
+        "2026-01-01T00:00:00Z",
+        "2026-01-02T00:00:00Z",
+    ]);
+
+    assert_eq!(
+        revwalk_subjects(temp.path(), Some("v1.0.0"), false),
+        ["fix: merge"]
+    );
+}
+
+#[test]
+fn revwalk_is_empty_when_to_rev_is_an_ancestor_of_from_rev() {
+    let temp = setup_repo();
+    let repo = temp.path();
+
+    git(repo, &["commit", "--allow-empty", "-m", "fix: older"]);
+    git(repo, &["tag", "older"]);
+    git(repo, &["commit", "--allow-empty", "-m", "fix: newer"]);
+    git(repo, &["tag", "newer"]);
+    git(repo, &["reset", "--hard", "older"]);
+
+    assert!(revwalk_subjects(repo, Some("newer"), false).is_empty());
+    assert!(revwalk_subjects(repo, Some("newer"), true).is_empty());
+    assert!(revwalk_subjects(repo, Some("HEAD"), false).is_empty());
+}
+
+#[test]
+fn revwalk_with_first_parent_stops_at_from_rev() {
+    let temp = setup_repo_with_branch_forked_before_tag();
+
+    assert_eq!(
+        revwalk_subjects(temp.path(), Some("v1.0.0"), true),
+        ["chore: merge"]
+    );
+}
+
+#[test]
+fn revwalk_with_first_parent_hides_ancestors_of_a_tag_on_a_side_branch() {
+    let temp = setup_repo();
+    let repo = temp.path();
+
+    commit_at(
+        repo,
+        "chore: base",
+        "2026-01-01T00:00:00Z",
+        "2026-01-01T00:00:00Z",
+    );
+    git(repo, &["branch", "release"]);
+    commit_at(
+        repo,
+        "fix: on main",
+        "2026-01-02T00:00:00Z",
+        "2026-01-02T00:00:00Z",
+    );
+    git(repo, &["checkout", "release"]);
+    commit_at(
+        repo,
+        "fix: on release",
+        "2026-01-03T00:00:00Z",
+        "2026-01-03T00:00:00Z",
+    );
+    git(repo, &["tag", "v1.0.0"]);
+    git(repo, &["checkout", "-"]);
+    merge_at(repo, &["release"], "2026-01-04T00:00:00Z");
+
+    assert_eq!(
+        revwalk_subjects(repo, Some("v1.0.0"), true),
+        ["chore: merge", "fix: on main"]
+    );
+}
+
 #[test]
 fn revwalk_supports_exclude_only_pathspecs() {
     let temp = setup_repo_with_pathspec_commits();

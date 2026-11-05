@@ -994,6 +994,32 @@ fn merges_with_first_parent_skips_branch_commits() -> Result<(), Box<dyn std::er
 }
 
 #[test]
+fn leaves_out_released_commits_of_a_branch_forked_before_the_tag(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let temp = setup_repo_with_commits(&["fix: already shipped"])?;
+    let repo = temp.path();
+    git(repo, &["branch", "feature"])?;
+    git(repo, &["commit", "--allow-empty", "-m", "fix: tagged"])?;
+    git(repo, &["tag", "v1.0.0"])?;
+    git(repo, &["checkout", "feature"])?;
+    git(repo, &["commit", "--allow-empty", "-m", "fix: brand new"])?;
+    git(repo, &["checkout", "-"])?;
+    git(repo, &["merge", "--no-ff", "--no-edit", "feature"])?;
+
+    let output = run_convco_command(
+        &["changelog", "--no-links", "--max-versions", "1"],
+        Some(repo),
+        true,
+        "",
+    )?;
+
+    assert!(output.contains("brand new"), "got:\n{output}");
+    assert!(!output.contains("already shipped"), "got:\n{output}");
+
+    Ok(())
+}
+
+#[test]
 fn first_parent_leaves_out_merge_commits() -> Result<(), Box<dyn std::error::Error>> {
     let temp = setup_repo_with_merge_commit("feat: merged feature", "feat: branch commit")?;
     let repo = temp.path();
