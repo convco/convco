@@ -88,8 +88,14 @@ impl<'repo> Repo<'repo> for gix::Repository {
         options: RevWalkOptions<'repo, Self::CommitTrait>,
     ) -> Result<RevWalkIter<'repo, Self::CommitTrait>, ConvcoError> {
         let commit = options.to_rev.id;
-        let tips = [commit];
-        let boundary: Vec<_> = options.from_rev.iter().map(|from| from.id).collect();
+        // `with_hidden` relies on commit times and misses ancestors if those are equal or skewed.
+        let hidden = self
+            .rev_walk(options.from_rev.iter().map(|from| from.id))
+            .all()?
+            .flatten()
+            .map(|info| info.id)
+            .collect::<HashSet<_>>();
+        let tips = (!hidden.contains(&commit)).then_some(commit);
         let mut platform = self
             .rev_walk(tips)
             .sorting(gix::revision::walk::Sorting::BreadthFirst);
@@ -99,7 +105,7 @@ impl<'repo> Repo<'repo> for gix::Repository {
         let paths = options.paths;
         let mut revwalk: Box<dyn Iterator<Item = _>> = Box::new(
             platform
-                .selected(move |oid| !boundary.iter().any(|rev| *rev == oid))?
+                .selected(move |oid| !hidden.contains(oid))?
                 .flatten()
                 .flat_map(move |info| {
                     let commit = info.object().ok()?;

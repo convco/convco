@@ -50,6 +50,9 @@ pub trait Repo<'repo>: Sized {
         versions: &[(VersionTag, Self::CommitTrait)],
     ) -> Result<Option<(VersionTag, Self::CommitTrait)>, ConvcoError>;
 
+    /// Walk the commits reachable from `to_rev`, leaving out `from_rev` and all its ancestors.
+    ///
+    /// With git2, ancestors of `from_rev` can be returned if they are much newer than `from_rev`.
     fn revwalk(
         &'repo self,
         options: RevWalkOptions<'repo, Self::CommitTrait>,

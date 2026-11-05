@@ -842,3 +842,21 @@ fn calver_scheme_and_format_can_come_from_config_and_env() -> Result<(), Box<dyn
 
     Ok(())
 }
+
+#[test]
+fn bump_ignores_released_commits_of_a_branch_forked_before_the_tag(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let temp = setup_repo_with_commits(&["feat: released"])?;
+    let repo = temp.path();
+    git(repo, &["branch", "feature"])?;
+    git(repo, &["commit", "--allow-empty", "-m", "fix: tagged"])?;
+    git(repo, &["tag", "v1.0.0"])?;
+    git(repo, &["checkout", "feature"])?;
+    git(repo, &["commit", "--allow-empty", "-m", "fix: new"])?;
+    git(repo, &["checkout", "-"])?;
+    git(repo, &["merge", "--no-ff", "--no-edit", "feature"])?;
+
+    assert_version(repo, &["version", "--bump"], "1.0.1")?;
+
+    Ok(())
+}
