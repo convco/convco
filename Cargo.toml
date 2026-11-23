@@ -29,7 +29,7 @@ git2 = { version = "0.21.0", default-features = false, optional = true }
 gix = { version = "0.87.1", default-features = false, features = ["revision", "blob-diff", "sha1", "sha256"], optional = true }
 gix-hash = { version = "0.26.2", default-features = false, features = ["sha1", "sha256"], optional = true }
 handlebars = { version = "6.4.4", features = ["dir_source"] }
-jiff = { version = "0.2.35", features = ["serde"] }
+jiff = { version = "1.0.1", features = ["serde"] }
 regex = "1.13.1"
 semver = { version = "1.0.28", features = ["serde"] }
 serde = { version = "1.0.229", default-features = false, features = ["derive", "std"] }
